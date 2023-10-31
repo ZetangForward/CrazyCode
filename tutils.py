@@ -31,12 +31,22 @@ def sample_dict_items(dict_, n=3):
 
 
 def filter_jsonl_lst(lst: List[Dict], kws: List[str]=None):
-    """
+    '''
     
-    """
+    '''
     if kws is None:
         res = lst
         print_c("Warning: no filtering, return directly!")
     else:
         res = [dict([(k, item.get(k)) for k in kws]) for item in lst]
+    return res
+
+
+def merge_dicts(dict1: Dict, dict2: Dict, key: str=None):
+    '''
+    Merge two dicts with the same key value
+    '''
+    res = {}
+    for item in dicts:
+        res.update(item[key])
     return res
