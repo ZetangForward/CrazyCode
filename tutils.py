@@ -40,12 +40,3 @@ def filter_jsonl_lst(lst: List[Dict], kws: List[str]=None):
     else:
         res = [dict([(k, item.get(k)) for k in kws]) for item in lst]
     return res
-
-
-def build_dict_from_jsonl_lst(lst: List[Dict], kws: str=None):
-    """
-    
-    """
-    assert kws is not None, print_c("kws must not None!", "blue")
-    res = dict([(kws, item[kws]) for item in lst])
-    return res
