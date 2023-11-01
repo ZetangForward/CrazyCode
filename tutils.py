@@ -4,7 +4,7 @@ from termcolor import colored
 from typing import List, Dict
 
 
-print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'red'))  
+print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'green'))  
 
 
 def count_words(s: str):
