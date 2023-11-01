@@ -7,6 +7,12 @@ from typing import List, Dict
 print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'red'))  
 
 
+def count_words(s: str):
+    '''
+    Count words in a string
+    '''
+    return len(s.split())   
+
 def print_c(s, c='green'):
     print(colored(s, color=c))
 
@@ -18,6 +24,15 @@ def load_jsonl(file_path, return_format="list"):
         return res
     else:
         pass
+    print_c("jsonl file loaded successfully!")
+
+
+def save_jsonl(lst: List[Dict], file_path):
+    with open(file_path, "w") as f:
+        for item in lst:
+            json.dumps(item, f)
+            f.write("\n")
+    print_c("jsonl file saved successfully!")
 
 
 def sample_dict_items(dict_, n=3):
