@@ -61,7 +61,4 @@ def merge_dicts(dict1: Dict, dict2: Dict, key: str=None):
     '''
     Merge two dicts with the same key value
     '''
-    res = {}
-    for item in dicts:
-        res.update(item[key])
-    return res
+    pass
