@@ -30,7 +30,7 @@ def load_jsonl(file_path, return_format="list"):
 def save_jsonl(lst: List[Dict], file_path):
     with open(file_path, "w") as f:
         for item in lst:
-            json.dumps(item, f)
+            json.dump(item, f)
             f.write("\n")
     print_c("jsonl file saved successfully!")
 
