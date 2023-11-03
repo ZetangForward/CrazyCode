@@ -10,6 +10,27 @@ import math
 print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'green'))  
 
 
+def split_file(file_path: json, output_dir, num_snaps=3):
+    
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print_c(f"{output_dir} not exist! --> Create output dir {output_dir}")
+    
+    content = load_jsonl(file_path)
+    
+    snap_length = len(content) // num_snaps + 1
+
+    new_content = []
+    for i in range(num_snaps):
+        new_content.append(content[i*snap_length:(i+1)*snap_length])
+    
+    origin_file_name = os.path.basename(file_path).split(".")[0]
+    for i, item in enumerate(new_content):
+        save_jsonl(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
+        
+    print_c(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
+
+
 def count_words(s: str):
     '''
     Count words in a string
@@ -19,6 +40,12 @@ def count_words(s: str):
 def print_c(s, c='green'):
     print(colored(s, color=c))
 
+
+def save_image(image, output_file=None):
+    '''
+    save images to output_file
+    '''
+    image.save(output_file)
 
 def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, output_file=None):
     '''
@@ -97,3 +124,4 @@ def merge_dicts(dict1: Dict, dict2: Dict, key: str=None):
     Merge two dicts with the same key value
     '''
     pass
+
