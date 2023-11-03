@@ -28,8 +28,6 @@ def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, outpu
     images = batch_images  
     n = len(images)  # 图像的数量  
     assert n == ncols * nrows, f"None match images: {n} != {ncols * nrows}"
-    # ncols = 5  # 设置每行显示的图像数量  
-    # nrows = n // ncols + (n % ncols > 0)  # 计算行数 
     
     # 计算figure的宽度和高度  
     fig_width = subplot_size * ncols  
@@ -48,7 +46,7 @@ def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, outpu
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
     
     if output_file is not None:
-        plt.savefig(output_file)
+        plt.savefig(output_file, bbox_inches='tight')
     else:
         plt.show()  
 
