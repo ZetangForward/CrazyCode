@@ -2,7 +2,10 @@ import json
 import os
 from termcolor import colored  
 from typing import List, Dict
-
+import matplotlib.pyplot as plt  
+import random 
+import time
+import math
 
 print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'green'))  
 
@@ -15,6 +18,40 @@ def count_words(s: str):
 
 def print_c(s, c='green'):
     print(colored(s, color=c))
+
+
+def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, output_file=None):
+    '''
+    Visualize a batch of images
+    '''
+    
+    images = batch_images  
+    n = len(images)  # 图像的数量  
+    assert n == ncols * nrows, f"None match images: {n} != {ncols * nrows}"
+    # ncols = 5  # 设置每行显示的图像数量  
+    # nrows = n // ncols + (n % ncols > 0)  # 计算行数 
+    
+    # 计算figure的宽度和高度  
+    fig_width = subplot_size * ncols  
+    fig_height = subplot_size * nrows  
+    
+    fig, axs = plt.subplots(nrows, ncols, figsize=(fig_width, fig_height)) 
+    
+    for i, (index, item) in enumerate(batch_images.items()):  
+        title, img = item[0], item[1]
+        ax = axs[i // ncols, i % ncols]  
+        ax.imshow(img)  
+        if title is not None:
+            ax.set_title(title)  # 设置子图标题  
+        ax.axis('off')  # 不显示坐标轴
+        
+    plt.subplots_adjust(hspace=0.05, wspace=0.05)
+    
+    if output_file is not None:
+        plt.savefig(output_file)
+    else:
+        plt.show()  
+
 
 
 def load_jsonl(file_path, return_format="list"):
