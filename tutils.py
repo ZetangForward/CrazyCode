@@ -10,6 +10,14 @@ import math
 print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'green'))  
 
 
+def count_png_files(directory, file_type=".png"):  
+    """
+    Quick count the number of png files in a directory
+    """
+    len_ = len([f for f in os.listdir(directory) if f.endswith(file_type)])
+    print_c(f"Total {len_} {file_type} files in {directory}")
+    return len_
+
 
 def random_sample_from_file(file_path, num_samples=10, output_file=None):
     '''
