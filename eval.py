@@ -28,12 +28,9 @@ def bleu(refs, cands):
     
     for i in range(1, 5):
         res = []
-        for ref,cand in zip(refs,cands):
-            # result["bleu-%d"%i] = "%.4f"%(nltk.translate.bleu_score.corpus_bleu([[r] for r in refs], cands, weights=tuple([1./i for j in range(i)]),smoothing_function=SmoothingFunction().method4))        
+        for ref,cand in zip(refs,cands):     
             res.append(sentence_bleu([ref], cand, smoothing_function=SmoothingFunction().method4,weights=tuple([1./i for j in range(i)])))
         result["bleu-%d"%i] = np.mean(res)
-    
-        # result["bleu-%d"%i] = "%.4f"%(nltk.translate.bleu_score.corpus_bleu([[r] for r in refs], cands))
     return result
 
 
