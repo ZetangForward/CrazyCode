@@ -10,6 +10,6 @@ while true; do
         # 如果GPU不空闲，打印当前时间并休眠3分钟  
         gpustat
         date  
-        sleep 180
+        sleep 30
     fi  
 done  
