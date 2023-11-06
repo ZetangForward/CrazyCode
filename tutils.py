@@ -7,7 +7,7 @@ import random
 import time
 import math
 
-print(colored('Load CrazyCode -- Road is under your feet, ZetangForward', 'green'))  
+print(colored('CrazyCode aleady loaded, status: >>> ready >>> ', 'green'))  
 
 
 def count_png_files(directory, file_type=".png"):  
