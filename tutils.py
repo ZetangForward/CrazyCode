@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import random 
 import time
 import math
+import pickle
 
 print(colored('CrazyCode aleady loaded, status: >>> ready <<<', 'green'))  
 
@@ -109,13 +110,20 @@ def load_jsonl(file_path, return_format="list"):
     print_c("jsonl file loaded successfully!")
 
 
-def save_jsonl(lst: List[Dict], file_path):
-    with open(file_path, "w") as f:
-        for item in lst:
-            json.dump(item, f)
-            f.write("\n")
-    print_c("jsonl file saved successfully!")
-
+def save_file(lst: List[Dict], file_path, file_type="jsonl"):
+    if file_type == "jsonl":
+        with open(file_path, "w") as f:
+            for item in lst:
+                json.dump(item, f)
+                f.write("\n")
+        print_c("jsonl file saved successfully!")
+    elif file_type == "pkl":
+        with open(file_path, "wb") as f:
+            pickle.dump(lst, f)
+        print_c("pkl file saved successfully!")
+    else:
+        raise ValueError(f"file_type {file_type} not supported!")
+    
 
 def sample_dict_items(dict_, n=3):
     print_c(f"sample {n} items from dict", 'green')
