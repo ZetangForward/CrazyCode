@@ -111,6 +111,11 @@ def load_jsonl(file_path, return_format="list"):
 
 
 def save_file(lst: List[Dict], file_path, file_type="jsonl"):
+    data_dir = os.path.dirname(file_path)
+    is not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        print_c(f"{data_dir} not exist! --> Create data dir {data_dir}")
+        
     if file_type == "jsonl":
         with open(file_path, "w") as f:
             for item in lst:
