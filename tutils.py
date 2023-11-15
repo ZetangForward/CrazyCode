@@ -110,25 +110,34 @@ def load_jsonl(file_path, return_format="list"):
     print_c("jsonl file loaded successfully!")
 
 
-def save_file(lst: List[Dict], file_path, file_type="jsonl"):
+def save_file(lst: List, file_path):
     data_dir = os.path.dirname(file_path)
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
         print_c(f"{data_dir} not exist! --> Create data dir {data_dir}")
-        
-    if file_type == "jsonl":
+    suffix_ = file_path.split(".")[-1]
+    
+    if suffix_ == "jsonl":
         with open(file_path, "w") as f:
             for item in lst:
                 json.dump(item, f)
                 f.write("\n")
         print_c("jsonl file saved successfully!")
-    elif file_type == "pkl":
+        
+    elif suffix_ == "pkl":
         with open(file_path, "wb") as f:
             pickle.dump(lst, f)
         print_c("pkl file saved successfully!")
+        
+    elif suffix_ == "txt":
+        with open(file_path, "w") as f:
+            for item in lst:
+                f.write(item + "\n")
+        print_c("txt file saved successfully!")
     else:
         raise ValueError(f"file_type {file_type} not supported!")
     
+    print_c(f"Save file to {file_path} | len: {len(lst)}")
 
 def sample_dict_items(dict_, n=3):
     print_c(f"sample {n} items from dict", 'green')
