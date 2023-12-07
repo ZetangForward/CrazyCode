@@ -12,6 +12,7 @@ import transformers
 import argparse
 import re
 import gc
+import fire
 from transformers import AutoTokenizer, T5ForConditionalGeneration,AutoModelForCausalLM,LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList
 # from transformers.generation.utils import top_k_top_p_filtering
 from termcolor import colored  
