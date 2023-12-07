@@ -13,18 +13,48 @@ import argparse
 import re
 import gc
 import fire
+import pytz
+import matplotlib.pyplot as plt  
 from transformers import AutoTokenizer, T5ForConditionalGeneration,AutoModelForCausalLM,LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList
 # from transformers.generation.utils import top_k_top_p_filtering
 from termcolor import colored  
 from typing import List, Dict
-import matplotlib.pyplot as plt  
+from datetime import datetime
+
+# Get the current time in UTC
+utc_now = datetime.utcnow()
+# Convert UTC time to Beijing time (UTC+8)
+beijing_tz = pytz.timezone('Asia/Shanghai')
+beijing_now = utc_now.replace(tzinfo=pytz.utc).astimezone(beijing_tz)
+beijing_time_str = beijing_now.strftime('%Y-%m-%d %H:%M:%S')
+
+print(colored('ZipCode package is already loaded, status: >>> ready <<<' + ' (Beijing time: ' + beijing_time_str + ')', 'cyan', 'blink'))
 
 
-print(colored('CrazyCode aleady loaded, status: >>> ready <<<', 'green'))  
-
-
-def print_c(s, c='green'):
-    print(colored(s, color=c))
+def print_c(s, c='green', *args, **kwargs):
+    """
+    灰色：'grey'
+    红色：'red'
+    绿色：'green'
+    黄色：'yellow'
+    蓝色：'blue'
+    洋红色：'magenta'
+    青色：'cyan'
+    白色：'white'
+    
+    高亮：'on_<color>'（例如 'on_red' 会使用红色背景）
+    加粗：'bold'
+    下划线：'underline'
+    闪烁：'blink'
+    反转：'reverse'
+    隐藏：'concealed'
+    
+    e.g., print(colored('Hello, World!', 'green', 'on_red', attrs=['blink']))
+    """
+    attributes = kwargs.pop('attrs', [])
+    kwargs.pop('color', None)  
+    # Pass 'attrs' as a keyword argument to 'colored'
+    print(colored(s, color=c, attrs=attributes))
 
 
 def top_k_top_p_sampling(logits: torch.FloatTensor, top_k: int = 0, top_p: float = 1.0, temperature: float = 0.7, filter_value: float = -float("Inf"), min_tokens_to_keep: int = 1, num_samples = 1):
@@ -68,15 +98,20 @@ def top_k_top_p_filtering(logits: torch.FloatTensor, top_k: int = 0, top_p: floa
     return logits
     
 
-def auto_load_hf_casual_models(model_name_or_path, device="auto"):
+def auto_load_hf_casual_models(model_name_or_path, torch_type="torch.float16", device="cpu"):
     print_c("automatically load hf casual inference models", "green")
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    
     if 'llama' in model_name_or_path.lower() or 'alpaca' in model_name_or_path.lower() or 'vicuna' in model_name_or_path.lower() or 'StableBeluga' in model_name_or_path:
-        model = LlamaForCausalLM.from_pretrained(model_name_or_path,device_map=device, torch_dtype=torch.bfloat16)
+        model = LlamaForCausalLM.from_pretrained(model_name_or_path,device_map=device, torch_dtype=torch_type)
+        tokenizer.pad_token_id = tokenizer.unk_token_id
+        
     if 'gpt' in model_name_or_path:
-        model = AutoModelForCausalLM.from_pretrained(model_name_or_path,torch_dtype=torch.float16,device_map=device)
+        model = AutoModelForCausalLM.from_pretrained(model_name_or_path,torch_dtype=torch_type, device_map=device)
+        
     if 't5' in model_name_or_path:
-        model = T5ForConditionalGeneration.from_pretrained(model_name_or_path, torch_dtype=torch.float16,device_map=device)
-    tokenizer = Autokenizer.from_pretrained(model_name_or_path)
+        model = T5ForConditionalGeneration.from_pretrained(model_name_or_path, torch_dtype=torch_type, device_map=device)
+     
     return model, tokenizer
 
 
@@ -111,7 +146,7 @@ def load_yaml_config(config_path):
             print(exc)  
             return None  
     print_c("config loaded successfully!")
-    print_c("config: {}".format(config), "purple")
+    print_c("config: {}".format(config), "green", "underline")
     
     return config
 

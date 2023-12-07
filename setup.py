@@ -14,6 +14,7 @@ setup(
         'pyyaml',
         'fire',
         'transformers>=4.34.0',
+        'matplotlib',
         # 其他依赖，如果有的话
     ],
     # 如果你的包需要特定版本的Python，则可以使用python_requires来指定
