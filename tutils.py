@@ -1,5 +1,6 @@
 import json
 import os
+from transformers import AutoTokenizer, T5ForConditionalGeneration,AutoModelForCausalLM,LlamaForCausalLM, LlamaTokenizer
 from termcolor import colored  
 from typing import List, Dict
 import matplotlib.pyplot as plt  
@@ -12,7 +13,33 @@ import yaml
 print(colored('CrazyCode aleady loaded, status: >>> ready <<<', 'green'))  
 
 
-def load_config(config_path):  
+def print_c(s, c='green'):
+    print(colored(s, color=c))
+
+
+def auto_load_hf_casual_models(model_name_or_path, device="auto"):
+    print_c("automatically load hf casual inference models", "green")
+    if 'llama' in model_name_or_path.lower() or 'alpaca' in model_name_or_path.lower() or 'vicuna' in model_name_or_path.lower() or 'StableBeluga' in model_name_or_path:
+        model = LlamaForCausalLM.from_pretrained(model_name_or_path,device_map=device, torch_dtype=torch.bfloat16)
+    if 'gpt' in model_name_or_path:
+        model = AutoModelForCausalLM.from_pretrained(model_name_or_path,torch_dtype=torch.float16,device_map=device)
+    if 't5' in model_name_or_path:
+        model = T5ForConditionalGeneration.from_pretrained(model_name_or_path, torch_dtype=torch.float16,device_map=device)
+    tokenizer = Autokenizer.from_pretrained(model_name_or_path)
+    return model, tokenizer
+
+
+def load_yaml_config(config_path):  
+    """
+    Load YAML configuration file.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+
+    Returns:
+        dict: Loaded configuration as a dictionary.
+
+    """
     print_c("load config files from {}".format(config_path))
     with open(config_path, 'r') as config_file:  
         try:  
@@ -22,7 +49,8 @@ def load_config(config_path):
             return None  
     print_c("config loaded successfully!")
     print_c("config: {}".format(config), "purple")
-    return config  
+    
+    return config
 
 
 def count_png_files(directory, file_type=".png"):  
@@ -72,15 +100,13 @@ def count_words(s: str):
     '''
     return len(s.split())   
 
-def print_c(s, c='green'):
-    print(colored(s, color=c))
-
 
 def save_image(image, output_file=None):
     '''
     save images to output_file
     '''
     image.save(output_file)
+
 
 def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, output_file=None):
     '''
@@ -125,6 +151,23 @@ def load_jsonl(file_path, return_format="list"):
 
 
 def save_file(lst: List, file_path):
+    """
+    Save a list of items to a file.
+    Automatically detect the file type by the suffix of the file_path.
+
+    Args:
+        lst (List): The list of items to be saved.
+        file_path (str): The path to the file.
+        //* Support file types
+            - jsonl
+            - pkl
+            - txt
+        *//
+        
+    Raises:
+        ValueError: If the file type is not supported.
+    """
+    
     data_dir = os.path.dirname(file_path)
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
@@ -153,6 +196,7 @@ def save_file(lst: List, file_path):
     
     print_c(f"Save file to {file_path} | len: {len(lst)}")
 
+
 def sample_dict_items(dict_, n=3):
     print_c(f"sample {n} items from dict", 'green')
     cnt = 0
@@ -164,9 +208,16 @@ def sample_dict_items(dict_, n=3):
 
 
 def filter_jsonl_lst(lst: List[Dict], kws: List[str]=None):
-    '''
-    
-    '''
+    """
+    Filter a list of dictionaries based on a list of keywords.
+
+    Args:
+        lst (List[Dict]): The list of dictionaries to be filtered.
+        kws (List[str], optional): The list of keywords to filter the dictionaries. Defaults to None.
+
+    Returns:
+        List[Dict]: The filtered list of dictionaries.
+    """
     if kws is None:
         res = lst
         print_c("Warning: no filtering, return directly!")
