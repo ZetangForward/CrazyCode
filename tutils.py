@@ -28,7 +28,7 @@ beijing_tz = pytz.timezone('Asia/Shanghai')
 beijing_now = utc_now.replace(tzinfo=pytz.utc).astimezone(beijing_tz)
 beijing_time_str = beijing_now.strftime('%Y-%m-%d %H:%M:%S')
 
-print(colored('ZipCode package is already loaded, status: >>> ready <<<' + ' (Beijing time: ' + beijing_time_str + ')', 'cyan', 'blink'))
+print(colored('ZipCode package is already loaded, status: >>> ready <<<' + ' (Beijing time: ' + beijing_time_str + ')', 'cyan', attrs=['blink']))
 
 
 def print_c(s, c='green', *args, **kwargs):
@@ -98,7 +98,10 @@ def top_k_top_p_filtering(logits: torch.FloatTensor, top_k: int = 0, top_p: floa
     return logits
     
 
-def auto_load_hf_casual_models(model_name_or_path, torch_type="torch.float16", device="cpu"):
+def auto_load_hf_casual_models(model_name_or_path, torch_type=None, device="cpu"):
+    """
+    torch_type = torch.float16
+    """
     print_c("automatically load hf casual inference models", "green")
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     
@@ -111,7 +114,7 @@ def auto_load_hf_casual_models(model_name_or_path, torch_type="torch.float16", d
         
     if 't5' in model_name_or_path:
         model = T5ForConditionalGeneration.from_pretrained(model_name_or_path, torch_dtype=torch_type, device_map=device)
-     
+    print()
     return model, tokenizer
 
 
@@ -147,7 +150,7 @@ def load_yaml_config(config_path):
             return None  
     print_c("config loaded successfully!")
     print_c("config: {}".format(config), "green", "underline")
-    
+    print()
     return config
 
 
