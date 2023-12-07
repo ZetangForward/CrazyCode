@@ -7,8 +7,22 @@ import random
 import time
 import math
 import pickle
+import yaml
 
 print(colored('CrazyCode aleady loaded, status: >>> ready <<<', 'green'))  
+
+
+def load_config(config_path):  
+    print_c("load config files from {}".format(config_path))
+    with open(config_path, 'r') as config_file:  
+        try:  
+            config = yaml.safe_load(config_file)  
+        except yaml.YAMLError as exc:  
+            print(exc)  
+            return None  
+    print_c("config loaded successfully!")
+    print_c("config: {}".format(config), "purple")
+    return config  
 
 
 def count_png_files(directory, file_type=".png"):  
