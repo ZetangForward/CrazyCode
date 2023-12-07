@@ -98,7 +98,7 @@ def top_k_top_p_filtering(logits: torch.FloatTensor, top_k: int = 0, top_p: floa
     return logits
     
 
-def auto_load_hf_casual_models(model_name_or_path, torch_type=None, device="cpu"):
+def auto_load_hf_casual_models(model_name_or_path, torch_type=None, device="cpu", **kwargs):
     """
     torch_type = torch.float16
     """
