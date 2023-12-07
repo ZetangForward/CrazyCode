@@ -9,6 +9,8 @@ import time
 import math
 import pickle
 import yaml
+import types
+
 
 print(colored('CrazyCode aleady loaded, status: >>> ready <<<', 'green'))  
 
@@ -40,10 +42,22 @@ def load_yaml_config(config_path):
         dict: Loaded configuration as a dictionary.
 
     """
+    
+    def dict_to_simplenamespace(d):
+        if isinstance(d, dict):
+            for key, value in d.items():
+                d[key] = dict_to_simplenamespace(value)
+            return types.SimpleNamespace(**d)
+        elif isinstance(d, list):
+            return [dict_to_simplenamespace(item) for item in d]
+        else:
+            return d
+    
     print_c("load config files from {}".format(config_path))
     with open(config_path, 'r') as config_file:  
         try:  
             config = yaml.safe_load(config_file)  
+            config = dict_to_simplenamespace(config)
         except yaml.YAMLError as exc:  
             print(exc)  
             return None  
