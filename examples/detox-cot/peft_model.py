@@ -57,6 +57,18 @@ class BaseData(BaseDataset):
             "labels": text_labels,
         }
 
+    @classmethod
+    def collect_fn(cls, batch_input):
+        input_ids = [i["input_ids"] for i in batch_input]
+        labels = [i["labels"] for i in batch_input]
+        attention_mask = [i["attention_mask"] for i in batch_input]
+        
+        return {
+            "input_ids": torch.cat(input_ids),
+            "attention_mask": torch.cat(attention_mask),
+            "labels": torch.cat(labels),
+        }
+
 @dataclass
 class CustomArguments:
     cf: str = None
@@ -99,7 +111,7 @@ def main(cf: str = None):
         cfg.model_name_or_path,
         load_in_8bit=False,
         torch_dtype=torch.float16,
-        device_map="auto",
+        # device_map="auto",
     )
     model.config.pad_token_id = 0
     model = PeftModel(model, peft_config)
@@ -123,6 +135,7 @@ def main(cf: str = None):
         model,
         args=hf_args,
         train_dataset=train_dataset,
+        data_collator=train_dataset.collect_fn,
         tokenizer=tokenizer,
     )
 
