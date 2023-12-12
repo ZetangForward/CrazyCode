@@ -4,6 +4,7 @@ import random
 import time
 import math
 import pickle
+import sys
 import yaml
 import types
 import torch
@@ -13,12 +14,12 @@ import argparse
 import re
 import gc
 import fire
+import accelerate
 import torch.nn as nn
 import matplotlib.pyplot as plt  
 from termcolor import colored  
-from typing import List, Dict
-from transformers import AutoTokenizer, T5ForConditionalGeneration, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList
-
+from typing import List, Dict, Optional, Any, Union
+from transformers import AutoTokenizer, T5ForConditionalGeneration, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList, Trainer 
 
 
 def print_c(s, c='green', *args, **kwargs):
@@ -242,10 +243,13 @@ def auto_read_data(file_path, return_format="list"):
         list or str: The data read from the file, in the specified format.
     """
     file_type = file_path.split('.')[-1].lower()  
-  
+    
     if file_type == 'jsonl':  
         with open(file_path, 'r', encoding='utf-8') as file:  
             data = [json.loads(line.strip()) for line in file]  
+    elif file_type == 'json':
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = json.load(file)
     elif file_type == 'pkl':  
         with open(file_path, 'rb') as file:  
             data = pickle.load(file)  

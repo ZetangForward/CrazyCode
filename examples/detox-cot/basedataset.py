@@ -1,6 +1,4 @@
 from modelzipper.datamanager import *
-from transformers import LlamaTokenizer
-
 
 # Template for vanilla alpaca-lora
 LLAMA_TEMPLATE_V1 = {
@@ -12,18 +10,14 @@ LLAMA_TEMPLATE_V1 = {
 }
 
 
-class BaseData(Dataset):
+class BaseData(BaseDataset):
     
     def __init__(self, file, tokenizer=None, tokenizer_args=None, max_seq_length=None, split="train"):
-        with open(file, "r", encoding='utf-8') as f:
-            content = json.load(f)
-            
-        self.content = content
-        self.split = split
+        super(BaseData, self).__init__()
+        
+        self.content = auto_read_data(file)
         self.tokenizer = tokenizer
-        self.max_enc_length = max_seq_length["max_enc_length"]
-        self.max_dec_length = max_seq_length["max_dec_length"]
-        self.tokenizer_args = tokenizer_args
+        self.max_seq_length = max_seq_length
     
     def __getitem__(self, index):
         sample = self.content[index]
@@ -36,52 +30,26 @@ class BaseData(Dataset):
             sample_ipt = LLAMA_TEMPLATE_V1["prompt_input"].format(instruction=instruction, input=input_)
         else:
             sample_ipt = LLAMA_TEMPLATE_V1["prompt_no_input"].format(instruction=instruction)
-        # create label
-        label = f"{sample_ipt}{output}"
-        input_terms = self.tokenizer(sample_ipt, max_length=self.max_enc_length, **self.tokenizer_args)
-        label_terms = self.tokenizer(label, max_length=self.max_dec_length, **self.tokenizer_args)
         
-        label_mask = input_terms["attention_mask"] ^ label_terms["attention_mask"]
-        original_label_mask = label_mask
-        label_mask = label_mask.bool()
-        label_mask = ~label_mask * -100 + original_label_mask
-        
-        # new_label = torch.where(label_mask == 1, label_terms["input_ids"], -100)
-        new_label = torch.where(label_terms["attention_mask"]==1,label_terms["input_ids"], -100)
-        
-        # return {
-        #     "input_ids": input_terms['input_ids'],
-        #     "attention_mask": input_terms["attention_mask"],
-        #     "labels": label_terms['input_ids'],
-        #     # "attention_mask": label_terms["attention_mask"]
-        # }
-        
-        return {
-                "input_ids": label_terms['input_ids'],
-                "attention_mask": label_terms["attention_mask"],
-                "labels": new_label,
-                # "attention_mask": label_terms["attention_mask"]
-        }
-    
-    def __len__(self):
-        return len(self.content)
-    
-    @classmethod
-    def collect_fn(cls, batch_input):
-        # import pdb; pdb.set_trace()
-        input_ids = [i["input_ids"] for i in batch_input]
-        # src_attention_mask = [i["input"]["attention_mask"] for i in batch_input]
-        labels = [i["labels"] for i in batch_input]
-        trg_attention_mask = [i["attention_mask"] for i in batch_input]
-        
-        return {
-            "input_ids": torch.cat(input_ids),
-            "attention_mask": torch.cat(trg_attention_mask),
-            "labels": torch.cat(labels),
-            # "trg_attention_mask": torch.cat(trg_attention_mask)
-        }
-        
+        ipt_text = sample_ipt + " " + label
 
+        seq_inputs = self.tokenizer(
+            ipt_text, 
+            padding="max_length", 
+            truncation=True, 
+            max_length=self.max_seq_length,
+            return_tensors="pt",
+        )
+        
+        text_input_ids = seq_inputs.input_ids[0]
+        text_attention_mask = seq_inputs.attention_mask[0]
+        text_labels = torch.where(text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100)
+
+        return {
+            "input_ids": text_input_ids,
+            "attention_mask": text_attention_mask,
+            "labels": text_labels,
+        }
 
     
         

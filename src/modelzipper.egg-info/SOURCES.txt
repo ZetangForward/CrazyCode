@@ -1,8 +1,15 @@
 LICENSE
 README.md
 setup.py
+src/modelzipper/__init__.py
+src/modelzipper/tutils.py
 src/modelzipper.egg-info/PKG-INFO
 src/modelzipper.egg-info/SOURCES.txt
 src/modelzipper.egg-info/dependency_links.txt
 src/modelzipper.egg-info/requires.txt
 src/modelzipper.egg-info/top_level.txt
+src/modelzipper/datamanager/__init__.py
+src/modelzipper/datamanager/base_dataset.py
+src/modelzipper/evalmanager/__init__.py
+src/modelzipper/evalmanager/eval.py
+src/modelzipper/modelmanager/__init__.py

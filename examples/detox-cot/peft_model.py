@@ -1,48 +1,8 @@
-import os
-from dataclasses import field, dataclass
-from typing import Dict, Optional, Any, Union
-import sys
-from accelerate import Accelerator
-from torch import nn
-import torch
-from transformers import TrainingArguments  
-import transformers
-from transformers import LlamaTokenizer, LlamaForCausalLM
-from transformers import Trainer
-from basedataset import BaseData
-
-from bottleneck_re import BottleneckConfig
-from mapping2 import get_peft_model
-from typing import List
+from modelzipper import *  # modelzipper will load all the necessary modules
+from peft import PeftModel, LoraConfig
 import logging
-from peft_model import PeftModelForCausalLM
 logging.basicConfig(level=logging.INFO)
 
-@dataclass  
-class CustomTrainingArguments(TrainingArguments):  
-    local_rank: int = field(default=-1, metadata={"help": "Local rank for distributed training"}) 
-
-@dataclass
-class TrainingArguments(CustomTrainingArguments):
-    model_name_or_path: Optional[str] = field(default="google/flan-t5-base")
-    data_paths: List[str] = field(default_factory=lambda: ["./alpaca_data.json"], metadata={"help": "Path to the training data."})
-    instruction_length: int = 40
-    output_length: int = 160
-    cache_dir: Optional[str] = field(default=None)
-    optim: str = field(default="adamw_torch")
-    load_in_8bit: bool = field(default=True)
-    model_max_length: int = field(
-        default=512,
-        metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
-    )
-    # lora hyperparams
-    lora_r: int = 8,
-    lora_alpha: int = 16,
-    lora_dropout: float = 0.05,
-    lora_target_modules = [
-        "q_proj",
-        "v_proj",
-    ],
 
 def train():
 
@@ -89,32 +49,7 @@ def train():
     )
     
     # lora  hyperparams
-    if 'lora' in args.output_dir:
-        from peft import get_peft_model, LoraConfig
-        config = LoraConfig(
-            r=8,
-            lora_alpha=16,
-            target_modules=["q_proj","v_proj"],
-            lora_dropout=0.05,
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-    else:
-    # bottleneck hyperparams
-        config = BottleneckConfig(
-                bottleneck_size=256,
-                non_linearity='tanh',
-                adapter_dropout=0.0,
-                use_parallel_adapter=False,
-                use_adapterp=False,
-                target_modules=None,
-                scaling=1.0,
-                bias="none",
-                task_type="CAUSAL_LM",
-            )
     
-    model = get_peft_model(model, config)
-    model.print_trainable_parameters()
     
     dataset = BaseData(args.data_paths[0], tokenizer, tokenizer_args, max_seq_length, "train")
     
@@ -131,5 +66,25 @@ def train():
     model.save_pretrained(args.output_dir)
 
 
+def main(cf: str = None):
+    assert cf is not None, "Please specify a config file --cf config_path"
+
+    cfg = load_yaml_config(cf)
+
+    peft_config = LoraConfig(
+        r=cfg.lora_r,
+        lora_alpha=cfg.lora_alpha,
+        target_modules=cfg.lora_target_modules,
+        lora_dropout=cfg.lora_dropout,
+        bias="none",
+        task_type="CAUSAL_LM",
+    )
+
+    model = PeftModel(model, peft_config)
+    model.print_trainable_parameters()
+
+    import pdb; pdb.set_trace()
+
+
 if __name__ == "__main__":
-    train()
+    fire.Fire(main)

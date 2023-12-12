@@ -1,0 +1,14 @@
+local_rank: 1
+model_name_or_path: "/zecheng/detox-cot/detox_cot_ckp/llama/7b/lora/epoch7"
+data_paths: "/workspace/zecheng/Detox-CoT/dataset/download/dummy_test.json"
+output_length: 160
+optim: "adamw_torch"
+load_in_8bit: False
+model_max_length: 1024
+# lora hyperparams
+lora_r: 8,
+lora_alpha: 16,
+lora_dropout: 0.05,
+lora_target_modules:
+    - "q_proj"
+    - "v_proj"
