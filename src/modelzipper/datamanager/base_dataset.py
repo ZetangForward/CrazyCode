@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset, DataLoader
 from ..tutils import *
 
-class BaseData(Dataset):
+class BaseDataset(Dataset):
     def __init__(self, file_name, tokenizer=None, split="train", *args, **args):
         super(BaseData).__init__()
         self.content = auto_read_data(file_name)
