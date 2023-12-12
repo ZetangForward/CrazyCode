@@ -1,0 +1,8 @@
+LICENSE
+README.md
+setup.py
+modelzipper.egg-info/PKG-INFO
+modelzipper.egg-info/SOURCES.txt
+modelzipper.egg-info/dependency_links.txt
+modelzipper.egg-info/requires.txt
+modelzipper.egg-info/top_level.txt

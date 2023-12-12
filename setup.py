@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ZipCode-ZetangForward',
-    version='0.2',
+    name='modelzipper',
+    version='0.1',
     packages=find_packages(),
-    description='Quick Command Line Tools for Deep Learning',
+    description='Quick Command Line Tools for Model Deployment',
     author='Zecheng-Tang',
     author_email='zctang2000@gmail.com',
     url='https://github.com/ZetangForward/ZipCode.git', 
@@ -17,5 +17,5 @@ setup(
         'matplotlib',
         'gpustat',
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.9',
 )
