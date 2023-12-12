@@ -1,9 +1,10 @@
-from modelzipper import *  # modelzipper will load all the necessary modules
-from modelzipper.datamanager import *
+
 from peft import PeftModel, LoraConfig
 from transformers import LlamaForCausalLM, LlamaTokenizer, AutoConfig
 from accelerate import Accelerator
 from dataclasses import field, dataclass
+from modelzipper import *  # modelzipper will load all the necessary modules
+from modelzipper.datamanager import *
 
 # Template for vanilla alpaca-lora
 LLAMA_TEMPLATE_V1 = {
@@ -169,7 +170,7 @@ def main(cf: str = None):
         model,
         args=hf_args,
         train_dataset=train_dataset,
-        data_collator=train_dataset.collect_fn,
+        data_collator=train_dataset.custom_datacollator,
         tokenizer=tokenizer,
     )
 
