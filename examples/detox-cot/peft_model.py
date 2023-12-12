@@ -58,16 +58,50 @@ class BaseData(BaseDataset):
         }
 
     @classmethod
-    def collect_fn(cls, batch_input):
-        input_ids = [i["input_ids"] for i in batch_input]
-        labels = [i["labels"] for i in batch_input]
-        attention_mask = [i["attention_mask"] for i in batch_input]
+    def custom_datacollator(cls, instances) -> Dict[str, torch.Tensor]:
+        """Collate examples for supervised fine-tuning."""
+        batch_input_ids, batch_attn_mask, batch_label = [], [], []
+        for ins in instances:
+            batch_input_ids.append(ins["input_ids"])
+            batch_attn_mask.append(ins["attention_mask"])
+            batch_label.append(ins["labels"])
+            
+        batch_input_ids = torch.stack(batch_input_ids, dim=0)
+        batch_attn_mask = torch.stack(batch_attn_mask, dim=0)
+        batch_label = torch.stack(batch_label, dim=0)
         
         return {
-            "input_ids": torch.cat(input_ids),
-            "attention_mask": torch.cat(attention_mask),
-            "labels": torch.cat(labels),
+            "batch_input_ids": batch_input_ids,
+            "batch_attention_mask": batch_attn_mask,
+            "batch_labels": batch_label,
         }
+
+
+class CustomTrainier(Trainer):
+    def __init__(self, model, args, train_dataset, eval_dataset=None, tokenizer=None, **kwargs):
+        super().__init__(
+            model=model, 
+            args=args, 
+            train_dataset=train_dataset, 
+            eval_dataset=eval_dataset, 
+            tokenizer=tokenizer,
+            **kwargs,
+        )
+        
+    def compute_loss(self, model, inputs, return_outputs=False):
+        text_inputs = inputs.get("batch_input_ids")
+        batch_attention_mask = inputs.get("batch_attention_mask")
+        batch_labels = inputs.get("batch_labels")
+        
+        outputs = model(
+            input_ids=text_inputs,
+            attention_mask=batch_attention_mask,
+            labels=batch_labels,
+        )
+        
+        loss = outputs.loss
+
+        return (loss, outputs) if return_outputs else loss
 
 @dataclass
 class CustomArguments:
@@ -131,7 +165,7 @@ def main(cf: str = None):
     model.is_parallelizable = True
     model.model_parallel = True
 
-    trainer = Trainer(
+    trainer = CustomTrainier(
         model,
         args=hf_args,
         train_dataset=train_dataset,
