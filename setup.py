@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='modelzipper',
     version='0.2.6',
+    package_dir={'': 'src'},
     packages=find_packages(),
     description='Quick Command Line Tools for Model Deployment',
     author='Zecheng-Tang',
