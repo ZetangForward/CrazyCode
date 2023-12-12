@@ -36,7 +36,7 @@ class BaseData(BaseDataset):
         else:
             sample_ipt = LLAMA_TEMPLATE_V1["prompt_no_input"].format(instruction=instruction)
         
-        ipt_text = sample_ipt + " " + label
+        ipt_text = sample_ipt + "" + output
 
         seq_inputs = self.tokenizer(
             ipt_text, 
@@ -49,6 +49,7 @@ class BaseData(BaseDataset):
         text_input_ids = seq_inputs.input_ids[0]
         text_attention_mask = seq_inputs.attention_mask[0]
         text_labels = torch.where(text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100)
+        # import pdb; pdb.set_trace()
 
         return {
             "input_ids": text_input_ids,
@@ -69,24 +70,6 @@ class TrainingArguments(transformers.TrainingArguments):
         default=512,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
-
-
-class CustomTrainier(Trainer):
-    def __init__(self, model, args, train_dataset, eval_dataset=None, tokenizer=None, **kwargs):
-        super().__init__(
-            model=model, 
-            args=args, 
-            train_dataset=train_dataset, 
-            eval_dataset=eval_dataset, 
-            tokenizer=tokenizer,
-            **kwargs,
-        )
-
-    def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
-        if output_dir is None:
-            output_dir = self.args.output_dir
-        
-
 
     
 def main(cf: str = None):
@@ -131,9 +114,10 @@ def main(cf: str = None):
     )
     tokenizer.pad_token_id = tokenizer.unk_token_id
 
-    # import pdb; pdb.set_trace()
-
     train_dataset = BaseData(cfg.data_path, tokenizer, cfg.model_max_length, "train")
+
+    model.is_parallelizable = True
+    model.model_parallel = True
 
     trainer = CustomTrainier(
         model,
