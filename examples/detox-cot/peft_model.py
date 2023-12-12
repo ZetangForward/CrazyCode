@@ -1,5 +1,5 @@
 
-from peft import PeftModel, LoraConfig
+from peft import PeftModel, LoraConfig, get_peft_model
 from transformers import LlamaForCausalLM, LlamaTokenizer, AutoConfig
 from accelerate import Accelerator
 from dataclasses import field, dataclass
@@ -50,7 +50,6 @@ class BaseData(BaseDataset):
         text_input_ids = seq_inputs.input_ids[0]
         text_attention_mask = seq_inputs.attention_mask[0]
         text_labels = torch.where(text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100)
-        # import pdb; pdb.set_trace()
 
         return {
             "input_ids": text_input_ids,
@@ -121,35 +120,32 @@ class TrainingArguments(transformers.TrainingArguments):
     
 def main(cf: str = None):
     assert cf is not None, "Please specify a config file --cf config_path"
-    
-    accelerator = Accelerator()
 
     cfg = load_yaml_config(cf)
 
     parser = transformers.HfArgumentParser((TrainingArguments, CustomArguments))
-    hf_args = parser.parse_args_into_dataclasses()[0]
+    hf_args, _ = parser.parse_args_into_dataclasses()
 
     if cfg.load_tuned_model:
         peft_config = LoraConfig.from_pretrained(cfg.model_name_or_path)
         peft_config.base_model_name_or_path = cfg.model_name_or_path
     else:
         peft_config = LoraConfig(
-            r=cfg.lora_r,
-            lora_alpha=cfg.lora_alpha,
-            target_modules=cfg.lora_target_modules,
-            lora_dropout=cfg.lora_dropout,
+            r=8,
+            lora_alpha=16,
+            target_modules=["q_proj","v_proj"],
+            lora_dropout=0.05,
             bias="none",
             task_type="CAUSAL_LM",
         )
 
     model = LlamaForCausalLM.from_pretrained(
         cfg.model_name_or_path,
-        load_in_8bit=False,
-        torch_dtype=torch.float16,
-        # device_map="auto",
+        device_map="auto"
     )
     model.config.pad_token_id = 0
-    model = PeftModel(model, peft_config)
+    # model.enable_input_require_grads()
+    model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
     # load tokenizer
@@ -163,6 +159,7 @@ def main(cf: str = None):
 
     train_dataset = BaseData(cfg.data_path, tokenizer, cfg.model_max_length, "train")
 
+    
     model.is_parallelizable = True
     model.model_parallel = True
 
