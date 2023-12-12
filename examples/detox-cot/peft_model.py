@@ -1,5 +1,6 @@
 from modelzipper import *  # modelzipper will load all the necessary modules
 from peft import PeftModel, LoraConfig
+from transformers import LlamaForCausalLM, LlamaTokenizer, AutoConfig
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -71,13 +72,24 @@ def main(cf: str = None):
 
     cfg = load_yaml_config(cf)
 
-    peft_config = LoraConfig(
-        r=cfg.lora_r,
-        lora_alpha=cfg.lora_alpha,
-        target_modules=cfg.lora_target_modules,
-        lora_dropout=cfg.lora_dropout,
-        bias="none",
-        task_type="CAUSAL_LM",
+    if cfg.load_tuned_model:
+        peft_config = LoraConfig.from_pretrained(cfg.model_name_or_path)
+        peft_config.base_model_name_or_path = cfg.model_name_or_path
+    else:
+        peft_config = LoraConfig(
+            r=cfg.lora_r,
+            lora_alpha=cfg.lora_alpha,
+            target_modules=cfg.lora_target_modules,
+            lora_dropout=cfg.lora_dropout,
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+
+    model = LlamaForCausalLM.from_pretrained(
+        cfg.model_name_or_path,
+        load_in_8bit=False,
+        torch_dtype=torch.float16,
+        device_map={"": 1},
     )
 
     model = PeftModel(model, peft_config)

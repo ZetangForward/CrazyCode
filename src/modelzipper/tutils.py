@@ -1,3 +1,11 @@
+'''
+Author: ZetangForward 1
+Date: 2023-12-12 15:29:13
+LastEditors: ZetangForward 1
+LastEditTime: 2023-12-12 17:45:20
+FilePath: /Detox-CoT/modelzipper/src/modelzipper/tutils.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 import json
 import os
 import random 
@@ -19,7 +27,7 @@ import torch.nn as nn
 import matplotlib.pyplot as plt  
 from termcolor import colored  
 from typing import List, Dict, Optional, Any, Union
-from transformers import AutoTokenizer, T5ForConditionalGeneration, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList, Trainer 
+from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList, Trainer 
 
 
 def print_c(s, c='green', *args, **kwargs):
@@ -87,26 +95,6 @@ def top_k_top_p_filtering(logits: torch.FloatTensor, top_k: int = 0, top_p: floa
         logits = logits_warper(None, logits)
         
     return logits
-    
-
-def auto_load_hf_casual_models(model_name_or_path, torch_type=None, device="cpu", **kwargs):
-    """
-    torch_type = torch.float16
-    """
-    print_c("automatically load hf casual inference models", "green")
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    
-    if 'llama' in model_name_or_path.lower() or 'alpaca' in model_name_or_path.lower() or 'vicuna' in model_name_or_path.lower() or 'StableBeluga' in model_name_or_path:
-        model = LlamaForCausalLM.from_pretrained(model_name_or_path,device_map=device, torch_dtype=torch_type)
-        tokenizer.pad_token_id = tokenizer.unk_token_id
-        
-    if 'gpt' in model_name_or_path:
-        model = AutoModelForCausalLM.from_pretrained(model_name_or_path,torch_dtype=torch_type, device_map=device)
-        
-    if 't5' in model_name_or_path:
-        model = T5ForConditionalGeneration.from_pretrained(model_name_or_path, torch_dtype=torch_type, device_map=device)
-    print()
-    return model, tokenizer
 
 
 def load_yaml_config(config_path):  
