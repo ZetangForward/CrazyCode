@@ -13,21 +13,11 @@ import argparse
 import re
 import gc
 import fire
-import pytz
 import torch.nn as nn
 import matplotlib.pyplot as plt  
-from transformers import AutoTokenizer, T5ForConditionalGeneration,AutoModelForCausalLM,LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList
-# from transformers.generation.utils import top_k_top_p_filtering
 from termcolor import colored  
 from typing import List, Dict
-from datetime import datetime
-
-utc_now = datetime.utcnow()
-aoe_tz = pytz.timezone('Pacific/Kwajalein')
-aoe_now = utc_now.replace(tzinfo=pytz.utc).astimezone(aoe_tz)
-aoe_time_str = aoe_now.strftime('%Y-%m-%d %H:%M:%S')
-
-print(colored('ModelZipper package is already loaded, status: >>> ready <<<' + ' (AOE time: ' + aoe_time_str + ')', 'cyan', attrs=['blink']))
+from transformers import AutoTokenizer, T5ForConditionalGeneration, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList
 
 
 
@@ -170,7 +160,7 @@ def random_sample_from_file(file_path, num_samples=10, output_file=None):
     assert os.path.exists(file_path), f"{file_path} not exist!"
     content = load_jsonl(file_path)
     res = random.sample(content, num_samples)
-    save_jsonl(res, output_file)
+    save_file(res, output_file)
     return res
 
 
@@ -190,7 +180,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
     
     origin_file_name = os.path.basename(file_path).split(".")[0]
     for i, item in enumerate(new_content):
-        save_jsonl(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
+        save_file(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
         
     print_c(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
 
@@ -293,7 +283,7 @@ def save_file(lst: List, file_path):
                 f.write(item + "\n")
         print_c("txt file saved successfully!")
     else:
-        raise ValueError(f"file_type {file_type} not supported!")
+        raise ValueError(f"file_type {suffix_} not supported!")
     
     print_c(f"Save file to {file_path} | len: {len(lst)}")
 
