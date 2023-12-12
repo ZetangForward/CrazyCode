@@ -119,7 +119,7 @@ def main(cf: str = None):
     model.is_parallelizable = True
     model.model_parallel = True
 
-    trainer = CustomTrainier(
+    trainer = Trainer(
         model,
         args=hf_args,
         train_dataset=train_dataset,
