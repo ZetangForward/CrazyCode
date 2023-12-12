@@ -1,0 +1,6 @@
+termcolor
+matplotlib
+pyyaml
+fire
+transformers>=4.34.0
+matplotlib

@@ -332,4 +332,3 @@ def merge_dicts(dict1: Dict, dict2: Dict, key: str=None):
     Merge two dicts with the same key value
     '''
     pass
-

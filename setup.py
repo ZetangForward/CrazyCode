@@ -6,8 +6,8 @@ setup(
     packages=find_packages(),
     description='Quick Command Line Tools for Deep Learning',
     author='Zecheng-Tang',
-    author_email='your.email@example.com',
-    url='https://github.com/yourusername/myproject',  # 可选
+    author_email='zctang2000@gmail.com',
+    url='https://github.com/ZetangForward/ZipCode.git', 
     install_requires=[
         'termcolor',
         'matplotlib',
@@ -15,8 +15,7 @@ setup(
         'fire',
         'transformers>=4.34.0',
         'matplotlib',
-        # 其他依赖，如果有的话
+        'gpustat',
     ],
-    # 如果你的包需要特定版本的Python，则可以使用python_requires来指定
     python_requires='>=3.8',
 )
