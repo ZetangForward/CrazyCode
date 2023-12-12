@@ -14,6 +14,7 @@ import re
 import gc
 import fire
 import pytz
+import torch.nn as nn
 import matplotlib.pyplot as plt  
 from transformers import AutoTokenizer, T5ForConditionalGeneration,AutoModelForCausalLM,LlamaForCausalLM, LlamaTokenizer, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList
 # from transformers.generation.utils import top_k_top_p_filtering
@@ -21,14 +22,13 @@ from termcolor import colored
 from typing import List, Dict
 from datetime import datetime
 
-# Get the current time in UTC
 utc_now = datetime.utcnow()
-# Convert UTC time to Beijing time (UTC+8)
-beijing_tz = pytz.timezone('Asia/Shanghai')
-beijing_now = utc_now.replace(tzinfo=pytz.utc).astimezone(beijing_tz)
-beijing_time_str = beijing_now.strftime('%Y-%m-%d %H:%M:%S')
+aoe_tz = pytz.timezone('Pacific/Kwajalein')
+aoe_now = utc_now.replace(tzinfo=pytz.utc).astimezone(aoe_tz)
+aoe_time_str = aoe_now.strftime('%Y-%m-%d %H:%M:%S')
 
-print(colored('ZipCode package is already loaded, status: >>> ready <<<' + ' (Beijing time: ' + beijing_time_str + ')', 'cyan', attrs=['blink']))
+print(colored('ModelZipper package is already loaded, status: >>> ready <<<' + ' (AOE time: ' + aoe_time_str + ')', 'cyan', attrs=['blink']))
+
 
 
 def print_c(s, c='green', *args, **kwargs):

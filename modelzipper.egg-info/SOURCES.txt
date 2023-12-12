@@ -1,6 +1,9 @@
 LICENSE
 README.md
 setup.py
+modelzipper/__init__.py
+modelzipper/eval.py
+modelzipper/tutils.py
 modelzipper.egg-info/PKG-INFO
 modelzipper.egg-info/SOURCES.txt
 modelzipper.egg-info/dependency_links.txt

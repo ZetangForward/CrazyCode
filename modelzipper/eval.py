@@ -7,7 +7,6 @@ from transformers import AutoTokenizer,AutoModelForCausalLM
 import nltk
 import torch
 import os
-import mauve
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 from multiprocessing.pool import Pool
 from tqdm import tqdm
@@ -18,8 +17,6 @@ rougeScore = ROUGEScore()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 rougeScore.to(device)
 from bert_score import score
-
-
 
 
 def bleu(refs, cands):
@@ -350,7 +347,6 @@ if __name__ == "__main__":
     parser.add_argument('--bert_score', action='store_true')
     parser.add_argument('--rouge', action='store_true')
     parser.add_argument('--ppl', action='store_true')
-    parser.add_argument('--mauve', action='store_true')
     args = parser.parse_args()
 
     
@@ -474,11 +470,6 @@ if __name__ == "__main__":
                 print('self_bleu_{}'.format(c),self_bleus[c])
 
 
-        if args.mauve:
-            m = mauve.compute_mauve(p_text=golds_str, q_text=preds_str, device_id=0, max_text_length=256, verbose=False,featurize_model_name='/opt/data/private/Group1/hf_models/gpt2-xl')
-            print(m.mauve)
-
-        print('-'*100)
 
 
         # bert_prec.append(bertscore_result["precision"])
