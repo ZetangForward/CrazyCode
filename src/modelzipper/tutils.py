@@ -230,18 +230,38 @@ def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, outpu
         plt.show()  
 
 
+def auto_read_data(file_path, return_format="list"):
+    """
+    Read data from a file and return it in the specified format.
 
-def load_jsonl(file_path, return_format="list"):
-    if return_format == "list":
-        with open(file_path, "r") as f:
-            res = [json.loads(item) for item in f]
-        return res
-    else:
-        pass
-    print_c("jsonl file loaded successfully!")
+    Parameters:
+        file_path (str): The path to the file to be read.
+        return_format (str, optional): The format in which the data should be returned. Defaults to "list".
+
+    Returns:
+        list or str: The data read from the file, in the specified format.
+    """
+    file_type = file_path.split('.')[-1].lower()  
+  
+    if file_type == 'jsonl':  
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = [json.loads(line.strip()) for line in file]  
+    elif file_type == 'pkl':  
+        with open(file_path, 'rb') as file:  
+            data = pickle.load(file)  
+    elif file_type == 'txt':  
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = [line.strip() for line in file]  
+    else:  
+        raise ValueError(f"Unsupported file type: {file_type}")  
+  
+    if return_format != "list":  
+        raise ValueError(f"Unsupported return format: {return_format}")  
+  
+    return data  
 
 
-def save_file(lst: List, file_path):
+def auto_save_data(lst: List, file_path):
     """
     Save a list of items to a file.
     Automatically detect the file type by the suffix of the file_path.
