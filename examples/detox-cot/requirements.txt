@@ -48,7 +48,6 @@ mdurl==0.1.2
 mkl-fft @ file:///croot/mkl_fft_1695058164594/work
 mkl-random @ file:///croot/mkl_random_1695059800811/work
 mkl-service==2.4.0
--e git+https://github.com/ZetangForward/modelzipper.git@be9f87bae9cfdcc5113342c291e108c84c45a6ba#egg=modelzipper&subdirectory=../../modelzipper
 more-itertools==10.1.0
 mpmath @ file:///croot/mpmath_1690848262763/work
 networkx @ file:///croot/networkx_1690561992265/work
