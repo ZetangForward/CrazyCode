@@ -11,6 +11,7 @@ deepspeed --num_gpus 8 \
     --per_device_train_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --logging_steps 1 \
+    --learning_rate 3e-6 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
