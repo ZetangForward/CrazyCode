@@ -1,13 +1,16 @@
 deepspeed --num_gpus 8 \
-    --num_nodes 1 \
+    --num_nodes 3 \
+    --master_addr worker-0 \
+    --master_port 6739 \
+    --hostfile config/hostfile_24 \
     peft_model.py \
-    --deepspeed config/ds_config_zero3.json \
+    --deepspeed config/ds_config_zero2.json \
     --cf config/llama7b.yaml \
     --output_dir /zecheng/detox-cot/llama2 \
     --save_strategy "epoch" \
     --num_train_epochs 8 \
     --remove_unused_columns False \
-    --per_device_train_batch_size 16 \
+    --per_device_train_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --logging_steps 1 \
     --dataloader_num_workers 0 \
