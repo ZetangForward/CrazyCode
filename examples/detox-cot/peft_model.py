@@ -1,7 +1,6 @@
 
 from peft import PeftModel, LoraConfig, get_peft_model
 from transformers import LlamaForCausalLM, LlamaTokenizer, AutoConfig
-from accelerate import Accelerator
 from dataclasses import field, dataclass
 from modelzipper import *  # modelzipper will load all the necessary modules
 from modelzipper.datamanager import *
