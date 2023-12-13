@@ -1,7 +1,5 @@
 deepspeed --num_gpus 8 \
-    --num_nodes 3 \
-    --master_addr worker-0 \
-    --master_port 6739 \
+    --num_nodes 1 \
     --hostfile config/hostfile_24 \
     peft_model.py \
     --deepspeed config/ds_config_zero2.json \
