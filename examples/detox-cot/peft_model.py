@@ -139,10 +139,7 @@ def main(cf: str = None):
             task_type="CAUSAL_LM",
         )
 
-    model = LlamaForCausalLM.from_pretrained(
-        cfg.model_name_or_path,
-        device_map="auto"
-    )
+    model = LlamaForCausalLM.from_pretrained(cfg.model_name_or_path)
     model.config.pad_token_id = 0
     # model.enable_input_require_grads()
     model = get_peft_model(model, peft_config)
@@ -159,7 +156,6 @@ def main(cf: str = None):
 
     train_dataset = BaseData(cfg.data_path, tokenizer, cfg.model_max_length, "train")
 
-    
     model.is_parallelizable = True
     model.model_parallel = True
 

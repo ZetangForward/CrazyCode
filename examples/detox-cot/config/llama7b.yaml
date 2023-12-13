@@ -5,7 +5,7 @@ save_dir: "/zecheng/detox-cot/llama2"
 output_length: 160
 optim: "adamw_torch"
 load_in_8bit: False
-model_max_length: 1024
+model_max_length: 512
 
 # lora hyperparams
 load_tuned_model: False
