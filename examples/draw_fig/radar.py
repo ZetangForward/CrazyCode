@@ -123,15 +123,15 @@ ax.set_thetagrids([])
 # # 设置雷达图的标签位置  
 for label, angle in zip(labels, angles[:-1]): 
     if label == "Non-Toxicity":
-        angle += 0.12
-        cc = 0.32
+        angle += 0.20
+        cc = 0.30
     elif label == "Relevance":
-        angle += 0.27
+        angle += 0.32
         cc = 0.35
     else:
-        angle += 0.30
-        cc = 0.35
-    ax.text(angle, cc, label, ha='center', va='center', fontsize=14, fontname= 'DejaVu Sans Mono', fontweight=600, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))
+        angle += 0.36
+        cc = 0.36
+    ax.text(angle, cc, label, ha='center', va='center', fontsize=18, fontname= 'DejaVu Sans Mono', fontweight=600, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))
 
 ax.grid(True)
 ax.set_rgrids([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
@@ -140,6 +140,6 @@ ax.set_rgrids([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
 ax.set_ylim(0)  # 可以通过设置y轴的下限来确保图形是三角形  
 
 # 添加图例  
-plt.legend(loc='upper right', bbox_to_anchor=(0.12, 0.12), prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
+# plt.legend(loc='upper right', bbox_to_anchor=(0.12, 0.12), prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 16})  
 
-plt.savefig('save_figs/radar_chart.pdf', bbox_inches='tight', pad_inches=0.1)
+plt.savefig('save_figs/radar_chart_no_legend.pdf', bbox_inches='tight', pad_inches=0.1)

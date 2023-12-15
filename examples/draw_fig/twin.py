@@ -54,21 +54,21 @@ plt.plot(index + bar_width*2, dexperts_toxicity, linewidth=2, marker='o', label=
 # plt.plot(index + bar_width*2, sgeat_toxicity, linewidth=2, marker='o', label='SGEAT', alpha=opacity, color='orange') 
 
 
-plt.ylim(0.0, 0.3)
+plt.ylim(0.0, 0.32)
 
 ax.set_yticks([0.0, 0.1, 0.2, 0.25])
 ax.set_yticklabels(["0.0", "0.1", "0.2", ">0.25"])
-plt.xlabel('Prompt Toxicity', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
-plt.ylabel('Generation Toxicity', fontsize=12, fontname='DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))   
-plt.xticks(index + 1*bar_width, str_toxic_portation, fontsize=12, fontname='DejaVu Sans Mono', fontweight=600)  
-plt.yticks(fontsize=12, fontname='DejaVu Sans Mono', fontweight=600) 
+plt.xlabel('Prompt Toxicity', fontsize=16, fontname= 'DejaVu Sans Mono', fontweight=600, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+# plt.ylabel('Generation Toxicity', fontsize=16, fontname='DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))   
+plt.xticks(index + 1*bar_width, str_toxic_portation, fontsize=16, fontname='DejaVu Sans Mono', fontweight=600)  
+plt.yticks(fontsize=16, fontname='DejaVu Sans Mono', fontweight=600) 
 ax.yaxis.grid(True, linewidth=0.5, color='gray')
-plt.legend(loc='upper left', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
+plt.legend(loc='upper left', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 14})  
 
 
 ax2 = ax.twinx()  
-ax2.set_ylabel('Generation Toxicity[MASK]', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
-plt.ylim(0, 0.3)
+# ax2.set_ylabel('Generation Toxicity[MASK]', fontsize=14, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+plt.ylim(0, 0.32)
 ax2.set_yticks([0.0, 0.1, 0.2, 0.25])
 ax2.set_yticklabels(["0.0", "0.1", "0.2", ">0.25"])
 
@@ -77,11 +77,11 @@ plt.bar(index + bar_width, mask_gedi_toxicity, bar_width, alpha=opacity, color='
 plt.bar(index + bar_width*2, mask_dexperts_toxicity, bar_width, alpha=opacity, color='c', label='DExperts[MASK]') 
 # plt.bar(index + bar_width*2, mask_sgeat_toxicity, bar_width, alpha=opacity, color='orange', label='SGEAT[MASK]') 
 
-plt.yticks(fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600)  
-ax2.legend(loc='upper right', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
+plt.yticks(fontsize=16, fontname= 'DejaVu Sans Mono', fontweight=600)  
+ax2.legend(loc='upper right', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 14})  
 
 plt.tight_layout()     
-plt.savefig(r"save_figs/pre_toxic.pdf")
+plt.savefig(r"save_figs/pre_toxic_no_legend.pdf")
 
 
 

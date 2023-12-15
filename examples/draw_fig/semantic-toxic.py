@@ -3,7 +3,7 @@ import numpy as np
 
 # golbal config
 # plt.rcParams['font.weight'] = 'bold'
-bar_width = 0.17
+bar_width = 0.25
 opacity = 0.7
 fig, ax = plt.subplots(figsize=(8,6))  
 
@@ -63,34 +63,35 @@ toxicity_wo_gen5_mask = [0.0756,0.0966,0.126,0.1673,0.2228]
 index = np.arange(len(similarity))  
 
 toxicity_wo_gen2 = [min(0.25, i) for i in toxicity_wo_gen2]
-line6 = plt.plot(index, toxicity_wo_gen2, linewidth=2, marker='o', linestyle='-', alpha=opacity, color='orange', label='GPT2-XL')  
+plt.plot(index, toxicity_wo_gen2, linewidth=2, marker='o', linestyle='-', alpha=opacity, color='orange', label='GPT2-XL')  
 toxicity_wo_gen3 = [min(0.25, i) for i in toxicity_wo_gen3]
-line7 = plt.plot(index+bar_width, toxicity_wo_gen3, linewidth=2, marker='o', linestyle='-', alpha=opacity, color='g', label='Gedi')  
+plt.plot(index+bar_width, toxicity_wo_gen3, linewidth=2, marker='o', linestyle='-', alpha=opacity, color='g', label='Gedi')  
 toxicity_wo_gen4 = [min(0.25, i) for i in toxicity_wo_gen4]
-line8 = plt.plot(index+2*bar_width, toxicity_wo_gen4, linewidth=2, marker='o', linestyle='-', alpha=opacity, color='c', label='DExperts')  
+plt.plot(index+2*bar_width, toxicity_wo_gen4, linewidth=2, marker='o', linestyle='-', alpha=opacity, color='c', label='DExperts')  
 # line9 = plt.plot(index+2*bar_width, toxicity_wo_gen5, linewidth=2, marker='o', linestyle='--', alpha=opacity, color='orange', label='SGEAT')
 
-plt.xlabel('Semantic Similarity', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
-plt.ylabel('Generation Toxicity', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
-plt.ylim(0, 0.32)
-plt.xticks(index+bar_width, ['<0.2', '0.4', '0.6', '0.8', '>0.8'], fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600)  
+plt.xlabel('Semantic Similarity', fontsize=16, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+# plt.ylabel('Generation Toxicity', fontsize=11, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+plt.ylim(0, 0.34)
+plt.xticks(index+bar_width, ['<0.2', '0.4', '0.6', '0.8', '>0.8'], fontsize=16, fontname= 'DejaVu Sans Mono', fontweight=600)  
 ax.set_yticks([0.0, 0.1, 0.2, 0.25])
 ax.set_yticklabels(["0.0", "0.1", "0.2", ">0.25"])
-plt.yticks(fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600) 
-ax.yaxis.grid(True, linestyle='-', linewidth=0.5, color='gray')
-plt.legend(loc='upper left',prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
+plt.yticks(fontsize=16, fontname= 'DejaVu Sans Mono', fontweight=600) 
+ax.yaxis.grid(True, linewidth=0.5, color='gray')
+plt.legend(loc='upper left',prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 14})  
 
 ax2 = ax.twinx()  
-ax2.set_ylabel('Generation Toxicity[MASK]', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
-plt.ylim(0, 0.31)
+# ax2.set_ylabel('Generation Toxicity[MASK]', fontsize=11, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+plt.ylim(0, 0.34)
 line2 = plt.bar(index, toxicity_wo_gen2_mask, bar_width, alpha=opacity, color='orange', label='GPT2-XL[MASK]')
 line3 = plt.bar(index+bar_width, toxicity_wo_gen3_mask, bar_width, alpha=opacity, color='g', label='Gedi[MASK]')  
 line4 = plt.bar(index+2*bar_width, toxicity_wo_gen4_mask, bar_width, alpha=opacity, color='c', label='DExperts[MASK]')  
 # line5 = plt.bar(index+2*bar_width, toxicity_wo_gen5_mask, bar_width, alpha=opacity, color='orange', label='SGEAT (mask)')
+
 ax2.set_yticks([0.0, 0.1, 0.2, 0.25])
 ax2.set_yticklabels(["0.0", "0.1", "0.2", ">0.25"])
-plt.yticks(fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600) 
-# ax.yaxis.grid(True, linestyle='-', linewidth=0.5, color='gray')
-plt.legend(loc='upper right', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11}) 
+plt.yticks(fontsize=16, fontname= 'DejaVu Sans Mono', fontweight=600) 
+plt.legend(loc='upper right', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 14}) 
 
-plt.savefig('save_figs/pre_semantic.pdf', bbox_inches='tight', pad_inches=0.1)
+plt.tight_layout()  
+plt.savefig(r'save_figs/pre_semantic_no_legend.pdf',)
