@@ -31,7 +31,7 @@ workbook.close()
 
 toxic_portation = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 # str_toxic_portation = 
-str_toxic_portation = ['0.3','0.4','0.5','0.6','0.7','0.8','0.9']
+str_toxic_portation = ['<0.3','0.4','0.5','0.6','0.7','0.8','>0.8']
 prompt_portion = data[1]
 prompt_toxicity = data[2]
 llama_toxicity = data[3]
@@ -67,7 +67,7 @@ plt.legend(loc='upper left', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 
 
 
 ax2 = ax.twinx()  
-ax2.set_ylabel('Generation Toxicity(MASK)', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+ax2.set_ylabel('Generation Toxicity[MASK]', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
 plt.ylim(0, 0.3)
 ax2.set_yticks([0.0, 0.1, 0.2, 0.25])
 ax2.set_yticklabels(["0.0", "0.1", "0.2", ">0.25"])
