@@ -70,7 +70,7 @@ print(norm_TOXICs)
 
 # 模型数据
 data = {
-    'Llama': {
+    'LLaMA-7B': {
         'similarity': norm_SIMs[0],
         'toxicity': norm_TOXICs[0],
         'ppl': norm_PPLs[0],
@@ -80,7 +80,7 @@ data = {
         'toxicity': norm_TOXICs[1],
         'ppl': norm_PPLs[1],
     },
-    'GEDI': {
+    'Gedi': {
         'similarity': norm_SIMs[2],
         'toxicity': norm_TOXICs[2],
         'ppl': norm_PPLs[2],
