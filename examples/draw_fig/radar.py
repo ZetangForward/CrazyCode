@@ -121,8 +121,17 @@ for model_name, attrs in data.items():
 ax.set_thetagrids([])
 
 # # 设置雷达图的标签位置  
-for label, angle in zip(labels, angles[:-1]):  
-    ax.text(angle+0.2, 0.35, label, ha='center', va='center', fontsize=14, fontname= 'DejaVu Sans Mono', fontweight=600)  
+for label, angle in zip(labels, angles[:-1]): 
+    if label == "Toxicity":
+        angle += 0.12
+        cc = 0.32
+    elif label == "Relevance":
+        angle += 0.27
+        cc = 0.35
+    else:
+        angle += 0.30
+        cc = 0.35
+    ax.text(angle, cc, label, ha='center', va='center', fontsize=14, fontname= 'DejaVu Sans Mono', fontweight=600, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))
 
 ax.grid(True)
 ax.set_rgrids([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
