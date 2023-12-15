@@ -125,7 +125,7 @@ for label, angle in zip(labels, angles[:-1]):
     ax.text(angle+0.2, 0.35, label, ha='center', va='center', fontsize=14, fontname= 'DejaVu Sans Mono', fontweight=600)  
 
 ax.grid(True)
-ax.set_rgrids([0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
+ax.set_rgrids([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
 
 # 设置雷达图为三角形  
 # ax.set_ylim(0)  # 可以通过设置y轴的下限来确保图形是三角形  
@@ -133,4 +133,4 @@ ax.set_rgrids([0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
 # 添加图例  
 plt.legend(loc='upper right', bbox_to_anchor=(0.12, 0.12),prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
 
-plt.savefig('save_figs/radar_chart.png', bbox_inches='tight', pad_inches=0.1)
+plt.savefig('save_figs/radar_chart.pdf', bbox_inches='tight', pad_inches=0.1)
