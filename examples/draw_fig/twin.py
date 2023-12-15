@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib.pyplot import MultipleLocator
 
 # golbal config
-plt.rcParams['font.weight'] = 'bold'
+# plt.rcParams['font.weight'] = 'bold'
 bar_width = 0.25
 opacity = 0.7
 fig, ax = plt.subplots(figsize=(8,6))  
@@ -44,56 +44,39 @@ mask_dexperts_toxicity = data[10]
 mask_gedi_toxicity = data[11]
 mask_sgeat_toxicity = data[12]
 
-# print(llama_toxicity)
-
 index = np.arange(len(toxic_portation))  
 
-# 绘制直方图  
-# plt.bar(index, gedi_toxicity, bar_width, label='Gedi', alpha=opacity, color='g')  
-# plt.bar(index + bar_width, dexperts_toxicity, bar_width, label='DExperts', alpha=opacity, color='c')  
-# plt.bar(index + bar_width*2, sgeat_toxicity, bar_width, label='SGEAT', alpha=opacity, color='orange')  
-
-plt.plot(index, gedi_toxicity, linewidth=2, marker='o', linestyle='--', label='Gedi', alpha=opacity, color='g')  
-plt.plot(index + bar_width, dexperts_toxicity, linewidth=2, marker='o', linestyle='--', label='DExperts', alpha=opacity, color='c')  
-plt.plot(index + bar_width*2, sgeat_toxicity, linewidth=2, marker='o', linestyle='--', label='SGEAT', alpha=opacity, color='orange') 
-
-# plt.bar(index + bar_width * 3, dexperts_toxicity, bar_width, label='DExpert', alpha=opacity, color='c')  
-
-# plt.bar(index + bar_width*3, mask_gedi_toxicity, bar_width, alpha=opacity, color='none', edgecolor='g', hatch='xx', label='Gedi (mask)')  
-# plt.bar(index + bar_width*4, mask_dexperts_toxicity, bar_width, alpha=opacity, color='none', edgecolor='c', hatch='xx', label='DExpert (mask)') 
-# plt.bar(index + bar_width*5, mask_sgeat_toxicity, bar_width, alpha=opacity, color='none', edgecolor='orange', hatch='xx', label='SGEAT (mask)') 
+plt.plot(index , gptxl_toxicity, linewidth=2, marker='o', label='GPT2-XL', alpha=opacity, color='orange') 
+plt.plot(index + bar_width, gedi_toxicity, linewidth=2, marker='o', label='Gedi', alpha=opacity, color='g')  
+plt.plot(index + bar_width*2, dexperts_toxicity, linewidth=2, marker='o', label='DExperts', alpha=opacity, color='c')  
+# plt.plot(index + bar_width*2, sgeat_toxicity, linewidth=2, marker='o', label='SGEAT', alpha=opacity, color='orange') 
 
 
-# 添加标题和坐标轴标签  
-# plt.title('Toxicity Comparison')  
-
-plt.ylim(0, 0.6)
-plt.xlabel('Prompt Toxicity', fontsize=17, fontweight='bold')  
-plt.ylabel('Generation Toxicity', fontsize=17, fontweight='bold')   
-plt.xticks(index + 1*bar_width, str_toxic_portation, fontsize=12)  
-plt.yticks(fontsize=17) 
-ax.yaxis.grid(True, linestyle='-', linewidth=0.5, color='gray')
-plt.legend(fontsize=14, loc='upper left')  
+plt.ylim(0.0, 0.4)
+plt.xlabel('Prompt Toxicity', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600, bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+plt.ylabel('Generation Toxicity', fontsize=12, fontname='DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))   
+plt.xticks(index + 1*bar_width, str_toxic_portation, fontsize=12, fontname='DejaVu Sans Mono', fontweight=600)  
+plt.yticks(fontsize=12, fontname='DejaVu Sans Mono', fontweight=600) 
+ax.yaxis.grid(True, linewidth=0.5, color='gray')
+plt.legend(loc='upper left', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
 
 
 ax2 = ax.twinx()  
-# y_major_locator=MultipleLocator(0.05)
-# ax2.yaxis.set_major_locator(y_major_locator)
-ax2.set_ylabel('Generation Toxicity (mask)', fontsize=17, fontweight='bold')  
-plt.ylim(0, 0.6)
-# plt.plot(index , mask_gedi_toxicity, linewidth=2, marker='o', linestyle='--', alpha=opacity, color='g', label='Gedi (mask)')  
-# plt.plot(index + bar_width, mask_dexperts_toxicity, linewidth=2, marker='o', linestyle='--', alpha=opacity, color='c', label='DExperts (mask)') 
-# plt.plot(index + bar_width*2, mask_sgeat_toxicity, linewidth=2, marker='o', linestyle='--', alpha=opacity, color='orange', label='SGEAT (mask)') 
-plt.bar(index , mask_gedi_toxicity, bar_width, alpha=opacity, color='g', label='Gedi (mask)')  
-plt.bar(index + bar_width, mask_dexperts_toxicity, bar_width, alpha=opacity, color='c', label='DExperts (mask)') 
-plt.bar(index + bar_width*2, mask_sgeat_toxicity, bar_width, alpha=opacity, color='orange', label='SGEAT (mask)') 
-plt.yticks(fontsize=17)  
-ax2.legend(fontsize=14,loc='upper right')  
+ax2.set_ylabel('Generation Toxicity(MASK)', fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600,bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray", alpha=1))  
+plt.ylim(0, 0.4)
+ax2.set_yticks([0.0, 0.1, 0.2, 0.3])
+
+plt.bar(index, mask_sgeat_toxicity, bar_width, alpha=opacity, color='orange', label='SGEAT[MASK]') 
+plt.bar(index + bar_width, mask_gedi_toxicity, bar_width, alpha=opacity, color='g', label='Gedi[MASK]')  
+plt.bar(index + bar_width*2, mask_dexperts_toxicity, bar_width, alpha=opacity, color='c', label='DExperts[MASK]') 
+# plt.bar(index + bar_width*2, mask_sgeat_toxicity, bar_width, alpha=opacity, color='orange', label='SGEAT[MASK]') 
+
+plt.yticks(fontsize=12, fontname= 'DejaVu Sans Mono', fontweight=600)  
+ax2.legend(loc='upper right', prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
 
 plt.tight_layout()     
 plt.savefig(r"save_figs/pre_toxic.pdf")
-# 显示图形
-# plt.show()
+
 
 
 
