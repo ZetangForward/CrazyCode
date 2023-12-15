@@ -101,7 +101,7 @@ print(data)
 
 
 # 设置雷达图的标签  
-labels=np.array(['Toxicity', 'Coherence', 'Relevance'])  
+labels=np.array(['Non-Toxicity', 'Coherence', 'Relevance'])  
   
 # 计算雷达图的角度，确保图形是三角形  
 angles=np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()  
@@ -122,7 +122,7 @@ ax.set_thetagrids([])
 
 # # 设置雷达图的标签位置  
 for label, angle in zip(labels, angles[:-1]): 
-    if label == "Toxicity":
+    if label == "Non-Toxicity":
         angle += 0.12
         cc = 0.32
     elif label == "Relevance":
@@ -137,8 +137,8 @@ ax.grid(True)
 ax.set_rgrids([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
 
 # 设置雷达图为三角形  
-# ax.set_ylim(0)  # 可以通过设置y轴的下限来确保图形是三角形  
-  
+ax.set_ylim(0)  # 可以通过设置y轴的下限来确保图形是三角形  
+
 # 添加图例  
 plt.legend(loc='upper right', bbox_to_anchor=(0.12, 0.12), prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 11})  
 
