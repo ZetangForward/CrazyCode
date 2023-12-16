@@ -2,7 +2,7 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
 import torch
 
-model_path = "/nvme/hf_models/gpt2-xl"
+model_path = "/nvme/hf_models/llama-7b-hf"
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
@@ -15,10 +15,10 @@ model = AutoModelForCausalLM.from_pretrained(
 model.half()
 model.eval()
 
-# unwind broken decapoda-research config
-# model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
-# model.config.bos_token_id = 1
-# model.config.eos_token_id = 2
+# for llama model
+model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
+model.config.bos_token_id = 1
+model.config.eos_token_id = 2
 
 def evaluate(
     instruction,
@@ -37,6 +37,7 @@ def evaluate(
         top_p=top_p,
         top_k=top_k,
         num_beams=num_beams,
+        do_sample=True,
         **kwargs,
     )
     # import pdb; pdb.set_trace()
@@ -48,12 +49,16 @@ def evaluate(
             output_scores=True,
             max_new_tokens=max_new_tokens,
         )
-    import pdb; pdb.set_trace()
-    # s = generation_output.sequences[0]
-    output = tokenizer.batch_decode(generation_output)
+    s = generation_output.sequences[0]
+    output = tokenizer.decode(s)
     return output
 
 
 if __name__ == "__main__":
-    ipt = "You are the not sm-art one for trying"
+    ipt = "You are the not smart one for trying to make sense of it all."
+    print(evaluate(ipt))
+
+    print("second time")
+
+    ipt = "In fact, garbage is already flooding"
     print(evaluate(ipt))
