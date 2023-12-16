@@ -19,3 +19,14 @@ Classifier: Programming Language :: Python :: 3.10
 Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
 Requires-Python: >=3.8
 License-File: LICENSE
+Requires-Dist: termcolor
+Requires-Dist: matplotlib
+Requires-Dist: pyyaml
+Requires-Dist: fire
+Requires-Dist: transformers>=4.34.0
+Requires-Dist: matplotlib
+Requires-Dist: gpustat
+Requires-Dist: pytz
+Requires-Dist: nltk
+Requires-Dist: torchmetrics
+Requires-Dist: bert_score
