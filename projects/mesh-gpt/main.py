@@ -82,7 +82,15 @@ transformer = MeshTransformer(
     max_seq_len = 768
 )
 
-autoencoder_trainer = MeshAutoencoderTrainer(model = autoencoder,learning_rate = 1e-3, warmup_steps = 10,dataset = dataset,batch_size=1,grad_accum_every=1,num_train_steps=1)
+autoencoder_trainer = MeshAutoencoderTrainer(
+    model = autoencoder,
+    learning_rate = 1e-3, 
+    warmup_steps = 10,
+    dataset = dataset,
+    batch_size=1,
+    grad_accum_every=1,
+    num_train_steps=1,
+)
 
 autoencoder_trainer.train(10,True)
 
@@ -96,7 +104,6 @@ transformer = MeshTransformer(
     max_seq_len = max_seq,
     #condition_on_text = True
 )
- 
- 
+
 trainer = MeshTransformerTrainer(model = transformer,warmup_steps = 10, dataset = dataset,learning_rate = 1e-2,batch_size=1,grad_accum_every=1,num_train_steps=1)
 trainer.train(10)
