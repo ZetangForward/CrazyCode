@@ -1,0 +1,30 @@
+Metadata-Version: 2.1
+Name: meshgpt-pytorch
+Version: 0.3.20
+Summary: MeshGPT Pytorch
+Home-page: https://github.com/lucidrains/meshgpt-pytorch
+Author: Phil Wang
+Author-email: lucidrains@gmail.com
+License: MIT
+Keywords: artificial intelligence,deep learning,attention mechanisms,transformers,mesh generation
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.6
+Description-Content-Type: text/markdown
+Requires-Dist: accelerate>=0.25.0
+Requires-Dist: beartype
+Requires-Dist: classifier-free-guidance-pytorch>=0.4.2
+Requires-Dist: einops>=0.7.0
+Requires-Dist: ema-pytorch
+Requires-Dist: local-attention>=1.9.0
+Requires-Dist: gateloop-transformer>=0.1.5
+Requires-Dist: pytorch-warmup
+Requires-Dist: pytorch-custom-utils
+Requires-Dist: torch>=2.0
+Requires-Dist: torch_geometric
+Requires-Dist: torchtyping
+Requires-Dist: tqdm
+Requires-Dist: vector-quantize-pytorch>=1.12.0
+Requires-Dist: x-transformers>=1.26.0
