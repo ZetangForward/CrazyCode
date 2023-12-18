@@ -22,9 +22,9 @@ model.config.eos_token_id = 2
 
 def evaluate(
     instruction,
-    temperature=0.6,
+    temperature=0.4,
     top_p=0.9,
-    top_k=40,
+    top_k=60,
     num_beams=4,
     max_new_tokens=128,
     **kwargs,
