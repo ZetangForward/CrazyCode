@@ -29,9 +29,9 @@ def process_obj(obj_file):
 
 # obj_data = {"texts": "chair", "vertices": vertices, "faces": faces} 
 obj_data = []
-object_path = "/f_ndata/zekai/ShapeNet/ShapeNetCore.v2/03001627"
+object_path = "data"
 for checklist in tqdm(os.listdir(object_path)[:64]):
-    path = os.path.join(object_path, checklist, "models/model_normalized.obj")
+    path = os.path.join(object_path, "model_normalized.obj")
     obj_file = open(path,'r').read()
     vertices, meshes = process_obj(obj_file)
     if len(meshes) > 800:
@@ -55,6 +55,10 @@ class MeshDataset(Dataset):
 
 dataset = MeshDataset(obj_data)
 
+######################
+##### Load Model #####
+######################
+
 from meshgpt_pytorch import (
     MeshAutoencoder,
     MeshTransformer,
@@ -74,7 +78,15 @@ transformer = MeshTransformer(
     max_seq_len = 768
 )
 
-autoencoder_trainer = MeshAutoencoderTrainer(model = autoencoder,learning_rate = 1e-3, warmup_steps = 10,dataset = dataset,batch_size=1,grad_accum_every=1,num_train_steps=1)
+autoencoder_trainer = MeshAutoencoderTrainer(
+    model = autoencoder,
+    learning_rate = 1e-3, 
+    warmup_steps = 10,
+    dataset = dataset,
+    batch_size=1, 
+    grad_accum_every=1, 
+    num_train_steps=1,
+)
 autoencoder_trainer.train(10,True)
 
 max_length =  max(len(d["faces"]) for d in dataset if "faces" in d)
