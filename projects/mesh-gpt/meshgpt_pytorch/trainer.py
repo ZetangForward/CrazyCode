@@ -399,7 +399,7 @@ class MeshAutoencoderTrainer(Module):
             num_batches = 0
 
             progress_bar = tqdm(self.dataloader, desc=f'Epoch {epoch + 1}/{num_epochs}') 
-
+            import pdb; pdb.set_trace()
             for data in progress_bar: 
 
                 if isinstance(data, tuple): 
@@ -728,7 +728,7 @@ class MeshTransformerTrainer(Module):
             progress_bar = tqdm(self.dataloader, desc=f'Epoch {epoch + 1}/{num_epochs}') 
 
             for data in progress_bar: 
-
+                import pdb; pdb.set_trace()
                 if isinstance(data, tuple): 
                     forward_kwargs = dict(zip(self.data_kwargs, data))
 

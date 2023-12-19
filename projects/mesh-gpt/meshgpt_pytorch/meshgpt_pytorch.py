@@ -532,6 +532,7 @@ class MeshAutoencoder(Module):
         c - coordinates (3)
         d - embed dim
         """
+        import pdb; pdb.set_trace()
 
         batch, num_vertices, num_coors, device = *vertices.shape, vertices.device
         _, num_faces, _ = faces.shape

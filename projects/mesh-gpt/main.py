@@ -109,5 +109,5 @@ transformer = MeshTransformer(
     #condition_on_text = True
 )
 
-trainer = MeshTransformerTrainer(model = transformer,warmup_steps = 10, dataset = dataset,learning_rate = 1e-2,batch_size=1,grad_accum_every=1,num_train_steps=1)
+trainer = MeshTransformerTrainer(model = transformer,warmup_steps = 10, dataset = dataset,learning_rate = 1e-2, batch_size=1, grad_accum_every=1, num_train_steps=1)
 trainer.train(10)
