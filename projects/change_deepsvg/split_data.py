@@ -35,7 +35,7 @@ def main(content, max_filter):
     cnt = 0
     final_res = []
     for line in content:
-        svg_path = line.get("svgo_path")
+        svg_path = line.get("svg_path")
         print(svg_path)
         tmp = split_path(svg_path)
         final_res.extend(tmp)
