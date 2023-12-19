@@ -29,18 +29,19 @@ def process_obj(obj_file):
 
 # obj_data = {"texts": "chair", "vertices": vertices, "faces": faces} 
 obj_data = []
-# object_path = "/f_ndata/zekai/ShapeNet/ShapeNetCore.v2/03001627"
+object_path = "/home/amax/zecheng/modelzipper/projects/mesh-gpt/data/model_normalized.obj"
 # for checklist in tqdm(os.listdir(object_path)[:64]):
 #     path = os.path.join(object_path, checklist, "models/model_normalized.obj")
-#     obj_file = open(path,'r').read()
-#     vertices, meshes = process_obj(obj_file)
-#     if len(meshes) > 800:
-#         continue
-#     vertices_tensor = torch.tensor(vertices, dtype=torch.float32)
-#     meshes_tensor = torch.tensor(meshes, dtype=torch.int64)
-#     print(vertices_tensor.shape)
-#     print(meshes_tensor.shape)
-#     obj_data.append({"texts":"chair","vertices": vertices_tensor, "faces": meshes_tensor})
+obj_file = open(object_path,'r').read()
+vertices, meshes = process_obj(obj_file)
+# if len(meshes) > 800:
+#     continue
+vertices_tensor = torch.tensor(vertices, dtype=torch.float32)
+meshes_tensor = torch.tensor(meshes, dtype=torch.int64)
+print(vertices_tensor.shape)
+print(meshes_tensor.shape)
+obj_data.append({"texts":"chair","vertices": vertices_tensor, "faces": meshes_tensor})
+
 path = 'data/model_normalized.obj'
 obj_file = open(path,'r').read()
 vertices, meshes = process_obj(obj_file)
@@ -48,6 +49,9 @@ vertices_tensor = torch.tensor(vertices, dtype=torch.float32)
 meshes_tensor = torch.tensor(meshes, dtype=torch.int64)
 print(vertices_tensor.shape)
 print(meshes_tensor.shape)
+
+import pdb; pdb.set_trace()
+
 obj_data = {"texts":"chair","vertices": vertices_tensor, "faces": meshes_tensor}
 
 class MeshDataset(Dataset): 
