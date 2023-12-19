@@ -147,9 +147,9 @@ def random_sample_from_file(file_path, num_samples=10, output_file=None):
     Random sample from a file
     '''
     assert os.path.exists(file_path), f"{file_path} not exist!"
-    content = load_jsonl(file_path)
+    content = auto_read_data(file_path)
     res = random.sample(content, num_samples)
-    save_file(res, output_file)
+    auto_read_data(res, output_file)
     return res
 
 
