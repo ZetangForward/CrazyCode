@@ -25,11 +25,14 @@ import pandas as pd
 
 class CustomExperiment(pl.LightningModule):
 
-    def __init__(self, model, config) -> None:
+    def __init__(self, model, config, train_data_len) -> None:
         super(CustomExperiment, self).__init__()
 
         self.model = model
         self.config = config
+        self.max_iter = config.common.max_epoch * train_data_len
+        self.warmup_iter = config.lr_scheduler.warmup_epoch * train_data_len
+
         self.params = {
             "LR": 0.005,
             "weight_decay": 0.0,
@@ -95,7 +98,10 @@ class CustomExperiment(pl.LightningModule):
             ], 
             betas=(0.5, 0.9)
         )
-            
+
+        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.warmup_iter, num_training_steps=self.config.common.max_epoch*len(trainloader)) 
+        
+        scheduler = WarmupCosineLrScheduler(optimizer, max_iter=self.config.common.max_epoch*len(trainloader), eta_ratio=0.1, warmup_iter=config.lr_scheduler.warmup_epoch*len(trainloader), warmup_ratio=1e-4)
 
         optims.append(optimizer)
         # Check if more than 1 optimizer is required (Used for adversarial training)
