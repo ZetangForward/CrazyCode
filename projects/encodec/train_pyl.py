@@ -280,7 +280,8 @@ def main(config):
                 segment=None, name='my_encodec',
                 ratios=config.model.ratios)
 
-    print(model)
+    tb_logger = TensorBoardLogger(save_dir=config.experiment.model_save_dir, name=f"{config.experiment.exp_name}")
+
 
     exit()
 
