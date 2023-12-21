@@ -1,25 +1,16 @@
 import os
 import argparse
+import shutil
 from pathlib import Path
 import pyarrow.parquet as pq
-import urllib
+from urllib import request
 
-def generate_csv(file_path, csv_path, mode='train'):
-    # 生成file_dir下所有文件的路径
-    table = pq.read_table(file_path)
-    df = table.to_pandas()
-
-    for index, row in df.iterrows():
-        url = row['file']
-        saved_file_name = os.path.join("/zecheng/dataset/librispeech_asr_dummy", os.path.basename(url))
-        import pdb; pdb.set_trace()
-        urllib.request.urlretrieve(url, saved_file_name)
-        
+def generate_csv(file_dir, csv_path, mode='train'):        
     
     file_list = []
     for root, dirs, files in os.walk(file_dir):
         for file in files:
-            if (file.endswith('.flac') or file.endswith('.wav')) and mode in root:
+            if (file.endswith('.flac') or file.endswith('.wav')):
                 file_list.append(os.path.join(root, file))
     print(f"file length:{len(file_list)}")
     # 生成csv文件
@@ -45,9 +36,9 @@ def split_train_test_csv(csv_path, threshold=0.8):
     test_data.to_csv(f'{Path(csv_path).stem}_test.csv', index=False) 
 
 if __name__ == '__main__':
-    audio_file = "/workspace/zecheng/modelzipper/projects/encodec/encodec/test_data/0000.parquet"
+    file_dir = "/zecheng/dataset/librispeech_asr_dummy"
     csv_file = "/workspace/zecheng/modelzipper/projects/encodec/encodec/test_data/test.csv"
-    generate_csv(audio_file, csv_file)
+    generate_csv(file_dir, csv_file)
     # arg = argparse.ArgumentParser()
     # arg.add_argument('-i','--input_file_dir', type=str, default='./LibriSpeech/train-clean-100')
     # arg.add_argument('-o','--output_path', type=str, default='./librispeech_train100h.csv')
