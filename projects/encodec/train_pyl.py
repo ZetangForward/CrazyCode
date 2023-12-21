@@ -93,47 +93,22 @@ class CustomExperiment(pl.LightningModule):
             [
                 {
                     'params': self.model.parameters(), 
-                    'lr': lr=self.optimization.lr
+                    'lr': self.optimization.lr
                 }
             ], 
             betas=(0.5, 0.9)
         )
 
-        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.warmup_iter, num_training_steps=self.config.common.max_epoch*len(trainloader)) 
-        
-        scheduler = WarmupCosineLrScheduler(optimizer, max_iter=self.config.common.max_epoch*len(trainloader), eta_ratio=0.1, warmup_iter=config.lr_scheduler.warmup_epoch*len(trainloader), warmup_ratio=1e-4)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer, 
+            num_warmup_steps=self.warmup_iter, 
+            num_training_steps=self.max_iter,
+        ) 
 
-        optims.append(optimizer)
-        # Check if more than 1 optimizer is required (Used for adversarial training)
-        try:
-            if self.params['LR_2'] is not None:
-                optimizer2 = optim.Adam(getattr(self.model,self.params['submodel']).parameters(),
-                                        lr=self.params['LR_2'])
-                optims.append(optimizer2)
-        except:
-            pass
-
-        try:
-            if self.params['scheduler_gamma'] is not None:
-                # scheduler = optim.lr_scheduler.ExponentialLR(optims[0], gamma = self.params['scheduler_gamma'])
-                
-                scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.warmup_steps, num_training_steps=self.num_training_steps) 
-                scheds.append(scheduler)
-
-                # Check if another scheduler is required for the second optimizer
-                try:
-                    if self.params['scheduler_gamma_2'] is not None:
-                        scheduler2 = optim.lr_scheduler.ExponentialLR(optims[1],
-                                                                      gamma = self.params['scheduler_gamma_2'])
-                        scheds.append(scheduler2)
-                except:
-                    pass
-                return {
-                    "optimizer": optims[0],
-                    "lr_scheduler": scheds[0]    
-                }
-        except:
-            return optims
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler,
+        }
 
 
 class MyDataset(Dataset):
