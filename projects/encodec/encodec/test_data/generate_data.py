@@ -2,13 +2,19 @@ import os
 import argparse
 from pathlib import Path
 import pyarrow.parquet as pq
-
+import urllib
 
 def generate_csv(file_path, csv_path, mode='train'):
     # 生成file_dir下所有文件的路径
     table = pq.read_table(file_path)
     df = table.to_pandas()
-    import pdb; pdb.set_trace()
+
+    for index, row in df.iterrows():
+        url = row['file']
+        saved_file_name = os.path.join("/zecheng/dataset/librispeech_asr_dummy", os.path.basename(url))
+        import pdb; pdb.set_trace()
+        urllib.request.urlretrieve(url, saved_file_name)
+        
     
     file_list = []
     for root, dirs, files in os.walk(file_dir):
