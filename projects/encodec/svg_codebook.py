@@ -11,8 +11,13 @@ from encodec.quantization import distrib
 import torch.nn.functional as F
 import warnings
 from torch.nn.utils import spectral_norm, weight_norm
+from hashlib import sha256
+from pathlib import Path
+
 
 EncodedFrame = tp.Tuple[torch.Tensor, tp.Optional[torch.Tensor]]
+ROOT_URL = 'https://dl.fbaipublicfiles.com/encodec/v0/'
+
 
 def default(val: tp.Any, d: tp.Any) -> tp.Any:
     return val if val is not None else d
@@ -21,6 +26,12 @@ def uniform_init(*shape: int):
     t = torch.empty(shape)
     nn.init.kaiming_uniform_(t)
     return t
+
+def _get_checkpoint_url(root_url: str, checkpoint: str):
+    if not root_url.endswith('/'):
+        root_url += '/'
+    return root_url + checkpoint
+
 
 def laplace_smoothing(x, n_categories: int, epsilon: float = 1e-5):
     return (x + epsilon) / (x.sum() + n_categories * epsilon)
@@ -134,6 +145,15 @@ def get_extra_padding_for_conv1d(
     ideal_length = (math.ceil(n_frames) - 1) * stride + (kernel_size - padding_total)
     return ideal_length - length
     
+
+@dataclass
+class QuantizedResult:
+    quantized: torch.Tensor
+    codes: torch.Tensor
+    bandwidth: torch.Tensor  # bandwidth in kb/s used, per batch item.
+    penalty: tp.Optional[torch.Tensor] = None
+    metrics: dict = field(default_factory=dict)
+
 
 class EuclideanCodebook(nn.Module):
     """Codebook with Euclidean distance.
@@ -793,7 +813,7 @@ class NormConvTranspose1d(nn.Module):
     def __init__(self, *args, causal: bool = False, norm: str = 'none',
                  norm_kwargs: tp.Dict[str, tp.Any] = {}, **kwargs):
         super().__init__()
-        self.convtr = apply_parametrization_norm(nn.ConvTranspose1d(*args, **kwargs), norm)
+        self.convtr = nn.ConvTranspose1d(*args, **kwargs)
         self.norm = get_norm_module(self.convtr, causal, norm, **norm_kwargs)
         self.norm_type = norm
 
@@ -857,6 +877,48 @@ def create_sin_embedding(positions: torch.Tensor, dim: int, max_period: float = 
         torch.cos(phase),
         torch.sin(phase),
     ], dim=-1)
+
+
+def _linear_overlap_add(frames: tp.List[torch.Tensor], stride: int):
+    # Generic overlap add, with linear fade-in/fade-out, supporting complex scenario
+    # e.g., more than 2 frames per position.
+    # The core idea is to use a weight function that is a triangle,
+    # with a maximum value at the middle of the segment.
+    # We use this weighting when summing the frames, and divide by the sum of weights
+    # for each positions at the end. Thus:
+    #   - if a frame is the only one to cover a position, the weighting is a no-op.
+    #   - if 2 frames cover a position:
+    #          ...  ...
+    #         /   \/   \
+    #        /    /\    \
+    #            S  T       , i.e. S offset of second frame starts, T end of first frame.
+    # Then the weight function for each one is: (t - S), (T - t), with `t` a given offset.
+    # After the final normalization, the weight of the second frame at position `t` is
+    # (t - S) / (t - S + (T - t)) = (t - S) / (T - S), which is exactly what we want.
+    #
+    #   - if more than 2 frames overlap at a given point, we hope that by induction
+    #      something sensible happens.
+    assert len(frames)
+    device = frames[0].device
+    dtype = frames[0].dtype
+    shape = frames[0].shape[:-1]
+    total_size = stride * (len(frames) - 1) + frames[-1].shape[-1]
+
+    frame_length = frames[0].shape[-1]
+    t = torch.linspace(0, 1, frame_length + 2, device=device, dtype=dtype)[1: -1]
+    weight = 0.5 - (t - 0.5).abs()
+
+    sum_weight = torch.zeros(total_size, device=device, dtype=dtype)
+    out = torch.zeros(*shape, total_size, device=device, dtype=dtype)
+    offset: int = 0
+
+    for frame in frames:
+        frame_length = frame.shape[-1]
+        out[..., offset:offset + frame_length] += weight[:frame_length] * frame
+        sum_weight[offset:offset + frame_length] += weight[:frame_length]
+        offset += stride
+    assert sum_weight.min() > 0
+    return out / sum_weight
 
 
 class StreamingTransformerEncoderLayer(nn.TransformerEncoderLayer):
@@ -1138,6 +1200,7 @@ class EncodecModel(nn.Module):
             checkpoint_name = checkpoints[self.name]
         except KeyError:
             raise RuntimeError("No LM pre-trained for the current Encodec model.")
+        
         url = _get_checkpoint_url(ROOT_URL, checkpoint_name)
         state = torch.hub.load_state_dict_from_url(
             url, map_location='cpu', check_hash=True)  # type: ignore
@@ -1228,3 +1291,16 @@ class EncodecModel(nn.Module):
         model.eval()
         return model
 
+
+def _check_checksum(path: Path, checksum: str):
+    sha = sha256()
+    with open(path, 'rb') as file:
+        while True:
+            buf = file.read(2**20)
+            if not buf:
+                break
+            sha.update(buf)
+    actual_checksum = sha.hexdigest()[:len(checksum)]
+    if actual_checksum != checksum:
+        raise RuntimeError(f'Invalid checksum for file {path}, '
+                           f'expected {checksum} but got {actual_checksum}')
