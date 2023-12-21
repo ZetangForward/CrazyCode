@@ -7,7 +7,6 @@ import typing as tp
 import torch
 from torch import nn
 from einops import rearrange, repeat
-from encodec.quantization import distrib
 import torch.nn.functional as F
 import warnings
 from torch.nn.utils import spectral_norm, weight_norm

@@ -188,7 +188,7 @@ class MyDataset(Dataset):
 
 
 
-@hydra.main(config_path='config', config_name='config')
+@hydra.main(config_path='encodec/confg', config_name='config')
 def main(config):
     print(config)
 
