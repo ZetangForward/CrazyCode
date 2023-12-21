@@ -7,7 +7,6 @@
 """Torch distributed utilities."""
 
 import typing as tp
-
 import torch
 
 
@@ -17,17 +16,14 @@ def rank():
     else:
         return 0
 
-
 def world_size():
     if torch.distributed.is_initialized():
         return torch.distributed.get_world_size()
     else:
         return 1
 
-
 def is_distributed():
     return world_size() > 1
-
 
 def all_reduce(tensor: torch.Tensor, op=torch.distributed.ReduceOp.SUM):
     if is_distributed():

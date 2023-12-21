@@ -1258,10 +1258,11 @@ class EncodecModel(nn.Module):
                    model_norm: str = 'weight_norm',
                    audio_normalize: bool = False,
                    segment: tp.Optional[float] = None,
-                   name: str = 'unset'):
-        encoder = SEANetEncoder(channels=channels, norm=model_norm, causal=causal)
-        decoder = SEANetDecoder(channels=channels, norm=model_norm, causal=causal)
-        n_q = int(1000 * target_bandwidths[-1] // (math.ceil(sample_rate / encoder.hop_length) * 10))
+                   name: str = 'unset',
+                   ratios=[8, 5, 4, 2]):
+        encoder = SEANetEncoder(channels=channels, norm=model_norm, causal=causal,ratios=ratios)
+        decoder = SEANetDecoder(channels=channels, norm=model_norm, causal=causal,ratios=ratios)
+        n_q = int(1000 * target_bandwidths[-1] // (math.ceil(sample_rate / encoder.hop_length) * 10)) # int(1000*24//(math.ceil(24000/320)*10))
         quantizer = ResidualVectorQuantizer(
             dimension=encoder.dimension,
             n_q=n_q,
@@ -1279,6 +1280,7 @@ class EncodecModel(nn.Module):
             name=name,
         )
         return model
+
 
     @staticmethod
     def _get_pretrained(checkpoint_name: str, repository: tp.Optional[Path] = None):
