@@ -1304,3 +1304,13 @@ def _check_checksum(path: Path, checksum: str):
     if actual_checksum != checksum:
         raise RuntimeError(f'Invalid checksum for file {path}, '
                            f'expected {checksum} but got {actual_checksum}')
+
+
+
+
+def main():
+    pass
+
+
+if __name__ == "__main__":
+    main()
