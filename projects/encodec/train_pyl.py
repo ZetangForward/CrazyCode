@@ -23,21 +23,13 @@ from my_imp import EncodecModel
 import librosa
 import pandas as pd
 
-class VAEXperiment(pl.LightningModule):
+class CustomExperiment(pl.LightningModule):
 
-    def __init__(self,
-                 vae_model,
-                 kld_weight: float = 0.000025,
-                 warmup_steps: int = None,
-                 num_training_steps: int = None) -> None:
-        super(VAEXperiment, self).__init__()
+    def __init__(self, model, config) -> None:
+        super(CustomExperiment, self).__init__()
 
-        self.model = vae_model
-        self.curr_device = None
-        self.hold_graph = False
-        self.kld_weight = kld_weight
-        self.warmup_steps = warmup_steps
-        self.num_training_steps = num_training_steps
+        self.model = model
+        self.config = config
         self.params = {
             "LR": 0.005,
             "weight_decay": 0.0,
@@ -94,11 +86,17 @@ class VAEXperiment(pl.LightningModule):
         optims = []
         scheds = []
 
-        optimizer = AdamW(
-            self.model.parameters(),
-            lr=self.params['LR'],
-            weight_decay=self.params['weight_decay']
+        optimizer = torch.optim.Adam(
+            [
+                {
+                    'params': self.model.parameters(), 
+                    'lr': lr=self.optimization.lr
+                }
+            ], 
+            betas=(0.5, 0.9)
         )
+            
+
         optims.append(optimizer)
         # Check if more than 1 optimizer is required (Used for adversarial training)
         try:
@@ -280,9 +278,15 @@ def main(config):
                 segment=None, name='my_encodec',
                 ratios=config.model.ratios)
 
-    tb_logger = TensorBoardLogger(save_dir=config.experiment.model_save_dir, name=f"{config.experiment.exp_name}")
+    tb_logger = TensorBoardLogger(
+        save_dir=config.experiment.model_save_dir, 
+        name=f"{config.experiment.exp_name}"
+    )
 
-
+    experiment = VAEXperiment(
+        vae_model=model, kld_weight=0.000025, 
+        warmup_steps=warmup_steps, num_training_steps=num_training_steps
+    )
     exit()
 
 
