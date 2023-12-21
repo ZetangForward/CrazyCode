@@ -79,6 +79,7 @@ def _get_checkpoint_url(root_url: str, checkpoint: str):
 def laplace_smoothing(x, n_categories: int, epsilon: float = 1e-5):
     return (x + epsilon) / (x.sum() + n_categories * epsilon)
 
+
 def sample_vectors(samples, num: int):
     num_samples, device = samples.shape[0], samples.device
 
@@ -89,11 +90,10 @@ def sample_vectors(samples, num: int):
 
     return samples[indices]
 
+
 def kmeans(samples, num_clusters: int, num_iters: int = 10):
     dim, dtype = samples.shape[-1], samples.dtype
-
     means = sample_vectors(samples, num_clusters)
-
     for _ in range(num_iters):
         diffs = rearrange(samples, "n d -> n () d") - rearrange(
             means, "c d -> () c d"
