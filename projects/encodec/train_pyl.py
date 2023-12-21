@@ -30,7 +30,7 @@ class CustomExperiment(pl.LightningModule):
 
         self.model = model
         self.config = config
-        self.max_iter = config.common.max_epoch * train_data_len
+        self.max_iter = config.experiment.max_epoch * train_data_len
         self.warmup_iter = config.lr_scheduler.warmup_epoch * train_data_len
 
         self.params = {
@@ -52,6 +52,7 @@ class CustomExperiment(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
+        import pdb; pdb.set_trace()
         numerical_inputs = batch['batch_numerical_input_ids']
         padding_mask = batch["padding_mask"]
 
@@ -84,16 +85,14 @@ class CustomExperiment(pl.LightningModule):
     def on_validation_end(self) -> None:
         pass
 
-    def configure_optimizers(self):
 
-        optims = []
-        scheds = []
+    def configure_optimizers(self):
 
         optimizer = torch.optim.Adam(
             [
                 {
                     'params': self.model.parameters(), 
-                    'lr': self.optimization.lr
+                    'lr': self.config.optimization.lr
                 }
             ], 
             betas=(0.5, 0.9)
@@ -109,64 +108,6 @@ class CustomExperiment(pl.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
         }
-
-
-class MyDataset(Dataset):
-    def __init__(self, svg_file, max_seq_len=512, split="train"):
-        self.split = split
-        ## Load SVG data
-        with open(svg_file, "r") as f2:
-            self.content = [json.loads(line) for line in f2]
-        self.max_seq_len = max_seq_len
-        
-    def extract_numerical(self, path_data):  
-        ## match all numericals 
-        number_pattern = r"-?\d+\.?\d*"  
-        numbers = re.findall(number_pattern, path_data)  
-        numbers = [float(item) for item in numbers]
-        return numbers 
-    
-    def __len__(self):
-        return len(self.content)
-    
-    def __getitem__(self, index):
-        data = self.content[index]
-        svg_path_with_prompt = data["compress_path"]
-        # extract all the numerical values
-        extracted_numericals = self.extract_numerical(svg_path_with_prompt)
-        # extracted_numericals = [min(item, 200) for item in extracted_numericals]
-        # extracted_numericals = [item / 205 if item > -1 else -1 for item in extracted_numericals]
-        # extracted_numericals = [math.log(item + 1) if item > -1 else -1 for item in extracted_numericals]  
-        return extracted_numericals
-    
-    @classmethod  
-    def custom_datacollator(cls, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:  
-        """Collate examples for supervised fine-tuning."""  
-        
-        padding_mask, batch_numerical_input_ids = [], []   
-        max_numerical_nums = 512  
-    
-        for ins in instances:    
-            ## process numerical values    
-            ### Step 1: convert to float tensor    
-            numerical_values = torch.FloatTensor(ins)
-            ori_len = numerical_values.shape[0]
-            ### Step 2: truncate to max length and pad to the longest length    
-            numerical_values = numerical_values[:max_numerical_nums]    
-            ori_len = min(max_numerical_nums, ori_len)
-            numerical_values = torch.cat([numerical_values[:ori_len], torch.full((max_numerical_nums - ori_len,),255)])  # utilize 255 for padding token
-            ### Step 3: create padding mask    
-            padding_mask.append([1]*ori_len + [0]*(max_numerical_nums - ori_len))  
-            
-            batch_numerical_input_ids.append(numerical_values)    
-    
-        batch_numerical_input_ids = torch.stack(batch_numerical_input_ids, dim=0)    
-        padding_mask = torch.tensor(padding_mask, dtype=torch.long)    
-    
-        return {    
-            "batch_numerical_input_ids": batch_numerical_input_ids,    
-            "padding_mask": padding_mask,    
-        }  
 
 
 class CustomAudioDataset(torch.utils.data.Dataset):
@@ -264,10 +205,31 @@ def main(config):
         name=f"{config.experiment.exp_name}"
     )
 
-    experiment = VAEXperiment(
-        vae_model=model, kld_weight=0.000025, 
-        warmup_steps=warmup_steps, num_training_steps=num_training_steps
+    experiment = CustomExperiment(
+        model, config, train_data_len=len(trainloader)
     )
+
+    runner = Trainer(
+        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+        logger=tb_logger,
+        callbacks=[
+            LearningRateMonitor(),
+            ModelCheckpoint(
+                save_top_k=5, 
+                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
+                monitor= "val_loss",
+                filename="pure_numerical_vae-{epoch:02d}",
+                save_last= True),
+        ],
+        strategy=DDPStrategy(find_unused_parameters=False),
+        max_epochs=config.experiment.max_epoch,
+        devices=config.experiment.device_num,
+        gradient_clip_val=1.5
+    )
+
+    # print(f"======= Training {config['model_params']['name']} =======")
+    runner.fit(experiment, train_dataloaders=trainloader, val_dataloaders=testloader)
+
     exit()
 
 
