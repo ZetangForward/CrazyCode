@@ -10,8 +10,8 @@ experiment:
   device_num: 1
 
 datasets:
-  train_csv_path: '/workspace/zecheng/modelzipper/projects/encodec/encodec/test_data/librispeech_train100h.csv'
-  test_csv_path: '/workspace/zecheng/modelzipper/projects/encodec/encodec/test_data/librispeech_train100h.csv'
+  train_csv_path: '/workspace/zecheng/modelzipper/projects/encodec/encodec/test_data/test.csv'
+  test_csv_path: '/workspace/zecheng/modelzipper/projects/encodec/encodec/test_data/test.csv'
   batch_size: 2
   tensor_cut: 3200000
   num_workers: 0

@@ -25,10 +25,14 @@ import pandas as pd
 
 class CustomExperiment(pl.LightningModule):
 
-    def __init__(self, model, config, train_data_len) -> None:
+    def __init__(self, model, config, train_data_len, state="train") -> None:
         super(CustomExperiment, self).__init__()
 
         self.model = model
+        if state == "train":
+            self.model.train()
+        else:
+            self.model.eval()
         self.config = config
         self.max_iter = config.experiment.max_epoch * train_data_len
         self.warmup_iter = config.lr_scheduler.warmup_epoch * train_data_len
@@ -53,6 +57,7 @@ class CustomExperiment(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         import pdb; pdb.set_trace()
+        output, loss_w, _ = self.model(batch)
         numerical_inputs = batch['batch_numerical_input_ids']
         padding_mask = batch["padding_mask"]
 
@@ -68,6 +73,8 @@ class CustomExperiment(pl.LightningModule):
 
 
     def validation_step(self, batch, batch_idx):
+        output, loss_w, _ = self.forward(batch)
+        import pdb; pdb.set_trace()
         numerical_inputs = batch['batch_numerical_input_ids']
         padding_mask = batch["padding_mask"]
 
@@ -166,7 +173,7 @@ def collate_fn(batch):
 
 
 
-@hydra.main(config_path='encodec/confg', config_name='config')
+@hydra.main(config_path='encodec/config', config_name='config')
 def main(config):
     print(config)
 

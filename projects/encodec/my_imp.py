@@ -12,6 +12,7 @@ import warnings
 from torch.nn.utils import spectral_norm, weight_norm
 from hashlib import sha256
 from pathlib import Path
+import random
 
 
 EncodedFrame = tp.Tuple[torch.Tensor, tp.Optional[torch.Tensor]]
@@ -242,7 +243,7 @@ class EuclideanCodebook(nn.Module):
     def init_embed_(self, data):
         if self.inited:
             return
-
+        
         embed, cluster_size = kmeans(data, self.codebook_size, self.kmeans_iters)
         self.embed.data.copy_(embed)
         self.embed_avg.data.copy_(embed.clone())
@@ -396,9 +397,9 @@ class VectorQuantization(nn.Module):
         device = x.device
         x = rearrange(x, "b d n -> b n d")
         x = self.project_in(x)
-
+        import pdb; pdb.set_trace()
         quantize, embed_ind = self._codebook(x)
-
+        import pdb; pdb.set_trace()
         if self.training:
             quantize = x + (quantize - x).detach()
 
@@ -1219,8 +1220,26 @@ class EncodecModel(nn.Module):
         return out
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        frames = self.encode(x)
-        return self.decode(frames)[:, :, :x.shape[-1]]
+        frames = self.encode(x) # input_wav -> encoder , x.shape = [BatchSize,channel,tensor_cut or original length] 2,1,10000
+
+        # if encodec is training, input_wav -> encoder -> quantizer forward -> decode
+        loss_w = torch.tensor([0.0], device=x.device, requires_grad=True)
+        codes = []
+        # self.quantizer.train(self.training)
+        index = torch.tensor(random.randint(0,len(self.target_bandwidths)-1),device=x.device)
+        if torch.distributed.is_initialized():
+            torch.distributed.broadcast(index, src=0)
+        bw = self.target_bandwidths[index.item()] # fixme: variable bandwidth training, if you broadcast bd, the broadcast will encounter error
+        for emb,scale in frames:
+            import pdb; pdb.set_trace()
+            qv = self.quantizer(emb,self.frame_rate,bw)
+            loss_w = loss_w + qv.penalty # loss_w is the sum of all quantizer forward loss (RVQ commitment loss :l_w)
+            codes.append((qv.quantized,scale))
+        
+        return self.decode(codes)[:,:,:x.shape[-1]], loss_w, frames
+        # else:
+        #     # if encodec is not training, input_wav -> encoder -> quantizer encode -> decode
+        #     return self.decode(frames)[:, :, :x.shape[-1]]
 
     def set_target_bandwidth(self, bandwidth: float):
         if bandwidth not in self.target_bandwidths:
