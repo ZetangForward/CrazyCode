@@ -1190,7 +1190,6 @@ class EncodecModel(nn.Module):
             scale = scale.view(-1, 1)
         else:
             scale = None
-
         emb = self.encoder(x)
         codes = self.quantizer.encode(emb, self.frame_rate, self.bandwidth)
         codes = codes.transpose(0, 1)
@@ -1230,8 +1229,7 @@ class EncodecModel(nn.Module):
         if torch.distributed.is_initialized():
             torch.distributed.broadcast(index, src=0)
         bw = self.target_bandwidths[index.item()] # fixme: variable bandwidth training, if you broadcast bd, the broadcast will encounter error
-        for emb,scale in frames:
-            import pdb; pdb.set_trace()
+        for emb, scale in frames:
             qv = self.quantizer(emb,self.frame_rate,bw)
             loss_w = loss_w + qv.penalty # loss_w is the sum of all quantizer forward loss (RVQ commitment loss :l_w)
             codes.append((qv.quantized,scale))

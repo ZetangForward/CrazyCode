@@ -74,7 +74,6 @@ class CustomExperiment(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         output, loss_w, _ = self.forward(batch)
-        import pdb; pdb.set_trace()
         numerical_inputs = batch['batch_numerical_input_ids']
         padding_mask = batch["padding_mask"]
 
