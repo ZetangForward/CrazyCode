@@ -635,8 +635,22 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
     @property
     def model_device(self):
         return next(self.parameters()).device
-    
+
+   
 if __name__ == "__main__":
+
+    ## fake data for testing VQVAE
+    fake_data = torch.randint(0, 200, (64, 9))
+    fake_data[:, 0] = torch.randint(0, 3, (64,))
+    mask = (fake_data[:, 0] == 0) | (fake_data[:, 0] == 1)
+    fake_data[mask, 3:7] = 0
+
+    autoencoder = SVGAutoencoder()
+
+    res = autoencoder(fake_data)
+
+    exit()
+    
     model_name_or_path = "/zecheng/svg_model_hub/NLLaMA-V3-emu-nospace/checkpoint-700"
     DEFAULT_PAD_TOKEN = "[PAD]"
     NUMERICAL_TOKEN = "[NUM]"
