@@ -18,7 +18,8 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
 from typing import Optional, Dict, Sequence
 from vector_quantize_pytorch import ResidualVQ
-
+from einops import rearrange, repeat, reduce, pack, unpack
+from einops.layers.torch import Rearrange
 
 def top_p(scores, p, temperature):
     scores = scores / temperature
@@ -34,6 +35,22 @@ def top_p(scores, p, temperature):
     indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
     scores = scores.masked_fill(indices_to_remove, -float("Inf"))
     return scores
+
+
+class SVGAutoencoder(nn.Module):
+
+    def __init__(self, num_discrete_coors = 200, num_commands = 3, dim_coor_embed = 4096):
+        super().__init__()
+        self.num_discrete_coors = num_discrete_coors
+        self.type_embed = nn.Embedding(num_commands, dim_coor_embed)
+        self.coor_embed = nn.Embedding(num_discrete_coors, dim_coor_embed)
+
+
+    def encode(self, svg_path, svg_path_mask):
+        batch_size, num_command, num_coors = svg_path.size()
+        svg_without_pad = svg_path.masked_fill(~rearrange(svg_path_mask, 'b n c -> b n c 1'), 0)
+
+
 
 
 class NumericalSVGDataset(Dataset):

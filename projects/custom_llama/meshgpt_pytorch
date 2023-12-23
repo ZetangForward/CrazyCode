@@ -1,55 +1,81 @@
 from pathlib import Path
 from functools import partial
 from math import ceil, pi
-
 import torch
 from torch import nn, Tensor, einsum
 from torch.nn import Module, ModuleList
 import torch.nn.functional as F
 from torch.cuda.amp import autocast
-
 from torchtyping import TensorType
-
 from pytorch_custom_utils import save_load
-
 from beartype import beartype
 from beartype.typing import Union, Tuple, Callable, Optional, List, Dict, Any
-
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
-
 from x_transformers import Decoder
 from x_transformers.attend import Attend
 from x_transformers.x_transformers import RMSNorm, FeedForward, LayerIntermediates
-
+from torch.nn.utils.rnn import pad_sequence
 from x_transformers.autoregressive_wrapper import (
     eval_decorator,
     top_k,
     top_p,
 )
-
 from local_attention import LocalMHA
-
 from vector_quantize_pytorch import (
     ResidualVQ,
     ResidualLFQ
 )
-
-from meshgpt_pytorch.data import derive_face_edges_from_faces
-from meshgpt_pytorch.version import __version__
-
-from classifier_free_guidance_pytorch import (
-    classifier_free_guidance,
-    TextEmbeddingReturner
-)
-
 from torch_geometric.nn.conv import SAGEConv
-
 from gateloop_transformer import SimpleGateLoopLayer
-
 from tqdm import tqdm
 
 # helper functions
+
+def derive_face_edges_from_faces(
+    faces: TensorType['b', 'nf', 3, int],
+    pad_id = -1,
+    neighbor_if_share_one_vertex = False,
+    include_self = True
+) -> TensorType['b', 'e', 2, int]:
+
+    is_one_face, device = faces.ndim == 2, faces.device
+
+    if is_one_face:
+        faces = rearrange(faces, 'nf c -> 1 nf c')
+
+    max_num_faces = faces.shape[1]
+    face_edges_vertices_threshold = 1 if neighbor_if_share_one_vertex else 2
+
+    all_edges = torch.stack(torch.meshgrid(
+        torch.arange(max_num_faces, device = device),
+        torch.arange(max_num_faces, device = device),
+    indexing = 'ij'), dim = -1)
+
+    face_masks = reduce(faces != pad_id, 'b nf c -> b nf', 'all')
+    face_edges_masks = rearrange(face_masks, 'b i -> b i 1') & rearrange(face_masks, 'b j -> b 1 j')
+
+    face_edges = []
+
+    for face, face_edge_mask in zip(faces, face_edges_masks):
+
+        shared_vertices = rearrange(face, 'i c -> i 1 c 1') == rearrange(face, 'j c -> 1 j 1 c')
+        num_shared_vertices = shared_vertices.any(dim = -1).sum(dim = -1)
+
+        is_neighbor_face = (num_shared_vertices >= face_edges_vertices_threshold) & face_edge_mask
+
+        if not include_self:
+            is_neighbor_face &= num_shared_vertices != 3
+
+        face_edge = all_edges[is_neighbor_face]
+        face_edges.append(face_edge)
+
+    face_edges = pad_sequence(face_edges, padding_value = pad_id, batch_first = True)
+
+    if is_one_face:
+        face_edges = rearrange(face_edges, '1 e ij -> e ij')
+
+    return face_edges
 
 def exists(v):
     return v is not None
@@ -344,7 +370,7 @@ class GateLoopBlock(Module):
 
 # main classes
 
-@save_load(version = __version__)
+@save_load()
 class MeshAutoencoder(Module):
     @beartype
     def __init__(
@@ -900,7 +926,7 @@ class MeshAutoencoder(Module):
 
         return recon_faces, total_loss, loss_breakdown
 
-@save_load(version = __version__)
+@save_load()
 class MeshTransformer(Module):
     @beartype
     def __init__(
@@ -961,12 +987,12 @@ class MeshTransformer(Module):
 
         cross_attn_dim_context = None
 
-        if condition_on_text:
-            self.conditioner = TextEmbeddingReturner(
-                model_types = text_condition_model_types,
-                cond_drop_prob = text_condition_cond_drop_prob
-            )
-            cross_attn_dim_context = self.conditioner.dim_latent
+        # if condition_on_text:
+        #     self.conditioner = TextEmbeddingReturner(
+        #         model_types = text_condition_model_types,
+        #         cond_drop_prob = text_condition_cond_drop_prob
+        #     )
+        #     cross_attn_dim_context = self.conditioner.dim_latent
 
         # for summarizing the vertices of each face
 
@@ -1171,7 +1197,7 @@ class MeshTransformer(Module):
 
         return self.forward_on_codes(codes, cache = cache, **kwargs)
 
-    @classifier_free_guidance
+    # @classifier_free_guidance
     def forward_on_codes(
         self,
         codes = None,
