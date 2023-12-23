@@ -51,7 +51,7 @@ obj_data.append({"texts":"chair","vertices": vertices_tensor, "faces": meshes_te
 # print(meshes_tensor.shape)
 
 
-obj_data = {"texts":"chair","vertices": vertices_tensor, "faces": meshes_tensor}
+obj_data = [{"texts":"chair","vertices": vertices_tensor, "faces": meshes_tensor}] * 20
 
 class MeshDataset(Dataset): 
     def __init__(self, obj_data): 
@@ -95,7 +95,7 @@ autoencoder_trainer = MeshAutoencoderTrainer(
     num_train_steps=1,
 )
 
-autoencoder_trainer.train(10,True)
+autoencoder_trainer.train(10, True)
 
 max_length =  max(len(d["faces"]) for d in dataset if "faces" in d)
 max_seq =  max_length * 6

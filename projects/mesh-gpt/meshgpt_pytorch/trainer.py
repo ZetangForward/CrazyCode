@@ -399,7 +399,7 @@ class MeshAutoencoderTrainer(Module):
             num_batches = 0
 
             progress_bar = tqdm(self.dataloader, desc=f'Epoch {epoch + 1}/{num_epochs}') 
-            import pdb; pdb.set_trace()
+
             for data in progress_bar: 
 
                 if isinstance(data, tuple): 

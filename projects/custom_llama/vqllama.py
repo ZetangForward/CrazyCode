@@ -7,6 +7,8 @@ import transformers
 import random
 import torch  
 import torch.nn as nn 
+from beartype import beartype
+from beartype.typing import Union, Tuple, Callable, Optional, List, Dict, Any
 from tqdm import tqdm  
 import torch.nn.functional as F
 from typing import Any, Mapping, Tuple, List
@@ -20,6 +22,9 @@ from typing import Optional, Dict, Sequence
 from vector_quantize_pytorch import ResidualVQ
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
+from torch_geometric.nn.conv import SAGEConv
+
+
 
 def top_p(scores, p, temperature):
     scores = scores / temperature
@@ -37,18 +42,94 @@ def top_p(scores, p, temperature):
     return scores
 
 
+# tensor helper functions
+
+@beartype
+def discretize(
+    t: Tensor,
+    *,
+    continuous_range: Tuple[float, float],
+    num_discrete: int = 128
+) -> Tensor:
+    lo, hi = continuous_range
+    assert hi > lo
+
+    t = (t - lo) / (hi - lo)
+    t *= num_discrete
+    t -= 0.5
+
+    return t.round().long().clamp(min = 0, max = num_discrete - 1)
+
+@beartype
+def undiscretize(
+    t: Tensor,
+    *,
+    continuous_range = Tuple[float, float],
+    num_discrete: int = 128
+) -> Tensor:
+    lo, hi = continuous_range
+    assert hi > lo
+
+    t = t.float()
+
+    t += 0.5
+    t /= num_discrete
+    return t * (hi - lo) + lo
+
+
 class SVGAutoencoder(nn.Module):
 
-    def __init__(self, num_discrete_coors = 200, num_commands = 3, dim_coor_embed = 4096):
+    def __init__(
+            self, 
+            conv_dim = 512, 
+            sageconv_dropout = 0.,
+            sageconv_kwargs: dict = dict(
+                normalize = True,
+                project = True
+            ),
+            num_discrete_coors = 200, 
+            num_commands = 3, 
+            encoder_depth = 2,
+            decoder_depth = 2,
+            dim_coor_embed = 4096, 
+            backbone_dim = 4096
+        ):
         super().__init__()
         self.num_discrete_coors = num_discrete_coors
         self.type_embed = nn.Embedding(num_commands, dim_coor_embed)
         self.coor_embed = nn.Embedding(num_discrete_coors, dim_coor_embed)
 
+        # project into model dimension
+        self.project_in = nn.Linear(dim_coor_embed, backbone_dim)
+
+        # encoder
+        self.encoder = nn.ModuleList([])
+
+        for _ in range(encoder_depth):
+            sage_conv = SAGEConv(
+                conv_dim,
+                conv_dim,
+                sageconv_dropout = sageconv_dropout,
+                **sageconv_kwargs
+            )
+
+            self.encoders.append(sage_conv)
+
+
+
+
 
     def encode(self, svg_path, svg_path_mask):
         batch_size, num_command, num_coors = svg_path.size()
         svg_without_pad = svg_path.masked_fill(~rearrange(svg_path_mask, 'b n c -> b n c 1'), 0)
+
+        command_embed = self.type_embed(svg_without_pad[..., 0])
+        path_embed = self.corr_embed(svg_without_pad[..., 1:])
+        svg_embed = torch.concat((command_embed, path_embed), dim=1)
+        svg_embed = self.project_in(svg_embed)
+
+        for conv in self.encoders:
+            face_embed = conv(face_embed, face_edges)
 
 
 
