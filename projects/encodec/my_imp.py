@@ -1217,7 +1217,7 @@ class EncodecModel(nn.Module):
         return out
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        frames = self.encode(x) # input_wav -> encoder , x.shape = [BatchSize,channel,tensor_cut or original length] 2,1,10000
+        frames = self.encode(x) # input_wav -> encoder, x.shape = [BatchSize,channel,tensor_cut or original length] 2,1,10000
 
         # if encodec is training, input_wav -> encoder -> quantizer forward -> decode
         loss_w = torch.tensor([0.0], device=x.device, requires_grad=True)
