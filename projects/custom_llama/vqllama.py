@@ -210,10 +210,6 @@ class SVGAutoencoder(nn.Module):
         return path_embed, path_commands
 
 
-        
-
-
-
 
 class NumericalSVGDataset(Dataset):
     
