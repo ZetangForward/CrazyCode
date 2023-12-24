@@ -23,7 +23,7 @@ from vector_quantize_pytorch import ResidualVQ
 from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
 from torch_geometric.nn.conv import SAGEConv
-
+from torchtyping import TensorType
 
 
 def top_p(scores, p, temperature):
@@ -115,13 +115,28 @@ class SVGAutoencoder(nn.Module):
 
             self.encoders.append(sage_conv)
 
+    @beartype
+    def encode(
+            self, 
+            svg_commands: TensorType['b', 'nc', 9, float],
+            svg_paths:    TensorType['b', 'ns', 3, int],
+            svg_edges:    TensorType['b', 'e', 50, int],
+            svg_mask:     TensorType['b', 'ns', bool],
+            svg_edge_mask:TensorType['b', 'e', bool],
+        ):
+        """
+            einops:
+            b - batch
+            ns - number of svg paths
+            nc - number of commands (9)
+            c - commands (9)
+            d - embed dim
+        """
 
+        batch_size, num_sub_paths, num_commands = svg_paths.size()
+        _, num_paths, _ = svg_edges.shape
 
-
-
-    def encode(self, svg_path, svg_path_mask):
-        batch_size, num_command, num_coors = svg_path.size()
-        svg_without_pad = svg_path.masked_fill(~rearrange(svg_path_mask, 'b n c -> b n c 1'), 0)
+        path_without_pad = svg_paths.masked_fill(~rearrange(svg_mask, 'b nf -> b nf 1'), 0)
 
         command_embed = self.type_embed(svg_without_pad[..., 0])
         path_embed = self.corr_embed(svg_without_pad[..., 1:])
