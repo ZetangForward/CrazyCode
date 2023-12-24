@@ -24,7 +24,8 @@ from einops import rearrange, repeat, reduce, pack, unpack
 from einops.layers.torch import Rearrange
 from torch_geometric.nn.conv import SAGEConv
 from torchtyping import TensorType
-
+from x_transformers.x_transformers import RMSNorm, FeedForward, LayerIntermediates
+from local_attention import LocalMHA
 
 def top_p(scores, p, temperature):
     scores = scores / temperature
@@ -82,7 +83,6 @@ class SVGAutoencoder(nn.Module):
     def __init__(
             self, 
             conv_dim = 512, 
-            sageconv_dropout = 0.,
             sageconv_kwargs: dict = dict(
                 normalize = True,
                 project = True
@@ -92,7 +92,19 @@ class SVGAutoencoder(nn.Module):
             encoder_depth = 2,
             decoder_depth = 2,
             dim_coor_embed = 4096, 
-            backbone_dim = 4096
+            backbone_dim = 4096,
+            final_encoder_norm = True,
+            sageconv_dropout = 0.,
+            attn_dropout = 0.,
+            ff_dropout = 0.,
+            resnet_dropout = 0.,
+            local_attn_window_size = 128,
+            local_attn_encoder_depth = 0,
+            local_attn_decoder_depth = 0,
+            local_attn_kwargs: dict = dict(
+                dim_head = 32,
+                heads = 8
+            ),
         ):
         super().__init__()
         self.num_discrete_coors = num_discrete_coors
@@ -115,13 +127,41 @@ class SVGAutoencoder(nn.Module):
 
             self.encoders.append(sage_conv)
 
+        self.final_encoder_norm = nn.LayerNorm(backbone_dim) if final_encoder_norm else nn.Identity()
+
+
+        # local attention related
+
+        self.encoder_local_attn_blocks = torch.nn.ModuleList([])
+        self.decoder_local_attn_blocks = torch.nn.ModuleList([])
+
+        attn_kwargs = dict(
+            dim = backbone_dim,
+            causal = False,
+            prenorm = True,
+            dropout = attn_dropout,
+            window_size = local_attn_window_size,
+        )
+
+        for _ in range(local_attn_encoder_depth):
+            self.encoder_local_attn_blocks.append(nn.ModuleList([
+                LocalMHA(**attn_kwargs, **local_attn_kwargs),
+                nn.Sequential(RMSNorm(backbone_dim), FeedForward(backbone_dim, glu = True, dropout = ff_dropout))
+            ]))
+
+        for _ in range(local_attn_decoder_depth):
+            self.decoder_local_attn_blocks.append(nn.ModuleList([
+                LocalMHA(**attn_kwargs, **local_attn_kwargs),
+                nn.Sequential(RMSNorm(backbone_dim), FeedForward(backbone_dim, glu = True, dropout = ff_dropout))
+            ]))
+
     @beartype
     def encode(
             self, 
             svg_commands: TensorType['b', 'nc', 9, float],
-            svg_paths:    TensorType['b', 'ns', 3, int],
+            svg_paths:    TensorType['b', 'np', 3, int],
             svg_edges:    TensorType['b', 'e', 50, int],
-            svg_mask:     TensorType['b', 'ns', bool],
+            svg_mask:     TensorType['b', 'np', bool],
             svg_edge_mask:TensorType['b', 'e', bool],
         ):
         """
@@ -136,15 +176,41 @@ class SVGAutoencoder(nn.Module):
         batch_size, num_sub_paths, num_commands = svg_paths.size()
         _, num_paths, _ = svg_edges.shape
 
-        path_without_pad = svg_paths.masked_fill(~rearrange(svg_mask, 'b nf -> b nf 1'), 0)
+        path_without_pad = svg_paths.masked_fill(~rearrange(svg_mask, 'b np -> b np 1'), 0)
 
-        command_embed = self.type_embed(svg_without_pad[..., 0])
-        path_embed = self.corr_embed(svg_without_pad[..., 1:])
-        svg_embed = torch.concat((command_embed, path_embed), dim=1)
-        svg_embed = self.project_in(svg_embed)
+        path_ = repeat(path_without_pad, 'b np c -> b np c d', d = num_commands)
+        svg_commands = repeat(svg_commands, 'b nc c -> b np nc c', np = num_paths)
+
+        path_commands = svg_commands.gather(-2, path_) # get all path commands
+
+        type_embed = self.type_embed(path_commands[..., 0])
+        coord_embed = self.coor_embed(path_commands[..., 1:])
+
+        path_embed = torch.cat((type_embed, coord_embed), dim = -1)
+        path_embed = rearrange(path_embed, 'b np nc d -> b np (nc d)')
+
+        # project into model dimension
+        path_embed = self.project_in(path_embed)
+        orig_path_embed_shape = path_embed.shape
+
+        svg_edges = svg_edges[svg_edge_mask]
+        svg_edges = rearrange(svg_edges, 'be ij -> ij be')
 
         for conv in self.encoders:
-            face_embed = conv(face_embed, face_edges)
+            path_embed = conv(path_embed, svg_edges)
+
+        path_embed = path_embed.new_zeros(orig_path_embed_shape).masked_scatter(rearrange(svg_mask, '... -> ... 1'), path_embed)
+
+        for attn, ff in self.encoder_local_attn_blocks:
+            path_embed = attn(path_embed, mask = svg_mask) + path_embed
+            path_embed = ff(path_embed) + path_embed
+
+        path_embed = self.final_encoder_norm(path_embed)
+
+        return path_embed, path_commands
+
+
+        
 
 
 
