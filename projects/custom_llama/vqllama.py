@@ -78,6 +78,31 @@ def undiscretize(
     return t * (hi - lo) + lo
 
 
+def extract_edge_ids_from_svg(svg_path, num_sub_command = 3, pad_id=-1):
+    device = svg_path.device
+    edge_id_pairs, batch_edge_id_pairs = [], []
+    current_command_id = 0
+    if len(svg_path) < num_sub_command * 2:
+        return edge_id_pairs
+    for batch_data in svg_path:
+        for i in range(0, len(batch_data)):
+            if batch_data[i][0] != -1:
+                if i + num_sub_command < len(batch_data):
+                    if batch_data[i + num_sub_command][0] != -1:
+                        edge_id_pairs.append((current_command_id, current_command_id + 1))
+                        current_command_id += 1
+            else:
+                batch_edge_id_pairs.append(edge_id_pairs)
+                break
+
+    ## add padding to edge_id_pairs
+    max_len = max([len(item) for item in batch_edge_id_pairs])
+    for item in batch_edge_id_pairs:
+        item.extend([(pad_id, pad_id)] * (max_len - len(item)))
+
+    return torch.tensor(batch_edge_id_pairs, dtype=torch.long, device=device)
+
+
 class SVGAutoencoder(nn.Module):
 
     def __init__(
@@ -155,6 +180,85 @@ class SVGAutoencoder(nn.Module):
                 nn.Sequential(RMSNorm(backbone_dim), FeedForward(backbone_dim, glu = True, dropout = ff_dropout))
             ]))
 
+
+    @beartype
+    def quantize(
+        self,
+        *,
+        faces: TensorType['b', 'nf', 3, int],
+        face_mask: TensorType['b', 'n', bool],
+        face_embed: TensorType['b', 'nf', 'd', float],
+        pad_id = None,
+        rvq_sample_codebook_temp = 1.
+    ):
+        pad_id = default(pad_id, self.pad_id)
+        batch, num_faces, device = *faces.shape[:2], faces.device
+
+        max_vertex_index = faces.amax()
+        num_vertices = int(max_vertex_index.item() + 1)
+
+        face_embed = self.project_dim_codebook(face_embed)
+        face_embed = rearrange(face_embed, 'b nf (nv d) -> b nf nv d', nv = 3)
+
+        vertex_dim = face_embed.shape[-1]
+        vertices = torch.zeros((batch, num_vertices, vertex_dim), device = device)
+
+        # create pad vertex, due to variable lengthed faces
+
+        pad_vertex_id = num_vertices
+        vertices = pad_at_dim(vertices, (0, 1), dim = -2, value = 0.)
+
+        faces = faces.masked_fill(~rearrange(face_mask, 'b n -> b n 1'), pad_vertex_id)
+
+        # prepare for scatter mean
+
+        faces_with_dim = repeat(faces, 'b nf nv -> b (nf nv) d', d = vertex_dim)
+
+        face_embed = rearrange(face_embed, 'b ... d -> b (...) d')
+
+        # scatter mean
+
+        averaged_vertices = scatter_mean(vertices, faces_with_dim, face_embed, dim = -2)
+
+        # mask out null vertex token
+
+        mask = torch.ones((batch, num_vertices + 1), device = device, dtype = torch.bool)
+        mask[:, -1] = False
+
+        # rvq specific kwargs
+
+        quantize_kwargs = dict()
+
+        if isinstance(self.quantizer, ResidualVQ):
+            quantize_kwargs.update(sample_codebook_temp = rvq_sample_codebook_temp)
+
+        # residual VQ
+
+        quantized, codes, commit_loss = self.quantizer(averaged_vertices, mask = mask, **quantize_kwargs)
+
+        # gather quantized vertexes back to faces for decoding
+        # now the faces have quantized vertices
+
+        face_embed_output = quantized.gather(-2, faces_with_dim)
+        face_embed_output = rearrange(face_embed_output, 'b (nf nv) d -> b nf (nv d)', nv = 3)
+
+        face_embed_output = self.project_codebook_out(face_embed_output)
+
+        # vertex codes also need to be gathered to be organized by face sequence
+        # for autoregressive learning
+
+        faces_with_quantized_dim = repeat(faces, 'b nf nv -> b (nf nv) q', q = self.num_quantizers)
+        codes_output = codes.gather(-2, faces_with_quantized_dim)
+
+        # make sure codes being outputted have this padding
+
+        face_mask = repeat(face_mask, 'b nf -> b (nf nv) 1', nv = 3)
+        codes_output = codes_output.masked_fill(~face_mask, self.pad_id)
+
+        # output quantized, codes, as well as commitment loss
+
+        return face_embed_output, codes_output, commit_loss
+
     @beartype
     def encode(
             self, 
@@ -208,6 +312,25 @@ class SVGAutoencoder(nn.Module):
         path_embed = self.final_encoder_norm(path_embed)
 
         return path_embed, path_commands
+
+
+    def forward(
+        self,
+        svg_commands: TensorType['b', 'nc', 9, float],
+        svg_paths:    TensorType['b', 'np', 3, int],
+        svg_edges:    TensorType['b', 'e', 50, int] = None,
+        rvq_sample_codebook_temp = 1,
+    ):
+
+        if svg_edges is None:
+            svg_edges = extract_edge_ids_from_svg(svg_paths, pad_id=-1)  # get edges from commands directly
+        
+        svg_mask = reduce(svg_paths != self.pad_id, 'b nf c -> b nf', 'all')
+        svg_edges_mask = reduce(svg_edges != self.pad_id, 'b e ij -> b e', 'all')
+
+        encoded, svg_coord = self.encode(svg_commands, svg_paths, svg_edges, svg_mask, svg_edges_mask)
+
+
 
 
 

@@ -90,7 +90,7 @@ autoencoder_trainer = MeshAutoencoderTrainer(
     learning_rate = 1e-3, 
     warmup_steps = 10,
     dataset = dataset,
-    batch_size=1,
+    batch_size=2,
     grad_accum_every=1,
     num_train_steps=1,
 )
