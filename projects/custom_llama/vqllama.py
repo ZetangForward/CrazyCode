@@ -264,9 +264,9 @@ class SVGAutoencoder(nn.Module):
             self, 
             svg_commands: TensorType['b', 'nc', 9, float],
             svg_paths:    TensorType['b', 'np', 3, int],
-            svg_edges:    TensorType['b', 'e', 50, int],
-            svg_mask:     TensorType['b', 'np', bool],
-            svg_edge_mask:TensorType['b', 'e', bool],
+            svg_mask:     TensorType['b', 'np', bool] = None,
+            svg_edges:    TensorType['b', 'e', 50, int] = None,
+            svg_edge_mask:TensorType['b', 'e', bool] = None,
         ):
         """
             einops:
@@ -277,8 +277,8 @@ class SVGAutoencoder(nn.Module):
             d - embed dim
         """
 
-        batch_size, num_sub_paths, num_commands = svg_paths.size()
-        _, num_paths, _ = svg_edges.shape
+        _, num_paths, num_commands = svg_paths.size()
+        # _, num_paths, _ = svg_edges.shape
 
         path_without_pad = svg_paths.masked_fill(~rearrange(svg_mask, 'b np -> b np 1'), 0)
 
@@ -297,11 +297,11 @@ class SVGAutoencoder(nn.Module):
         path_embed = self.project_in(path_embed)
         orig_path_embed_shape = path_embed.shape
 
-        svg_edges = svg_edges[svg_edge_mask]
-        svg_edges = rearrange(svg_edges, 'be ij -> ij be')
+        # svg_edges = svg_edges[svg_edge_mask]
+        # svg_edges = rearrange(svg_edges, 'be ij -> ij be')
 
-        for conv in self.encoders:
-            path_embed = conv(path_embed, svg_edges)
+        # for conv in self.encoders:
+        #     path_embed = conv(path_embed, svg_edges)
 
         path_embed = path_embed.new_zeros(orig_path_embed_shape).masked_scatter(rearrange(svg_mask, '... -> ... 1'), path_embed)
 

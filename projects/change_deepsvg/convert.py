@@ -42,13 +42,17 @@ def build_mesh_data(svg_file):
 def convert_to_mesh(mesh_data, num_sub_path = 3):
     idx = 0
     pair_sub_paths = []
+    new_mesh_data = mesh_data.copy()
     for i in range(0, len(mesh_data), num_sub_path):
         if i + num_sub_path <= len(mesh_data):
             pair_sub_paths.append([k for k in range(idx, idx + num_sub_path)])
             idx += num_sub_path
         elif i < len(mesh_data) and len(mesh_data) - i < num_sub_path:
             pair_sub_paths.append([k for k in range(idx, idx + num_sub_path)])
-            
+            new_mesh_data = torch.cat([new_mesh_data, torch.zeros(num_sub_path - (len(mesh_data) - i), 9)])
+        else:
+            break
+    return new_mesh_data, pair_sub_paths
 
 
 def convert_svg(svg_file):
@@ -63,10 +67,6 @@ def convert_svg(svg_file):
         svg_tensors = torch.cat(svg_tensors)
         if svg_tensors[:6].equal(black_box):
             svg_tensors = svg_tensors[6:]
-
-        return svg_tensors
-
-        import pdb; pdb.set_trace()
 
         # FIGR-8-SVG specific operation
         svg_tensors = torch.cat(svg_tensors)
