@@ -44,7 +44,7 @@ class SvgDataModule(pl.LightningDataModule):
         # dataset processing operations here
         return None
     
-    def setup(self, stage: str) -> None:
+    def setup(self, stage: str = 'fit') -> None:
         self.svg_files = auto_read_data(self.cfg.train_data_path)
         self.train_file = self.svg_files[:-500]
         self.valid_file = self.svg_files[-500:]
@@ -57,7 +57,6 @@ class SvgDataModule(pl.LightningDataModule):
             self.valid_file, max_path_nums=self.cfg.max_path_nums, 
             mode='valid', pad_token_id=self.cfg.pad_token_id
         )    
-        self.create_data_loaders()
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
