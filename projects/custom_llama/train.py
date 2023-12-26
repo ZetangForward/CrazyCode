@@ -1,128 +1,337 @@
-import torch
-import trimesh
+"""
+THIS CODE IS TAKEN FROM OPENAI JUKEBOX!
+
+
+Ability to train vq-vae and prior
+First try for random inputs
+Then from maestros
+"""
+import sys
+import fire
+import warnings
 import numpy as np
-import os
-import csv 
-import json
-import math 
-import torch
-from torch.utils.data import Dataset, DataLoader 
-from tqdm import tqdm
-import numpy as np
-import torch
-import json
+import torch as t
+import unmix.utils.dist_adapter as dist
+from torch.nn.parallel import DistributedDataParallel
 
-from .meshgpt_pytorch import (
-    MeshAutoencoderTrainer,
-    MeshAutoencoder,
-)
-
-def load_json(file,num_examples):
-    obj_datas = []
-    with open(file, "r") as json_file:
-        loaded_data = json.load(json_file) 
-        for item in loaded_data:
-            for _ in range(num_examples):
-                obj_data = {"vertices": torch.tensor(item["vertices"], dtype=torch.float), "faces":  torch.tensor(item["faces"], dtype=torch.long),"texts": item["texts"] } 
-                obj_datas.append(obj_data)
-    return obj_datas
+from unmix.hparams import setup_hparams
+from unmix.make_models import make_vqvae, make_prior, restore_opt, save_checkpoint
+from unmix.utils.logger import init_logging
+from unmix.utils.audio_utils import audio_preprocess, audio_postprocess
+from unmix.utils.torch_utils import zero_grad, count_parameters
+from unmix.utils.dist_utils import print_once, allreduce, allgather
+from unmix.utils.ema import CPUEMA, FusedEMA, EMA
+from unmix.utils.fp16 import FP16FusedAdam, FusedAdam, LossScalar, clipped_grad_scale, backward
+from unmix.data.data_processor import DataProcessor
 
 
-class MeshDataset(Dataset): 
-    def __init__(self, data): 
-        self.data = data
-        print(f"Got {len(data)} data")
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx): 
-        return self.data[idx]
-    
-    def embed_texts(self,transformer): 
-        unique_texts = set(item['texts'] for item in self.data)
- 
-        text_embeddings = transformer.embed_texts(list(unique_texts))
-        print(f"Got text_embeddings: {len(text_embeddings)}") 
-        text_embedding_dict = dict(zip(unique_texts, text_embeddings))
- 
-        for item in self.data:
-            text_value = item['texts']
-            item['text_embeds'] = text_embedding_dict.get(text_value, None)
-            del item['texts']
- 
-        
-    def sample_obj(self):
-        all_vertices = []
-        all_faces = []
-        vertex_offset = 0 
+def prepare_aud(x, hps):
+    x = audio_postprocess(x.detach().contiguous(), hps)
+    return allgather(x)
 
 
-        translation_distance = 0.5  # Adjust as needed 
-        vertex_offset = len(all_vertices)
-        
-        for r, faces_coordinates in enumerate(self.data):    
-            if r > 30:
-                break
-            for vertex in faces_coordinates["vertices"]: 
-                all_vertices.append(f"v {vertex[0]+translation_distance * (r / 0.2 - 1)} {vertex[1]} {vertex[2]}\n")
-                #all_vertices.append(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
-
-            for face in faces_coordinates["faces"]:
-                all_faces.append(f"f {face[0]+1+vertex_offset} {face[1]+1+vertex_offset} {face[2]+1+vertex_offset}\n") 
-                try:
-                    all_vertices[face[0]+vertex_offset]
-                    all_vertices[face[1]+vertex_offset]
-                    all_vertices[face[2]+vertex_offset]
-                except Exception  as e :
-                    print(e)
-                    print(face[0]+vertex_offset)
-                    print(face[1]+vertex_offset)
-                    print(face[2]+vertex_offset)
-                    print(len(all_vertices))
-                
-            vertex_offset = len(all_vertices) 
+def log_aud(logger, tag, x, hps):
+    logger.add_audios(tag, prepare_aud(x, hps), hps.sr,
+                      max_len=hps.max_len, max_log=hps.max_log)
+    logger.flush()
 
 
-        obj_file_content = "".join(all_vertices) + "".join(all_faces)
+def get_ddp(model, hps):
+    rank = dist.get_rank()
+    local_rank = rank % 8
+    # ddp = DistributedDataParallel(model, device_ids=[
+    #                              local_rank], output_device=local_rank, broadcast_buffers=False, bucket_cap_mb=hps.bucket)
 
-        # Save to a single file
-        obj_file_path = "./combined_3d_models.obj"
-        with open(obj_file_path, "w") as file:
-            file.write(obj_file_content)
+    ddp = t.nn.DataParallel(model)
+    ddp.to("cuda")
+    print("Number of gpus:")
+    print(t.cuda.device_count())
+    return ddp
 
-        print(obj_file_path)
 
-tables = load_json("/f_ndata/zekai/ShapeNetCore.v2/table.json",1)
-dataset = MeshDataset(tables) 
+def get_ema(model, hps):
+    mu = hps.mu or (1. - (hps.bs * hps.ngpus/8.)/1000)
+    ema = None
+    if hps.ema and hps.train:
+        if hps.cpu_ema:
+            if dist.get_rank() == 0:
+                print("Using CPU EMA")
+            ema = CPUEMA(model.parameters(), mu=mu, freq=hps.cpu_ema_freq)
+        elif hps.ema_fused:
+            ema = FusedEMA(model.parameters(), mu=mu)
+        else:
+            ema = EMA(model.parameters(), mu=mu)
+    return ema
 
-autoencoder = MeshAutoencoder( 
-    dim = 512
-) 
-total_params = sum(p.numel() for p in autoencoder.encoders.parameters())
-print(f"encoders Total parameters: {total_params}")
-total_params = sum(p.numel() for p in autoencoder.decoders.parameters())
-print(f"decoders Total parameters: {total_params}")  
 
-total_params = sum(p.numel() for p in autoencoder.encoders.parameters())
-print(f"Total parameters: {total_params}")
-print(autoencoder.encoders)
+def get_lr_scheduler(opt, hps):
+    def lr_lambda(step):
+        if hps.lr_use_linear_decay:
+            lr_scale = hps.lr_scale * min(1.0, step / hps.lr_warmup)
+            decay = max(0.0, 1.0 - max(0.0, step -
+                                       hps.lr_start_linear_decay) / hps.lr_decay)
+            if decay == 0.0:
+                if dist.get_rank() == 0:
+                    print("Reached end of training")
+            return lr_scale * decay
+        else:
+            return hps.lr_scale * (hps.lr_gamma ** (step // hps.lr_decay)) * min(1.0, step / hps.lr_warmup)
 
-autoencoder_trainer = MeshAutoencoderTrainer(model =autoencoder,learning_rate = 1e-3, 
-                                             warmup_steps = 10,
-                                             dataset = dataset,   
-                                             num_train_steps=100,
-                                             batch_size=16,
-                                             grad_accum_every=1)
+    shd = t.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
 
-loss = autoencoder_trainer.train(40,stop_at_loss = 0.25)   
-autoencoder_trainer = MeshAutoencoderTrainer(model =autoencoder,learning_rate = 1e-4, 
-                                             warmup_steps = 10,
-                                             dataset = dataset,
-                                             checkpoint_every_epoch = 20,  
-                                             num_train_steps=100,
-                                             batch_size=16,
-                                             grad_accum_every=1)
+    return shd
 
-loss = autoencoder_trainer.train(200,stop_at_loss = 0.25)   
-autoencoder_trainer.save(f'mesh-encoder_4_loss_{loss:.3f}.pt') 
+
+def get_optimizer(model, hps):
+    # Optimizer
+    betas = (hps.beta1, hps.beta2)
+    if hps.fp16_opt:
+        opt = FP16FusedAdam(model.parameters(), lr=hps.lr,
+                            weight_decay=hps.weight_decay, betas=betas, eps=hps.eps)
+    else:
+        opt = FusedAdam(model.parameters(), lr=hps.lr,
+                        weight_decay=hps.weight_decay, betas=betas, eps=hps.eps)
+
+    # lr scheduler
+    shd = get_lr_scheduler(opt, hps)
+
+    restore_path = hps.restore_prior if hps.prior else hps.restore_vqvae
+    restore_opt(opt, shd, restore_path)
+
+    # fp16 dynamic loss scaler
+    scalar = None
+    if hps.fp16:
+        rank = dist.get_rank()
+        local_rank = rank % 8
+        scalar = LossScalar(hps.fp16_loss_scale,
+                            scale_factor=2 ** (1./hps.fp16_scale_window))
+        if local_rank == 0:
+            print(scalar.__dict__)
+
+    zero_grad(model)
+    return opt, shd, scalar
+
+
+def log_inputs(orig_model, logger, x_in, y, x_out, hps, tag="train"):
+    print(f"Logging {tag} inputs/ouputs")
+    log_aud(logger, f'{tag}_x_in', x_in, hps)
+    log_aud(logger, f'{tag}_x_out', x_out, hps)
+    bs = x_in.shape[0]
+
+    zs_in = orig_model.encode(x_in, start_level=0, bs_chunks=bs)
+    x_ds = [orig_model.decode(
+        zs_in[level:], start_level=level, bs_chunks=bs) for level in range(0, hps.levels)]
+    for i in range(len(x_ds)):
+        log_aud(logger, f'{tag}_x_ds_start_{i}', x_ds[i], hps)
+
+    logger.flush()
+
+
+def evaluate(model, orig_model, logger, metrics, data_processor, hps):
+    model.eval()
+    orig_model.eval()
+
+    _print_keys = dict(l="loss", rl="recons_loss", sl="spectral_loss")
+
+    with t.no_grad():
+        for i, x in logger.get_range(data_processor.test_loader):
+            if isinstance(x, (tuple, list)):
+                x, y = x
+            else:
+                y = None
+
+            x = x.to('cuda', non_blocking=True)
+            if y is not None:
+                y = y.to('cuda', non_blocking=True)
+
+            x_in = x = audio_preprocess(x, hps)
+            log_input_output = (i == 0)
+
+            if hps.prior:
+                forw_kwargs = dict(y=y, fp16=hps.fp16, decode=log_input_output)
+            else:
+                forw_kwargs = dict(loss_fn=hps.loss_fn, hps=hps)
+
+            x_out, loss, _metrics = model(x, **forw_kwargs)
+
+            # Logging
+            for key, val in _metrics.items():
+                _metrics[key] = val.item()
+            # Make sure to call to free graph
+            _metrics["loss"] = loss = loss.item()
+
+            # Average and log
+            for key, val in _metrics.items():
+                _metrics[key] = metrics.update(f"test_{key}", val, x.shape[0])
+
+            with t.no_grad():
+                if log_input_output:
+                    log_inputs(orig_model, logger, x_in, y, x_out, hps)
+
+            logger.set_postfix(
+                **{print_key: _metrics[key] for print_key, key in _print_keys.items()})
+
+    for key, val in _metrics.items():
+        logger.add_scalar(f"test_{key}", metrics.avg(f"test_{key}"))
+
+    logger.close_range()
+    return {key: metrics.avg(f"test_{key}") for key in _metrics.keys()}
+
+
+def train(model, orig_model, opt, shd, scalar, ema, logger, metrics, data_processor, hps):
+    model.train()
+    orig_model.train()
+
+    print_keys = dict(l="loss", sl="spectral_loss", rl="recons_loss",
+                      e="entropy", u="usage", uc="used_curr", gn="gn", pn="pn", dk="dk")
+
+    for i, x in logger.get_range(data_processor.train_loader):
+        if isinstance(x, (tuple, list)):
+            x, y = x
+        else:
+            y = None
+
+        x = x.to('cuda', non_blocking=True)
+        if y is not None:
+            y = y.to('cuda', non_blocking=True)
+
+        x_in = x = audio_preprocess(x, hps)
+        log_input_output = (logger.iters % hps.save_iters == 0)
+
+        forw_kwargs = dict(loss_fn=hps.loss_fn, hps=hps)
+
+        # Forward
+        x_out, loss, _metrics = model(x, **forw_kwargs)
+
+        # print(loss)
+        # print()
+        # print()
+        # print(_metrics)
+
+        # Backward
+        loss, scale, grad_norm, overflow_loss, overflow_grad = backward(loss=loss, params=list(model.parameters()),
+                                                                        scalar=scalar, fp16=hps.fp16, logger=logger)
+        # Skip step if overflow
+        grad_norm = allreduce(grad_norm, op=dist.ReduceOp.MAX)
+        if overflow_loss or overflow_grad or grad_norm > hps.ignore_grad_norm > 0:
+            zero_grad(orig_model)
+            continue
+
+        # Step opt. Divide by scale to include clipping and fp16 scaling
+        logger.step()
+        opt.step(scale=clipped_grad_scale(grad_norm, hps.clip, scale))
+        zero_grad(orig_model)
+        lr = hps.lr if shd is None else shd.get_lr()[0]
+        if shd is not None:
+            shd.step()
+        if ema is not None:
+            ema.step()
+        next_lr = hps.lr if shd is None else shd.get_lr()[0]
+        finished_training = (next_lr == 0.0)
+
+        # Logging
+
+        for key, val in _metrics.items():
+
+            # update for two gpus
+            if key == "used_curr":
+                _metrics[key] = val.sum().item()/2
+            elif key == "usage":
+                _metrics[key] = val.sum().item()/2
+            else:
+                _metrics[key] = val.sum().item()
+        # Make sure to call to free graph
+        _metrics["loss"] = loss = loss.sum().item() * hps.iters_before_update
+        _metrics["gn"] = grad_norm
+        _metrics["lr"] = lr
+        _metrics["lg_loss_scale"] = np.log2(scale)
+
+        # Average and log
+        for key, val in _metrics.items():
+            _metrics[key] = metrics.update(key, val, x.shape[0])
+            if logger.iters % hps.log_steps == 0:
+                logger.add_scalar(key, _metrics[key])
+
+        # Save checkpoint
+        with t.no_grad():
+            if hps.save and (logger.iters % hps.save_iters == 1 or finished_training):
+                if ema is not None:
+                    ema.swap()
+                orig_model.eval()
+                name = 'latest' if hps.prior else f'step_{logger.iters}'
+                if dist.get_rank() % 8 == 0:
+                    save_checkpoint(logger, name, orig_model,
+                                    opt, dict(step=logger.iters), hps)
+                orig_model.train()
+                if ema is not None:
+                    ema.swap()
+
+        # Input/Output
+        with t.no_grad():
+            if log_input_output:
+                log_inputs(orig_model, logger, x_in, y, x_out, hps)
+
+        if finished_training:
+            dist.barrier()
+            exit()
+    logger.close_range()
+    return {key: metrics.avg(key) for key in _metrics.keys()}
+
+
+def run(hps="teeny", port=29500, **kwargs):
+    rank, local_rank, device = setup_dist_from_mpi(port=port)
+    hps = setup_hparams(hps, kwargs)
+    hps.ngpus = dist.get_world_size()
+    print(hps.ngpus)
+    hps.argv = " ".join(sys.argv)
+    hps.bs_sample = hps.nworkers = hps.bs
+
+    # Setup dataset
+    data_processor = DataProcessor(hps)
+
+    # Setup models
+    vqvae = make_vqvae(hps, device)
+
+    print_once(f"Parameters VQVAE:{count_parameters(vqvae)}")
+
+    model = vqvae
+
+    # Setup opt, ema and distributed_model.
+    opt, shd, scalar = get_optimizer(model, hps)
+    ema = get_ema(model, hps)
+    distributed_model = get_ddp(model, hps)
+
+    logger, metrics = init_logging(hps, local_rank, rank)
+    logger.iters = model.step
+
+    # Run training, eval, sample
+    for epoch in range(hps.curr_epoch, hps.epochs):
+        print("Epoch: ", epoch, "/", hps.epochs)
+        metrics.reset()
+        data_processor.set_epoch(epoch)
+        if hps.train:
+            train_metrics = train(distributed_model, model, opt, shd,
+                                  scalar, ema, logger, metrics, data_processor, hps)
+            train_metrics['epoch'] = epoch
+            if rank == 0:
+                print('Train', ' '.join(
+                    [f'{key}: {val:0.4f}' for key, val in train_metrics.items()]))
+            dist.barrier()
+
+        if hps.test:
+            if ema:
+                ema.swap()
+            test_metrics = evaluate(
+                distributed_model, model, logger, metrics, data_processor, hps)
+            test_metrics['epoch'] = epoch
+            if rank == 0:
+                print('Ema', ' '.join(
+                    [f'{key}: {val:0.4f}' for key, val in test_metrics.items()]))
+            dist.barrier()
+            if ema:
+                ema.swap()
+        dist.barrier()
+
+
+if __name__ == '__main__':
+    fire.Fire(run)

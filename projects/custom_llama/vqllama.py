@@ -26,6 +26,48 @@ from torch_geometric.nn.conv import SAGEConv
 from torchtyping import TensorType
 from x_transformers.x_transformers import RMSNorm, FeedForward, LayerIntermediates
 from local_attention import LocalMHA
+from vector_quantize_pytorch import ResidualVQ, ResidualLFQ
+from torch.cuda.amp import autocast
+
+
+def exists(v):
+    return v is not None
+
+def default(v, d):
+    return v if exists(v) else d
+
+
+def pad_at_dim(t, padding, dim = -1, value = 0):
+    ndim = t.ndim
+    right_dims = (ndim - dim - 1) if dim >= 0 else (-dim - 1)
+    zeros = (0, 0) * right_dims
+    return F.pad(t, (*zeros, *padding), value = value)
+
+def pad_to_length(t, length, dim = -1, value = 0, right = True):
+    curr_length = t.shape[dim]
+    remainder = length - curr_length
+
+    if remainder <= 0:
+        return t
+
+    padding = (0, remainder) if right else (remainder, 0)
+    return pad_at_dim(t, padding, dim = dim, value = value)
+
+def scatter_mean(
+    tgt: Tensor,
+    indices: Tensor,
+    src = Tensor,
+    *,
+    dim: int = -1,
+    eps: float = 1e-5
+):
+    """
+    todo: update to pytorch 2.1 and try https://pytorch.org/docs/stable/generated/torch.Tensor.scatter_reduce_.html#torch.Tensor.scatter_reduce_
+    """
+    num = tgt.scatter_add(dim, indices, src)
+    den = torch.zeros_like(tgt).scatter_add(dim, indices, torch.ones_like(src))
+    return num / den.clamp(min = eps)
+
 
 def top_p(scores, p, temperature):
     scores = scores / temperature
@@ -103,6 +145,89 @@ def extract_edge_ids_from_svg(svg_path, num_sub_command = 3, pad_id=-1):
     return torch.tensor(batch_edge_id_pairs, dtype=torch.long, device=device)
 
 
+class SqueezeExcite(nn.Module):
+    def __init__(
+        self,
+        dim,
+        reduction_factor = 4,
+        min_dim = 16
+    ):
+        super().__init__()
+        dim_inner = max(dim // reduction_factor, min_dim)
+
+        self.net = nn.Sequential(
+            nn.Linear(dim, dim_inner),
+            nn.SiLU(),
+            nn.Linear(dim_inner, dim),
+            nn.Sigmoid(),
+            Rearrange('b c -> b c 1')
+        )
+
+    def forward(self, x, mask = None):
+        if exists(mask):
+            x = x.masked_fill(~mask, 0.)
+
+            num = reduce(x, 'b c n -> b c', 'sum')
+            den = reduce(mask.float(), 'b 1 n -> b 1', 'sum')
+            avg = num / den.clamp(min = 1e-5)
+        else:
+            avg = reduce(x, 'b c n -> b c', 'mean')
+
+        return x * self.net(avg)
+
+
+class Block(nn.Module):
+    def __init__(
+        self,
+        dim,
+        groups = 8,
+        dropout = 0.
+    ):
+        super().__init__()
+        self.proj = nn.Conv1d(dim, dim, 3, padding = 1)
+        self.norm = nn.GroupNorm(groups, dim)
+        self.dropout = nn.Dropout(dropout)
+        self.act = nn.SiLU()
+
+    def forward(self, x, mask = None):
+        if exists(mask):
+            x = x.masked_fill(~mask, 0.)
+
+        x = self.proj(x)
+
+        if exists(mask):
+            x = x.masked_fill(~mask, 0.)
+
+        x = self.norm(x)
+        x = self.act(x)
+        x = self.dropout(x)
+
+        return x
+
+
+class ResnetBlock(nn.Module):
+    def __init__(
+        self,
+        dim,
+        *,
+        groups = 8,
+        dropout = 0.
+    ):
+        super().__init__()
+        self.block1 = Block(dim, groups = groups, dropout = dropout)
+        self.block2 = Block(dim, groups = groups, dropout = dropout)
+        self.excite = SqueezeExcite(dim)
+    def forward(
+        self,
+        x,
+        mask = None
+    ):
+        h = self.block1(x, mask = mask)
+        h = self.block2(h, mask = mask)
+        h = self.excite(h, mask = mask)
+        return h + x
+
+
 class SVGAutoencoder(nn.Module):
 
     def __init__(
@@ -130,11 +255,28 @@ class SVGAutoencoder(nn.Module):
                 dim_head = 32,
                 heads = 8
             ),
+            pad_id = -1,
+            dim_codebook = 192,
+            num_quantizers = 2,           # or 'D' in the paper
+            codebook_size = 16384,        # they use 16k, shared codebook between layers
+            rq_kwargs: dict = dict(
+                quantize_dropout = True,
+                quantize_dropout_cutoff_index = 1,
+                quantize_dropout_multiple_of = 1,
+            ),
+            rvq_kwargs: dict = dict(
+                kmeans_init = True,
+                threshold_ema_dead_code = 2,
+            ),
+            rlfq_kwargs: dict = dict(),
+            commit_loss_weight = 0.1,
+            bin_smooth_blur_sigma = 0.4,  # they blur the one hot discretized coordinate positions
         ):
         super().__init__()
         self.num_discrete_coors = num_discrete_coors
         self.type_embed = nn.Embedding(num_commands, dim_coor_embed)
         self.coor_embed = nn.Embedding(num_discrete_coors, dim_coor_embed)
+        self.pad_id = pad_id
 
         # project into model dimension
         self.project_in = nn.Linear(dim_coor_embed, backbone_dim)
@@ -143,23 +285,21 @@ class SVGAutoencoder(nn.Module):
         self.encoder = nn.ModuleList([])
 
         for _ in range(encoder_depth):
-            sage_conv = SAGEConv(
-                conv_dim,
-                conv_dim,
-                sageconv_dropout = sageconv_dropout,
-                **sageconv_kwargs
-            )
+            # sage_conv = SAGEConv(
+            #     conv_dim,
+            #     conv_dim,
+            #     sageconv_dropout = sageconv_dropout,
+            #     **sageconv_kwargs
+            # )
 
-            self.encoders.append(sage_conv)
-
+            linear = nn.Linear(conv_dim, conv_dim)
+            self.encoders.append(linear)
         self.final_encoder_norm = nn.LayerNorm(backbone_dim) if final_encoder_norm else nn.Identity()
 
 
         # local attention related
-
         self.encoder_local_attn_blocks = torch.nn.ModuleList([])
         self.decoder_local_attn_blocks = torch.nn.ModuleList([])
-
         attn_kwargs = dict(
             dim = backbone_dim,
             causal = False,
@@ -179,6 +319,39 @@ class SVGAutoencoder(nn.Module):
                 LocalMHA(**attn_kwargs, **local_attn_kwargs),
                 nn.Sequential(RMSNorm(backbone_dim), FeedForward(backbone_dim, glu = True, dropout = ff_dropout))
             ]))
+
+
+        ## codebook
+        self.codebook_size = codebook_size
+        self.num_quantizers = num_quantizers
+
+        self.project_dim_codebook = nn.Linear(backbone_dim, dim_codebook * 3)
+
+        self.quantizer = ResidualLFQ(
+                dim = dim_codebook,
+                num_quantizers = num_quantizers,
+                codebook_size = codebook_size,
+                commitment_loss_weight = 1.,
+                **rlfq_kwargs,
+                **rq_kwargs
+            )
+
+
+        ## decoder
+        self.project_codebook_out = nn.Linear(dim_codebook * 3, backbone_dim)
+        self.decoders = nn.ModuleList([])
+        for _ in range(decoder_depth):
+            resnet_block = ResnetBlock(backbone_dim, dropout = resnet_dropout)
+            self.decoders.append(resnet_block)
+        self.to_coor_logits = nn.Sequential(
+            nn.Linear(backbone_dim, num_discrete_coors * 9),
+            Rearrange('... (v c) -> ... v c', v = 9)
+        )
+
+        # loss related
+        self.commit_loss_weight = commit_loss_weight
+        self.bin_smooth_blur_sigma = bin_smooth_blur_sigma
+
 
 
     @beartype
@@ -259,7 +432,7 @@ class SVGAutoencoder(nn.Module):
 
         return face_embed_output, codes_output, commit_loss
 
-    @beartype
+
     def encode(
             self, 
             svg_commands: TensorType['b', 'nc', 9, float],
@@ -310,8 +483,29 @@ class SVGAutoencoder(nn.Module):
             path_embed = ff(path_embed) + path_embed
 
         path_embed = self.final_encoder_norm(path_embed)
+        return path_embed
 
-        return path_embed, path_commands
+
+    @beartype
+    def decode(
+        self,
+        quantized: TensorType['b', 'n', 'd', float],
+        face_mask:  TensorType['b', 'n', bool]
+    ):
+        conv_face_mask = rearrange(face_mask, 'b n -> b 1 n')
+
+        x = quantized
+
+        for attn, ff in self.encoder_local_attn_blocks:
+            x = attn(x, mask = face_mask) + x
+            x = ff(x) + x
+
+        x = rearrange(x, 'b n d -> b d n')
+
+        for resnet_block in self.decoders:
+            x = resnet_block(x, mask = conv_face_mask)
+
+        return rearrange(x, 'b d n -> b n d')
 
 
     def forward(
@@ -320,6 +514,10 @@ class SVGAutoencoder(nn.Module):
         svg_paths:    TensorType['b', 'np', 3, int],
         svg_edges:    TensorType['b', 'e', 50, int] = None,
         rvq_sample_codebook_temp = 1,
+        return_codes = False,
+        return_loss_breakdown = False,
+        return_recon_faces = False,
+        only_return_recon_faces = False,
     ):
 
         if svg_edges is None:
@@ -328,10 +526,110 @@ class SVGAutoencoder(nn.Module):
         svg_mask = reduce(svg_paths != self.pad_id, 'b nf c -> b nf', 'all')
         svg_edges_mask = reduce(svg_edges != self.pad_id, 'b e ij -> b e', 'all')
 
-        encoded, svg_coord = self.encode(svg_commands, svg_paths, svg_edges, svg_mask, svg_edges_mask)
+        encoded, svg_coord = self.encode(svg_commands, svg_paths, svg_mask)
 
+        quantized, codes, commit_loss = self.quantize(
+            face_embed = encoded,
+            faces = svg_paths,
+            face_mask = svg_mask,
+            rvq_sample_codebook_temp = rvq_sample_codebook_temp
+        )
 
+        if return_codes:
+            assert not return_recon_faces, 'cannot return reconstructed faces when just returning raw codes'
 
+            codes = codes.masked_fill(~repeat(svg_mask, 'b nf -> b (nf 3) 1'), self.pad_id)
+            return codes
+
+        decode = self.decode(
+            quantized,
+            face_mask = svg_mask
+        )
+
+        pred_face_coords = self.to_coor_logits(decode)
+
+        # compute reconstructed faces if needed
+
+        if return_recon_faces or only_return_recon_faces:
+
+            recon_faces = undiscretize(
+                pred_face_coords.argmax(dim = -1),
+                num_discrete = self.num_discrete_coors,
+                continuous_range = self.coor_continuous_range,
+            )
+
+            recon_faces = rearrange(recon_faces, 'b nf (nv c) -> b nf nv c', nv = 3)
+            face_mask = rearrange(face_mask, 'b nf -> b nf 1 1')
+            recon_faces = recon_faces.masked_fill(~face_mask, float('nan'))
+
+        if only_return_recon_faces:
+            return recon_faces
+
+        # prepare for recon loss
+
+        pred_face_coords = rearrange(pred_face_coords, 'b ... c -> b c (...)')
+        face_coordinates = rearrange(face_coordinates, 'b ... -> b 1 (...)')
+
+        # reconstruction loss on discretized coordinates on each face
+        # they also smooth (blur) the one hot positions, localized label smoothing basically
+
+        with autocast(enabled = False):
+            pred_log_prob = pred_face_coords.log_softmax(dim = 1)
+
+            target_one_hot = torch.zeros_like(pred_log_prob).scatter(1, face_coordinates, 1.)
+
+            if self.bin_smooth_blur_sigma >= 0.:
+                target_one_hot = gaussian_blur_1d(target_one_hot, sigma = self.bin_smooth_blur_sigma)
+
+            # cross entropy with localized smoothing
+
+            recon_losses = (-target_one_hot * pred_log_prob).sum(dim = 1)
+
+            face_mask = repeat(face_mask, 'b nf -> b (nf r)', r = 9)
+            recon_loss = recon_losses[face_mask].mean()
+
+        # calculate total loss
+
+        total_loss = recon_loss + \
+                     commit_loss.sum() * self.commit_loss_weight
+
+        # calculate loss breakdown if needed
+
+        loss_breakdown = (recon_loss, commit_loss)
+
+        # some return logic
+
+        if not return_loss_breakdown:
+            if not return_recon_faces:
+                return total_loss
+
+            return recon_faces, total_loss
+
+        if not return_recon_faces:
+            return total_loss, loss_breakdown
+
+        return recon_faces, total_loss, loss_breakdown
+
+@beartype
+def gaussian_blur_1d(
+    t: Tensor,
+    *,
+    sigma: float = 1.
+) -> Tensor:
+
+    _, channels, _, device = *t.shape, t.device
+
+    width = int(ceil(sigma * 5))
+    width += (width + 1) % 2
+    half_width = width // 2
+
+    distance = torch.arange(-half_width, half_width + 1, dtype = torch.float, device = device)
+
+    gaussian = torch.exp(-(distance ** 2) / (2 * sigma ** 2))
+    gaussian = l1norm(gaussian)
+
+    kernel = repeat(gaussian, 'n -> c 1 n', c = channels)
+    return F.conv1d(t, kernel, padding = half_width, groups = channels)
 
 
 class NumericalSVGDataset(Dataset):
