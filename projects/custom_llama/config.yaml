@@ -6,7 +6,6 @@ dataset:
   nworkers: 0
   pin_memory: False
   x_channels: 9
-  
 
 vqvae:
   levels: 2
@@ -26,4 +25,19 @@ vqvae:
   depth: 4,
   m_conv: 1.0,
   dilation_growth_rate: 3,
+  use_nonrelative_specloss: True
+
+vqvae_conv_block:
+  depth: 3,
+  width: 128,
+  m_conv: 1.0,
+  dilation_growth_rate: 1,
+  dilation_cycle: None,
+  vqvae_reverse_decoder_dilation: True
+
+experiment:
+  model_save_path: "/zecheng/vqllama"
+  exp_name: "train_vq"
+
+
   

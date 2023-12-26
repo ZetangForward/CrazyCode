@@ -26,31 +26,13 @@ from svg_data import SvgDataModule
 from modelzipper.tutils import *
 from torch.utils.data import DataLoader, Dataset, BatchSampler, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
+from models.vqvae import VQVAE
 
 
-@hydra.main(config_path='.', config_name='config')
-def main(config):
-
-    # set training dataset
-    data_module = SvgDataModule(config.dataset)
-
-    ### for data testing
-    data_module.setup()  
-    tmp = data_module.train_dataset[0]
-    print(tmp)
-    ### 
-
-
-if __name__ == '__main__':
-    main()
-
-    exit()
-
-
-class CustomExperiment(pl.LightningModule):
+class Experiment(pl.LightningModule):
 
     def __init__(self, model, config, train_data_len, state="train") -> None:
-        super(CustomExperiment, self).__init__()
+        super(Experiment, self).__init__()
 
         self.model = model
         if state == "train":
@@ -137,6 +119,42 @@ class CustomExperiment(pl.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
         }
+
+
+@hydra.main(config_path='.', config_name='config')
+def main(config):
+
+    # set training dataset
+    data_module = SvgDataModule(config.dataset)
+
+
+    tb_logger = TensorBoardLogger(
+        save_dir=config.experiment.model_save_dir, 
+        name=f"{config.experiment.exp_name}"
+    )
+
+    block_kwargs = dict(
+        width=config.vqvae_conv_block.width, depth=config.vqvae_conv_block.depth, m_conv=config.vqvae_conv_block.m_conv,
+        dilation_growth_rate=config.vqvae_conv_block.dilation_growth_rate,
+        dilation_cycle=config.vqvae_conv_block.dilation_cycle,
+        reverse_decoder_dilation=config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    )
+
+    vqvae = VQVAE(config, multipliers=None, **block_kwargs)
+
+    experiment = CustomExperiment(
+        vqvae, config, train_data_len=len(trainloader)
+    )
+
+
+
+if __name__ == '__main__':
+    main()
+
+    exit()
+
+
+
 
 
 def pad_sequence(batch):

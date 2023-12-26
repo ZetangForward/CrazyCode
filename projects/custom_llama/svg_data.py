@@ -76,3 +76,12 @@ class SvgDataModule(pl.LightningDataModule):
             pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=False,
             collate_fn=BasicDataset.custom_datacollator
         )
+
+
+
+
+### for data testing
+# data_module = SvgDataModule(config.dataset)
+# data_module.setup()  
+# tmp = data_module.train_dataset[0]
+# print(tmp)

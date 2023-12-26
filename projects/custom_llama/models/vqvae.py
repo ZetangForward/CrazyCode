@@ -12,12 +12,45 @@ from models.encdec import Encoder, Decoder, EncoderConvBlock
 def assert_shape(x, exp_shape):
     assert x.shape == exp_shape, f"Expected {exp_shape} got {x.shape}"
 
+
 def calculate_strides(strides, downs):
     return [stride ** down for stride, down in zip(strides, downs)]
 
 
+def average_metrics(_metrics):
+    metrics = {}
+    for _metric in _metrics:
+        for key, val in _metric.items():
+            if key not in metrics:
+                metrics[key] = []
+            metrics[key].append(val)
+    return {key: sum(vals)/len(vals) for key, vals in metrics.items()}
+
+
+def _loss_fn(loss_fn, x_target, x_pred, hps):
+    if loss_fn == 'l1':
+        return t.mean(t.abs(x_pred - x_target)) / hps.bandwidth['l1']
+    elif loss_fn == 'l2':
+        return t.mean((x_pred - x_target) ** 2) / hps.bandwidth['l2']
+    elif loss_fn == 'linf':
+        residual = ((x_pred - x_target) ** 2).reshape(x_target.shape[0], -1)
+        values, _ = t.topk(residual, hps.linf_k, dim=1)
+        return t.mean(values) / hps.bandwidth['l2']
+    elif loss_fn == 'lmix':
+        loss = 0.0
+        if hps.lmix_l1:
+            loss += hps.lmix_l1 * _loss_fn('l1', x_target, x_pred, hps)
+        if hps.lmix_l2:
+            loss += hps.lmix_l2 * _loss_fn('l2', x_target, x_pred, hps)
+        if hps.lmix_linf:
+            loss += hps.lmix_linf * _loss_fn('linf', x_target, x_pred, hps)
+        return loss
+    else:
+        assert False, f"Unknown loss_fn {loss_fn}"
+
+
 class VQVAE(nn.Module):
-    def __init__(self, config, input_shape, multipliers=None, **block_kwargs):
+    def __init__(self, config, multipliers=None, **block_kwargs):
         super().__init__()
         self.cfg = config.vqvae
         self.commit = self.cfg.commit
@@ -71,9 +104,6 @@ class VQVAE(nn.Module):
         else:
             self.bottleneck = NoBottleneck(self.cfg.levels)    
 
-
-        
-
     def preprocess(self, x):
         # x: NTC [-1,1] -> NCT [-1,1]
         assert len(x.shape) == 3
@@ -91,7 +121,8 @@ class VQVAE(nn.Module):
             end_level = self.levels
         assert len(zs) == end_level - start_level
         xs_quantised = self.bottleneck.decode(
-            zs, start_level=start_level, end_level=end_level)
+            zs, start_level=start_level, end_level=end_level
+        )
         assert len(xs_quantised) == end_level - start_level
 
         # Use only lowest level
@@ -140,23 +171,16 @@ class VQVAE(nn.Module):
 
     def forward(self, x, hps, loss_fn='l1'):
         metrics = {}
-        N = x.shape[0]
         # Encode/Decode
-        x_in = self.preprocess(x)
+        x_in = x.permute(0, 2, 1).float()
         xs = []
 
-        #print("encoder input: ")
-        # print(x_in.shape)
         for level in range(self.levels):
             encoder = self.encoders[level]
             x_out = encoder(x_in)
-            #t.onnx.export(encoder, x_in,  "encoder_lvl1_verbose.onnx",verbose=True)
             xs.append(x_out[-1])
-        #print("encoder output: ")
-        # print(xs[0].shape)
+
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
-        #print("bottelneck output: ")
-        # print(xs_quantised[0].shape)
 
         x_outs = []
         for level in range(self.levels):
@@ -165,54 +189,30 @@ class VQVAE(nn.Module):
 
             # happens when deploying
             if (x_out.shape != x_in.shape):
-                x_out = F.pad(input=x_out, pad=(
-                    0, x_in.shape[-1]-x_out.shape[-1]), mode='constant', value=0)
+                x_out = F.pad(
+                    input=x_out, 
+                    pad=(0, x_in.shape[-1]-x_out.shape[-1]), 
+                    mode='constant', 
+                    value=0
+                )
 
             assert_shape(x_out, x_in.shape)
             x_outs.append(x_out)
-        #print("decoder output: ")
-        # print(x_outs[0].shape)
-        # Loss
 
-        def _spectral_loss(x_target, x_out, hps):
-            if hps.use_nonrelative_specloss:
-                sl = spectral_loss(x_target, x_out, hps) / \
-                    hps.bandwidth['spec']
-            else:
-                sl = spectral_convergence(x_target, x_out, hps)
-            sl = t.mean(sl)
-            return sl
-
-        def _multispectral_loss(x_target, x_out, hps):
-            sl = multispectral_loss(
-                x_target, x_out, hps) / hps.bandwidth['spec']
-            sl = t.mean(sl)
-            return sl
 
         recons_loss = t.zeros(()).to(x.device)
-        spec_loss = t.zeros(()).to(x.device)
-        multispec_loss = t.zeros(()).to(x.device)
-        x_target = audio_postprocess(x.float(), hps)
+        x_target = x.float()
 
         for level in reversed(range(self.levels)):
-            x_out = self.postprocess(x_outs[level])
-            x_out = audio_postprocess(x_out, hps)
+            x_out = x_outs[level].permute(0, 2, 1).float()
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, hps)
-            this_spec_loss = _spectral_loss(x_target, x_out, hps)
-            this_multispec_loss = _multispectral_loss(x_target, x_out, hps)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
-            metrics[f'spectral_loss_l{level + 1}'] = this_spec_loss
-            metrics[f'multispectral_loss_l{level + 1}'] = this_multispec_loss
             recons_loss += this_recons_loss
-            spec_loss += this_spec_loss
-            multispec_loss += this_multispec_loss
 
         commit_loss = sum(commit_losses)
-        loss = recons_loss + self.spectral * spec_loss + \
-            self.multispectral * multispec_loss + self.commit * commit_loss
+        loss = recons_loss + self.commit * commit_loss
 
         with t.no_grad():
-            sc = t.mean(spectral_convergence(x_target, x_out, hps))
             l2_loss = _loss_fn("l2", x_target, x_out, hps)
             l1_loss = _loss_fn("l1", x_target, x_out, hps)
             linf_loss = _loss_fn("linf", x_target, x_out, hps)
@@ -221,9 +221,6 @@ class VQVAE(nn.Module):
 
         metrics.update(dict(
             recons_loss=recons_loss,
-            spectral_loss=spec_loss,
-            multispectral_loss=multispec_loss,
-            spectral_convergence=sc,
             l2_loss=l2_loss,
             l1_loss=l1_loss,
             linf_loss=linf_loss,
@@ -234,3 +231,5 @@ class VQVAE(nn.Module):
             metrics[key] = val.detach()
 
         return x_out, loss, metrics
+
+
