@@ -32,8 +32,8 @@ from torch.utils.data.distributed import DistributedSampler
 def main(config):
 
     # set training dataset
-    data_module = SvgDataModule(config)
-    
+    data_module = SvgDataModule(config.dataset)
+
     ### for data testing
     data_module.setup()  
     tmp = data_module.train_dataset[0]
@@ -137,6 +137,7 @@ class CustomExperiment(pl.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
         }
+
 
 def pad_sequence(batch):
     # Make all tensor in a batch the same length by padding with zeros

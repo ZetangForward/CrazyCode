@@ -5,3 +5,25 @@ dataset:
   batch_size: 32
   nworkers: 0
   pin_memory: False
+  x_channels: 9
+  
+
+vqvae:
+  levels: 2
+  downs_t: [3, 2, 2],
+  strides_t: [2, 2, 2],
+  emb_width: 64,
+  l_bins: 2048,
+  l_mu: 0.99,
+  commit: 0.02,
+  spectral: 0.0,
+  multispectral: 1.0,
+  hvqvae_multipliers: [2, 1, 1],
+  loss_fn: 'lmix',
+  lmix_l2: 1.0,
+  lmix_linf: 0.02,
+  width: 32,
+  depth: 4,
+  m_conv: 1.0,
+  dilation_growth_rate: 3,
+  

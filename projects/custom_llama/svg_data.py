@@ -40,7 +40,7 @@ class BasicDataset(Dataset):
 class SvgDataModule(pl.LightningDataModule):
     
     def __init__(self, config, transform=None):
-        self.cfg = config.dataset        
+        self.cfg = config       
         self.transform = transform
 
     def prepare_data(self) -> None:

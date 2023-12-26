@@ -2,138 +2,77 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-
-from unmix.vqvae.encdec import Encoder, Decoder, assert_shape
-from unmix.vqvae.bottleneck import NoBottleneck, Bottleneck
-from unmix.utils.logger import average_metrics
-from unmix.utils.audio_utils import spectral_convergence, spectral_loss, multispectral_loss, audio_postprocess
-
-
-def dont_update(params):
-    for param in params:
-        param.requires_grad = False
+from projects.custom_llama.models.encdec import Resnet, Resnet1D, Encoder, Decoder, EncoderConvBlock
+from models.bottleneck import BottleneckBlock, NoBottleneck, Bottleneck
+from models.resnet import ResConv1DBlock, Resnet1D
+from models.encdec import Encoder, Decoder, EncoderConvBlock
 
 
-def update(params):
-    for param in params:
-        param.requires_grad = True
-
+# helper functions
+def assert_shape(x, exp_shape):
+    assert x.shape == exp_shape, f"Expected {exp_shape} got {x.shape}"
 
 def calculate_strides(strides, downs):
     return [stride ** down for stride, down in zip(strides, downs)]
 
 
-def _loss_fn(loss_fn, x_target, x_pred, hps):
-    if loss_fn == 'l1':
-        return t.mean(t.abs(x_pred - x_target)) / hps.bandwidth['l1']
-    elif loss_fn == 'l2':
-        return t.mean((x_pred - x_target) ** 2) / hps.bandwidth['l2']
-    elif loss_fn == 'linf':
-        residual = ((x_pred - x_target) ** 2).reshape(x_target.shape[0], -1)
-        values, _ = t.topk(residual, hps.linf_k, dim=1)
-        return t.mean(values) / hps.bandwidth['l2']
-    elif loss_fn == 'lmix':
-        loss = 0.0
-        if hps.lmix_l1:
-            loss += hps.lmix_l1 * _loss_fn('l1', x_target, x_pred, hps)
-        if hps.lmix_l2:
-            loss += hps.lmix_l2 * _loss_fn('l2', x_target, x_pred, hps)
-        if hps.lmix_linf:
-            loss += hps.lmix_linf * _loss_fn('linf', x_target, x_pred, hps)
-        return loss
-    else:
-        assert False, f"Unknown loss_fn {loss_fn}"
-
-
-class Encoder(nn.Module):
-    def __init__(self, input_emb_width, output_emb_width, levels, downs_t,
-                 strides_t, **block_kwargs):
-        super().__init__()
-        self.input_emb_width = input_emb_width
-        self.output_emb_width = output_emb_width
-        self.levels = levels
-        self.downs_t = downs_t
-        self.strides_t = strides_t
-
-        block_kwargs_copy = dict(**block_kwargs)
-        if 'reverse_decoder_dilation' in block_kwargs_copy:
-            del block_kwargs_copy['reverse_decoder_dilation']
-
-        def level_block(level, down_t, stride_t): return EncoderConvBlock(input_emb_width if level == 0 else output_emb_width,
-                                                                          output_emb_width,
-                                                                          down_t, stride_t,
-                                                                          **block_kwargs_copy)
-        self.level_blocks = nn.ModuleList()
-        iterator = zip(list(range(self.levels)), downs_t, strides_t)
-        for level, down_t, stride_t in iterator:
-            self.level_blocks.append(level_block(level, down_t, stride_t))
-
-    def forward(self, x):
-        N, T = x.shape[0], x.shape[-1]
-        emb = self.input_emb_width
-        assert_shape(x, (N, emb, T))
-        xs = []
-
-        # 64, 32, ...
-        iterator = zip(list(range(self.levels)), self.downs_t, self.strides_t)
-        for level, down_t, stride_t in iterator:
-            level_block = self.level_blocks[level]
-            x = level_block(x)
-            emb, T = self.output_emb_width, T // (stride_t ** down_t)
-            assert_shape(x, (N, emb, T))
-            xs.append(x)
-
-        return xs
-
-
 class VQVAE(nn.Module):
-    def __init__(self, input_shape, levels, downs_t, strides_t,
-                 emb_width, l_bins, mu, commit, spectral, multispectral,
-                 multipliers=None, use_bottleneck=True, **block_kwargs):
+    def __init__(self, config, input_shape, multipliers=None, **block_kwargs):
         super().__init__()
+        self.cfg = config.vqvae
+        self.commit = self.cfg.commit
+        self.spectral = self.cfg.spectral
+        self.multispectral = self.cfg.multispectral
 
-        self.sample_length = input_shape[0]
-        x_shape, x_channels = input_shape[:-1], input_shape[-1]
-        self.x_shape = x_shape
-
-        self.downsamples = calculate_strides(strides_t, downs_t)
+        self.downsamples = calculate_strides(self.cfg.strides_t, self.cfg.downs_t)
         self.hop_lengths = np.cumprod(self.downsamples)
-        self.z_shapes = [(x_shape[0] // self.hop_lengths[level],) for level in range(levels)]
-        self.levels = levels
+
+        self.sample_length = config.dataset.max_path_nums
+        self.x_channels = config.dataset.x_channels
+        self.x_shape = (config.dataset.max_path_nums, config.dataset.x_channels)
 
         if multipliers is None:
-            self.multipliers = [1] * levels
+            self.multipliers = [1] * self.cfg.levels
         else:
-            assert len(multipliers) == levels, "Invalid number of multipliers"
+            assert len(multipliers) == self.cfg.levels, "Invalid number of multipliers"
             self.multipliers = multipliers
+
+        self.z_shapes = [(self.x_shape[0] // self.hop_lengths[level],) for level in range(self.cfg.levels)]
+
+        # define encoder and decoder
+        self.encoders = nn.ModuleList()
+        self.decoders = nn.ModuleList()
 
         def _block_kwargs(level):
             this_block_kwargs = dict(block_kwargs)
             this_block_kwargs["width"] *= self.multipliers[level]
             this_block_kwargs["depth"] *= self.multipliers[level]
             return this_block_kwargs
+        
+        def encoder(level): 
+            return Encoder(
+                self.x_channels, self.cfg.emb_width, level + 1,
+                self.cfg.downs_t[:level+1], self.cfg.strides_t[:level+1], **_block_kwargs(level)
+            )
+        
+        def decoder(level): 
+            return Decoder(
+                self.x_channels, self.cfg.emb_width, level + 1,
+                self.cfg.downs_t[:level+1], self.cfg.strides_t[:level+1], **_block_kwargs(level)
+            )
 
-        def encoder(level): return Encoder(x_channels, emb_width, level + 1,
-                                           downs_t[:level+1], strides_t[:level+1], **_block_kwargs(level))
-        def decoder(level): return Decoder(x_channels, emb_width, level + 1,
-                                           downs_t[:level+1], strides_t[:level+1], **_block_kwargs(level))
-        self.encoders = nn.ModuleList()
-        self.decoders = nn.ModuleList()
-        for level in range(levels):
+        for level in range(self.cfg.levels):
             self.encoders.append(encoder(level))
             self.decoders.append(decoder(level))
 
-        if use_bottleneck:
-            self.bottleneck = Bottleneck(l_bins, emb_width, mu, levels)
+        # define bottleneck
+        if self.cfg.use_bottleneck:
+            self.bottleneck = Bottleneck(self.cfg.l_bins, self.cfg.emb_width, mu, self.cfg.levels)
         else:
-            self.bottleneck = NoBottleneck(levels)
+            self.bottleneck = NoBottleneck(self.cfg.levels)    
 
-        self.downs_t = downs_t
-        self.strides_t = strides_t
-        self.l_bins = l_bins
-        self.commit = commit
-        self.spectral = spectral
-        self.multispectral = multispectral
+
+        
 
     def preprocess(self, x):
         # x: NTC [-1,1] -> NCT [-1,1]
