@@ -20,10 +20,13 @@ class BasicDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        sample = self.dataset[idx]
+        item = self.dataset[idx]
+        keywords, sample = item['keywords'], item['mesh_data']
         if len(sample) < self.max_path_nums:
             sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
-        padding_mask = ~(sample == -1).all(dim=2)
+        else:
+            sample = sample[:self.max_path_nums]
+        padding_mask = ~(sample == -1).all(dim=1, keepdim=True).squeeze()
         return {
             "svg_path": sample, 
             "padding_mask": padding_mask,

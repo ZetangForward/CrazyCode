@@ -33,9 +33,12 @@ def main(config):
 
     # set training dataset
     data_module = SvgDataModule(config)
-    data_module.setup()  # for data testing
-
-    import pdb; pdb.set_trace()
+    
+    ### for data testing
+    data_module.setup()  
+    tmp = data_module.train_dataset[0]
+    print(tmp)
+    ### 
 
 
 if __name__ == '__main__':
