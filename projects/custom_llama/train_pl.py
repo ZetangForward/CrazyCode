@@ -21,11 +21,27 @@ import hydra
 import random
 import librosa
 import pandas as pd
-from vqvae import VQVAE
-from svg_data import SvgDatasetProcesser
+# from vqvae import VQVAE
+from svg_data import SvgDataModule
 from modelzipper.tutils import *
 from torch.utils.data import DataLoader, Dataset, BatchSampler, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
+
+
+@hydra.main(config_path='.', config_name='config')
+def main(config):
+
+    # set training dataset
+    svgdatamodule = SvgDataModule(config)
+
+    import pdb; pdb.set_trace()
+
+
+if __name__ == '__main__':
+    main()
+
+    exit()
+
 
 class CustomExperiment(pl.LightningModule):
 
@@ -138,71 +154,53 @@ def collate_fn(batch):
 
 
 
-@hydra.main(config_path='.', config_name='config')
-def main(config):
-    # set dist config
-    dist.init_process_group(backend='nccl', rank=your_rank, world_size=your_world_size)
+# @hydra.main(config_path='.', config_name='config')
+# def main(config):
 
-    # set training dataset
-    data_processor = SvgDatasetProcesser(config)
+#     # set training dataset
+#     svgdatamodule = SvgDataModule(config)
+
+#     import pdb; pdb.set_trace()
+
+#     # set encodec model and discriminator model
+#     vqvae = VQVAE(config)
     
-    train_sampler, test_sampler = None, None
-
-    trainloader = torch.utils.data.DataLoader(
-        trainset,
-        batch_size=config.datasets.batch_size,
-        sampler=train_sampler, 
-        shuffle=(train_sampler is None), collate_fn=collate_fn,
-        pin_memory=config.datasets.pin_memory)
     
-    testloader = torch.utils.data.DataLoader(
-        testset,
-        batch_size=config.datasets.batch_size,
-        sampler=test_sampler, 
-        shuffle=False, collate_fn=collate_fn,
-        pin_memory=config.datasets.pin_memory)
-
-    # set encodec model and discriminator model
-    vqvae = VQVAE(cfg.model_config)
-        
-
-    tb_logger = TensorBoardLogger(
-        save_dir=config.experiment.model_save_dir, 
-        name=f"{config.experiment.exp_name}"
-    )
-
-    experiment = CustomExperiment(
-        model, config, train_data_len=len(trainloader)
-    )
-
-    runner = Trainer(
-        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
-        logger=tb_logger,
-        callbacks=[
-            LearningRateMonitor(),
-            ModelCheckpoint(
-                save_top_k=5, 
-                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor= "val_loss",
-                filename="pure_numerical_vae-{epoch:02d}",
-                save_last= True),
-        ],
-        strategy=DDPStrategy(find_unused_parameters=False),
-        max_epochs=config.experiment.max_epoch,
-        devices=config.experiment.device_num,
-        gradient_clip_val=1.5
-    )
-
-    # print(f"======= Training {config['model_params']['name']} =======")
-    runner.fit(experiment, train_dataloaders=trainloader, val_dataloaders=testloader)
-
-    exit()
 
 
-if __name__ == '__main__':
-    main()
+#     tb_logger = TensorBoardLogger(
+#         save_dir=config.experiment.model_save_dir, 
+#         name=f"{config.experiment.exp_name}"
+#     )
 
-    exit()
+#     experiment = CustomExperiment(
+#         model, config, train_data_len=len(trainloader)
+#     )
+
+#     runner = Trainer(
+#         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+#         logger=tb_logger,
+#         callbacks=[
+#             LearningRateMonitor(),
+#             ModelCheckpoint(
+#                 save_top_k=5, 
+#                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
+#                 monitor= "val_loss",
+#                 filename="pure_numerical_vae-{epoch:02d}",
+#                 save_last= True),
+#         ],
+#         strategy=DDPStrategy(find_unused_parameters=False),
+#         max_epochs=config.experiment.max_epoch,
+#         devices=config.experiment.device_num,
+#         gradient_clip_val=1.5
+#     )
+
+#     # print(f"======= Training {config['model_params']['name']} =======")
+#     runner.fit(experiment, train_dataloaders=trainloader, val_dataloaders=testloader)
+
+#     exit()
+
+
 
 
     num_workers = 0

@@ -4,3 +4,4 @@ dataset:
   pad_token_id: -1
   batch_size: 32
   nworkers: 0
+  pin_memory: False
