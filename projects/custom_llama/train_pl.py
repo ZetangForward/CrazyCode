@@ -32,7 +32,8 @@ from torch.utils.data.distributed import DistributedSampler
 def main(config):
 
     # set training dataset
-    svgdatamodule = SvgDataModule(config)
+    data_module = SvgDataModule(config)
+    data_module.setup()  # for data testing
 
     import pdb; pdb.set_trace()
 
