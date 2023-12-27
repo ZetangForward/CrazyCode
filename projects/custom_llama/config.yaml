@@ -9,35 +9,41 @@ dataset:
 
 vqvae:
   levels: 2
-  downs_t: [3, 2, 2],
-  strides_t: [2, 2, 2],
-  emb_width: 64,
-  l_bins: 2048,
-  l_mu: 0.99,
-  commit: 0.02,
-  spectral: 0.0,
-  multispectral: 1.0,
-  hvqvae_multipliers: [2, 1, 1],
-  loss_fn: 'lmix',
-  lmix_l2: 1.0,
-  lmix_linf: 0.02,
-  width: 32,
-  depth: 4,
-  m_conv: 1.0,
-  dilation_growth_rate: 3,
+  downs_t: [3, 2, 2]
+  strides_t: [2, 2, 2]
+  emb_width: 64
+  l_bins: 2048
+  l_mu: 0.99
+  commit: 0.02
+  spectral: 0.0
+  multispectral: 1.0
+  hvqvae_multipliers: [2, 1, 1]
+  loss_fn: 'lmix'
+  lmix_l2: 1.0
+  lmix_linf: 0.02
+  width: 32
+  depth: 4
+  m_conv: 1.0
+  dilation_growth_rate: 3
   use_nonrelative_specloss: True
 
 vqvae_conv_block:
-  depth: 3,
-  width: 128,
-  m_conv: 1.0,
-  dilation_growth_rate: 1,
-  dilation_cycle: None,
+  depth: 3
+  width: 128
+  m_conv: 1.0
+  dilation_growth_rate: 1
+  dilation_cycle: None
   vqvae_reverse_decoder_dilation: True
 
 experiment:
   model_save_path: "/zecheng/vqllama"
   exp_name: "train_vq"
+  beta_1: 0.9
+  beta_2: 0.999
+  lr: 0.0003
+  weight_decay: 0.0
+  eps: 0.00000001
+  self.cfg.experiment
 
 
   

@@ -55,7 +55,6 @@ class VQVAE(nn.Module):
         self.cfg = config.vqvae
         self.commit = self.cfg.commit
         self.spectral = self.cfg.spectral
-        self.multispectral = self.cfg.multispectral
 
         self.downsamples = calculate_strides(self.cfg.strides_t, self.cfg.downs_t)
         self.hop_lengths = np.cumprod(self.downsamples)
@@ -100,20 +99,9 @@ class VQVAE(nn.Module):
 
         # define bottleneck
         if self.cfg.use_bottleneck:
-            self.bottleneck = Bottleneck(self.cfg.l_bins, self.cfg.emb_width, mu, self.cfg.levels)
+            self.bottleneck = Bottleneck(self.cfg.l_bins, self.cfg.emb_width, self.cfg.mu, self.cfg.levels)
         else:
             self.bottleneck = NoBottleneck(self.cfg.levels)    
-
-    def preprocess(self, x):
-        # x: NTC [-1,1] -> NCT [-1,1]
-        assert len(x.shape) == 3
-        x = x.permute(0, 2, 1).float()
-        return x
-
-    def postprocess(self, x):
-        # x: NTC [-1,1] <- NCT [-1,1]
-        x = x.permute(0, 2, 1)
-        return x
 
     def _decode(self, zs, start_level=0, end_level=None):
         # Decode

@@ -27,7 +27,7 @@ from modelzipper.tutils import *
 from torch.utils.data import DataLoader, Dataset, BatchSampler, RandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from models.vqvae import VQVAE
-
+from models.utils import *
 
 class Experiment(pl.LightningModule):
 
@@ -39,7 +39,7 @@ class Experiment(pl.LightningModule):
             self.model.train()
         else:
             self.model.eval()
-        self.config = config
+        self.cfg = config
         self.max_iter = config.experiment.max_epoch * train_data_len
         self.warmup_iter = config.lr_scheduler.warmup_epoch * train_data_len
 
@@ -62,58 +62,30 @@ class Experiment(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        output, loss_w, _ = self.model(batch)
-        numerical_inputs = batch['batch_numerical_input_ids']
-        padding_mask = batch["padding_mask"]
-
-        outputs = self.forward(numerical_inputs)
-        
-        all_loss = self.model.loss_function(kld_weight=self.kld_weight, padding_mask=padding_mask, *outputs)
-        
-        loss, batch_kld_loss, batch_recon_loss = all_loss['loss'], all_loss['KLD'], all_loss['Reconstruction_Loss']
-        
-        train_loss = {'loss': loss, 'Reconstruction_Loss':batch_recon_loss, 'KLD':batch_kld_loss}
-
-        self.log_dict({f"train_{key}": val.item() for key, val in train_loss.items()}, sync_dist=True)
+        output, loss_w, metrics = self.forward(batch)
+        self.log_dict(metrics, sync_dist=True)
 
 
     def validation_step(self, batch, batch_idx):
-        output, loss_w, _ = self.forward(batch)
-        numerical_inputs = batch['batch_numerical_input_ids']
-        padding_mask = batch["padding_mask"]
-
-        outputs = self.forward(numerical_inputs)
-        
-        all_loss = self.model.loss_function(kld_weight=self.kld_weight, padding_mask=padding_mask, *outputs)
-        
-        loss, batch_kld_loss, batch_recon_loss = all_loss['loss'], all_loss['KLD'], all_loss['Reconstruction_Loss']
-        
-        val_loss = {'loss': loss, 'Reconstruction_Loss':batch_recon_loss, 'KLD':batch_kld_loss}
-
-        self.log_dict({f"val_{key}": val.item() for key, val in val_loss.items()}, sync_dist=True)
-
-        
-    def on_validation_end(self) -> None:
-        pass
+        output, loss_w, metrics = self.forward(batch)
+        self.log_dict(metrics, sync_dist=True)
 
 
     def configure_optimizers(self):
-
-        optimizer = torch.optim.Adam(
-            [
-                {
-                    'params': self.model.parameters(), 
-                    'lr': self.config.optimization.lr
-                }
-            ], 
-            betas=(0.5, 0.9)
+        betas = (self.cfg.experiment.beta1, self.cfg.experiment.beta2)
+        optimizer = FusedAdam(
+            self.model.parameters(), 
+            lr=self.cfg.experiment.lr,
+            weight_decay=self.cfg.experiment.weight_decay, 
+            betas=betas, 
+            eps=self.cfg.experiment.eps
         )
 
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, 
-            num_warmup_steps=self.warmup_iter, 
-            num_training_steps=self.max_iter,
-        ) 
+        def lr_lambda(step):
+            
+            return self.cfg.experiment.lr_scale * (self.cfg.experiment.lr_gamma ** (step // self.cfg.experiment.lr_decay)) * min(1.0, step / self.cfg.experiment.lr_warmup)
+
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
         return {
             "optimizer": optimizer,
