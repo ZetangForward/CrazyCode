@@ -61,30 +61,29 @@ class BottleneckBlock(nn.Module):
             # which codebook vector did we use for each feature (k_bins,num_enc_vectors)
             x_l_onehot.scatter_(0, x_l.view(1, x.shape[0]), 1) # 9012, 4096
             # k_bins, w: the sum of the encoder output, which are used with this codebook vector.
-            _k_sum = t.matmul(x_l_onehot, x)
+            _k_sum = t.matmul(x_l_onehot, x) # 9012, 4096
 
             _k_elem = x_l_onehot.sum(dim=-1)  # k_bins
             y = self._tile(x)
             _k_rand = y[t.randperm(y.shape[0])][:k_bins]
 
-            dist.broadcast(_k_rand, 0)
-            dist.all_reduce(_k_sum)
-            dist.all_reduce(_k_elem)
+            # dist.broadcast(_k_rand, 0)
+            # dist.all_reduce(_k_sum)
+            # dist.all_reduce(_k_elem)
 
             # to perform the update all the tensor should be on the same device
-            _k_rand = _k_rand.to("cuda:0")
-            _k_sum = _k_sum.to("cuda:0")
-            _k_elem = _k_elem.to("cuda:0")
-            self.k = self.k.to("cuda:0")
-            self.k_sum = self.k_sum.to("cuda:0")
+            # _k_rand = _k_rand.to("cuda:0")
+            # _k_sum = _k_sum.to("cuda:0")
+            # _k_elem = _k_elem.to("cuda:0")
+            # self.k = self.k.to("cuda:0")
+            # self.k_sum = self.k_sum.to("cuda:0")
 
             # Update centres
             old_k = self.k
-            self.k_sum = mu * self.k_sum + (1. - mu) * _k_sum  # w, k_bins
-            self.k_elem = mu * self.k_elem + (1. - mu) * _k_elem  # k_bins
+            self.k_sum = mu * self.k_sum + (1. - mu) * _k_sum  # w, k_bins  9012, 4096
+            self.k_elem = mu * self.k_elem + (1. - mu) * _k_elem  # k_bins  9012
             usage = (self.k_elem.view(k_bins, 1) >= self.threshold).float()
-            self.k = usage * (self.k_sum.view(k_bins, emb_width) / self.k_elem.view(k_bins, 1)) \
-                + (1 - usage) * _k_rand
+            self.k = usage * (self.k_sum.view(k_bins, emb_width) / self.k_elem.view(k_bins, 1)) + (1 - usage) * _k_rand
             # x_l_onehot.mean(dim=-1)  # prob of each bin
             _k_prob = _k_elem / t.sum(_k_elem)
             entropy = -t.sum(_k_prob * t.log(_k_prob + 1e-8)
@@ -92,6 +91,7 @@ class BottleneckBlock(nn.Module):
             used_curr = (_k_elem >= self.threshold).sum()
             usage = t.sum(usage)
             dk = t.norm(self.k - old_k) / np.sqrt(np.prod(old_k.shape))
+        
         return dict(
             entropy=entropy,
             used_curr=used_curr,
@@ -184,13 +184,11 @@ class BottleneckBlock(nn.Module):
         commit_loss = t.norm(x_d.detach() - x) ** 2 / np.prod(x.shape)
 
         # Passthrough
-        x_d = x + (x_d - x).detach()
+        x_d = x + (x_d - x).detach()  # 4096, 4096
 
         # Postprocess
         x_l, x_d = self.postprocess(x_l, x_d, (N, T))
-        return x_l, x_d, commit_loss, dict(fit=fit,
-                                           pn=prenorm,
-                                           **update_metrics)
+        return x_l, x_d, commit_loss, dict(fit=fit, pn=prenorm, **update_metrics)
 
 
 class Bottleneck(nn.Module):
@@ -218,9 +216,9 @@ class Bottleneck(nn.Module):
         zs, xs_quantised, commit_losses, metrics = [], [], [], []
         for level in range(self.levels):  # 3
             level_block = self.level_blocks[level]
-            x = xs[level]
-            z, x_quantised, commit_loss, metric = \
-                level_block(x, update_k=self.training)
+            x = xs[level] # 32, 4096, 128
+            z, x_quantised, commit_loss, metric = level_block(x, update_k=self.training)
+            # z: [32, 128] x_quantised: [32, 4096, 128] 
             zs.append(z)
             if not self.training:
                 # Be extra paranoid and make sure the encoder weights can't

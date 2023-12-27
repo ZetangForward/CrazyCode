@@ -161,7 +161,8 @@ class VQVAE(nn.Module):
             # [32, 2048, 128], [32, 2048, 64], [32, 2048, 32]
 
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
-
+        # [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
+        
         x_outs = []
         for level in range(self.levels):
             decoder = self.decoders[level]
@@ -178,8 +179,8 @@ class VQVAE(nn.Module):
 
             assert_shape(x_out, x_in.shape)
             x_outs.append(x_out)
-
-
+        # [[32, 9, 256], [32, 9, 256], [32, 9, 256]]
+            
         recons_loss = t.zeros(()).to(x.device)
         x_target = x.float()
 
@@ -187,10 +188,10 @@ class VQVAE(nn.Module):
             x_out = x_outs[level].permute(0, 2, 1).float()
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
-            recons_loss += this_recons_loss
+            recons_loss += this_recons_loss # 7782.4131
 
-        commit_loss = sum(commit_losses)
-        loss = recons_loss + self.commit * commit_loss
+        commit_loss = sum(commit_losses) # 0.0104 
+        loss = recons_loss + self.commit * commit_loss 
 
         with t.no_grad():
             l2_loss = _loss_fn("l2", x_target, x_out, self.cfg)
