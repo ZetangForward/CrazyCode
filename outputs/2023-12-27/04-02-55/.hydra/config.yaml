@@ -34,15 +34,16 @@ vqvae:
   m_conv: 1.0
   dilation_growth_rate: 3
   use_nonrelative_specloss: true
+  use_bottleneck: true
 vqvae_conv_block:
   depth: 3
   width: 128
   m_conv: 1.0
   dilation_growth_rate: 1
-  dilation_cycle: None
+  dilation_cycle: null
   vqvae_reverse_decoder_dilation: true
 experiment:
-  model_save_path: /zecheng/vqllama
+  model_save_dir: /zecheng/vqllama
   exp_name: train_vq
   beta_1: 0.9
   beta_2: 0.999

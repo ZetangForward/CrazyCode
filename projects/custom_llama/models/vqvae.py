@@ -98,7 +98,7 @@ class VQVAE(nn.Module):
 
         # define bottleneck
         if self.cfg.use_bottleneck:
-            self.bottleneck = Bottleneck(self.cfg.l_bins, self.cfg.emb_width, self.cfg.mu, self.cfg.levels)
+            self.bottleneck = Bottleneck(self.cfg.l_bins, self.cfg.emb_width, self.cfg.l_mu, self.cfg.levels)
         else:
             self.bottleneck = NoBottleneck(self.cfg.levels)    
 

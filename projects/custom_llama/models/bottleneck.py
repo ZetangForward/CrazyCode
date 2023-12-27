@@ -126,8 +126,7 @@ class BottleneckBlock(nn.Module):
     def quantise(self, x):
         # Calculate latent code x_l
         k_w = self.k.t()
-        distance = t.sum(x ** 2, dim=-1, keepdim=True) - 2 * t.matmul(x, k_w) + t.sum(k_w ** 2, dim=0,
-                                                                                      keepdim=True)  # (N * L, b)
+        distance = t.sum(x ** 2, dim=-1, keepdim=True) - 2 * t.matmul(x, k_w) + t.sum(k_w ** 2, dim=0, keepdim=True)  # (N * L, b)
         min_distance, x_l = t.min(distance, dim=-1)
         fit = t.mean(min_distance)
         return x_l, fit

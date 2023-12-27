@@ -140,7 +140,7 @@ hydra:
     - path: ''
       schema: structured
       provider: schema
-    output_dir: /workspace/zecheng/modelzipper/projects/custom_llama/outputs/2023-12-27/03-25-38
+    output_dir: /workspace/zecheng/modelzipper/projects/custom_llama/outputs/2023-12-27/03-52-36
     choices:
       hydra/env: default
       hydra/callbacks: null
