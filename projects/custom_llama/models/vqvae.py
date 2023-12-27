@@ -52,6 +52,7 @@ class VQVAE(nn.Module):
         self.sample_length = config.dataset.max_path_nums
         self.x_channels = config.dataset.x_channels
         self.x_shape = (config.dataset.max_path_nums, config.dataset.x_channels)
+        self.levels = self.cfg.levels
 
         if multipliers is None:
             self.multipliers = [1] * self.cfg.levels
@@ -147,7 +148,7 @@ class VQVAE(nn.Module):
                         device='cuda') for z_shape in self.z_shapes]
         return self.decode(zs)
 
-    def forward(self, x, loss_fn='l2'):
+    def forward(self, x, padding_mask=None, loss_fn='l2'):
         metrics = {}
         # Encode/Decode
         x_in = x.permute(0, 2, 1).float()

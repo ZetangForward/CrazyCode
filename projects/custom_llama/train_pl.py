@@ -50,7 +50,7 @@ class Experiment(pl.LightningModule):
         
     
     def forward(self, input: Tensor, **kwargs) -> Tensor:
-        return self.model(input, **kwargs)
+        return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
     def training_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
