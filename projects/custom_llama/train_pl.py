@@ -85,9 +85,9 @@ class Experiment(pl.LightningModule):
         }
 
 
-# @hydra.main(config_path='.', config_name='config')
-def main(config_path: str):
-    config = load_yaml_config(config_path)
+@hydra.main(config_path='.', config_name='config')
+def main(config):
+    # config = load_yaml_config(config_path)
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
@@ -132,4 +132,4 @@ def main(config_path: str):
     trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
-    fire.Fire(main)
+    main()
