@@ -43,7 +43,15 @@ experiment:
   lr: 0.0003
   weight_decay: 0.0
   eps: 0.00000001
-  self.cfg.experiment
+  lr_warmup: 100.0
+  lr_decay: 10000000000.0
+  lr_gamma: 1.0
+  lr_scale: 1.0
+  lr_use_linear_decay: False
+  lr_start_linear_decay: 0
+  lr_use_cosine_decay: False
+  max_epoch: 50
+  device_num: 1
 
 
   

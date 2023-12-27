@@ -31,7 +31,7 @@ from models.utils import *
 
 class Experiment(pl.LightningModule):
 
-    def __init__(self, model, config, train_data_len, state="train") -> None:
+    def __init__(self, model, config, state="train") -> None:
         super(Experiment, self).__init__()
 
         self.model = model
@@ -39,17 +39,8 @@ class Experiment(pl.LightningModule):
             self.model.train()
         else:
             self.model.eval()
-        self.cfg = config
-        self.max_iter = config.experiment.max_epoch * train_data_len
-        self.warmup_iter = config.lr_scheduler.warmup_epoch * train_data_len
 
-        self.params = {
-            "LR": 0.005,
-            "weight_decay": 0.0,
-            "scheduler_gamma": 0.95,
-            "kld_weight": 0.000025,
-            "manual_seed": 1265,
-        }
+        self.cfg = config
 
         try:
             self.hold_graph = self.params['retain_first_backpass']
@@ -60,15 +51,16 @@ class Experiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
 
-
     def training_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
         self.log_dict(metrics, sync_dist=True)
+        return loss_w
 
 
     def validation_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
         self.log_dict(metrics, sync_dist=True)
+        return loss_w
 
 
     def configure_optimizers(self):
@@ -82,7 +74,6 @@ class Experiment(pl.LightningModule):
         )
 
         def lr_lambda(step):
-            
             return self.cfg.experiment.lr_scale * (self.cfg.experiment.lr_gamma ** (step // self.cfg.experiment.lr_decay)) * min(1.0, step / self.cfg.experiment.lr_warmup)
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
@@ -99,7 +90,6 @@ def main(config):
     # set training dataset
     data_module = SvgDataModule(config.dataset)
 
-
     tb_logger = TensorBoardLogger(
         save_dir=config.experiment.model_save_dir, 
         name=f"{config.experiment.exp_name}"
@@ -114,9 +104,31 @@ def main(config):
 
     vqvae = VQVAE(config, multipliers=None, **block_kwargs)
 
-    experiment = CustomExperiment(
-        vqvae, config, train_data_len=len(trainloader)
+    experiment = Experiment(vqvae, config)
+
+    trainer = Trainer(
+        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+        logger=tb_logger,
+        callbacks=[
+            LearningRateMonitor(),
+            ModelCheckpoint(
+                save_top_k=5, 
+                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
+                monitor= "val_loss",
+                filename="pure_numerical_vae-{epoch:02d}",
+                save_last= True),
+        ],
+        strategy=DDPStrategy(find_unused_parameters=False),
+        max_epochs=config.experiment.max_epoch,
+        devices=config.experiment.device_num,
+        gradient_clip_val=1.5,
+        enable_model_summary=True,
     )
+
+    # print(f"======= Training {config['model_params']['name']} =======")
+    trainer.fit(experiment, datamodule=data_module, fast_dev_run=True, num_sanity_val_steps=2)  # for debugging
+    # runner.fit(experiment, datamodule=data_module)  # for training
+
 
 
 
