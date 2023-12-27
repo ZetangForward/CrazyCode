@@ -8,8 +8,8 @@ import torch.distributed as dist
 class BottleneckBlock(nn.Module):
     def __init__(self, k_bins, emb_width, mu):
         super().__init__()
-        self.k_bins = k_bins
-        self.emb_width = emb_width
+        self.k_bins = k_bins  # 9012 tokens
+        self.emb_width = emb_width  # 4096
         self.mu = mu
         self.reset_k()
         self.threshold = 1.0
@@ -54,13 +54,12 @@ class BottleneckBlock(nn.Module):
         self.threshold = threshold
 
     def update_k(self, x, x_l):
-        mu, emb_width, k_bins = self.mu, self.emb_width, self.k_bins
+        mu, emb_width, k_bins = self.mu, self.emb_width, self.k_bins # (0.99, 4096, 9012)
         with t.no_grad():
             # Calculate new centres
-            x_l_onehot = t.zeros(
-                k_bins, x.shape[0], device=x.device)  # k_bins, N * L
+            x_l_onehot = t.zeros(k_bins, x.shape[0], device=x.device)  # k_bins, N * L
             # which codebook vector did we use for each feature (k_bins,num_enc_vectors)
-            x_l_onehot.scatter_(0, x_l.view(1, x.shape[0]), 1)
+            x_l_onehot.scatter_(0, x_l.view(1, x.shape[0]), 1) # 9012, 4096
             # k_bins, w: the sum of the encoder output, which are used with this codebook vector.
             _k_sum = t.matmul(x_l_onehot, x)
 
@@ -93,10 +92,12 @@ class BottleneckBlock(nn.Module):
             used_curr = (_k_elem >= self.threshold).sum()
             usage = t.sum(usage)
             dk = t.norm(self.k - old_k) / np.sqrt(np.prod(old_k.shape))
-        return dict(entropy=entropy,
-                    used_curr=used_curr,
-                    usage=usage,
-                    dk=dk)
+        return dict(
+            entropy=entropy,
+            used_curr=used_curr,
+            usage=usage,
+            dk=dk
+        )
 
     def preprocess(self, x):
         # NCT -> NTC -> [NT, C]
@@ -125,9 +126,9 @@ class BottleneckBlock(nn.Module):
 
     def quantise(self, x):
         # Calculate latent code x_l
-        k_w = self.k.t()
-        distance = t.sum(x ** 2, dim=-1, keepdim=True) - 2 * t.matmul(x, k_w) + t.sum(k_w ** 2, dim=0, keepdim=True)  # (N * L, b)
-        min_distance, x_l = t.min(distance, dim=-1)
+        k_w = self.k.t()  # 4096, 9012
+        distance = t.sum(x ** 2, dim=-1, keepdim=True) - 2 * t.matmul(x, k_w) + t.sum(k_w ** 2, dim=0, keepdim=True)  # (N * L, b) 4096 x 9012
+        min_distance, x_l = t.min(distance, dim=-1) 
         fit = t.mean(min_distance)
         return x_l, fit
 
@@ -163,15 +164,15 @@ class BottleneckBlock(nn.Module):
         N, width, T = x.shape
 
         # Preprocess
-        x, prenorm = self.preprocess(x)
+        x, prenorm = self.preprocess(x)  # [32, 4096, 128] -> [32 x 128 = 4096, 4096]
 
         # Init k if not inited
-        if update_k and not self.init:
+        if update_k and not self.init:  # pass
             self.init_k(x)
 
         # Quantise and dequantise through bottleneck
-        x_l, fit = self.quantise(x)
-        x_d = self.dequantise(x_l)
+        x_l, fit = self.quantise(x)  # x_l (4096,), fit (1,)
+        x_d = self.dequantise(x_l)  # 4096, 4096
 
         # Update embeddings
         if update_k:
@@ -215,11 +216,11 @@ class Bottleneck(nn.Module):
 
     def forward(self, xs):
         zs, xs_quantised, commit_losses, metrics = [], [], [], []
-        for level in range(self.levels):
+        for level in range(self.levels):  # 3
             level_block = self.level_blocks[level]
             x = xs[level]
-            z, x_quantised, commit_loss, metric = level_block(
-                x, update_k=self.training)
+            z, x_quantised, commit_loss, metric = \
+                level_block(x, update_k=self.training)
             zs.append(z)
             if not self.training:
                 # Be extra paranoid and make sure the encoder weights can't

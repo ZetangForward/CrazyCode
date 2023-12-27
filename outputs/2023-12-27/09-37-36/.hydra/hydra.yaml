@@ -129,7 +129,7 @@ hydra:
   runtime:
     version: 1.3.2
     version_base: '1.1'
-    cwd: /workspace/zecheng/modelzipper/projects/custom_llama
+    cwd: /workspace/zecheng/modelzipper
     config_sources:
     - path: hydra.conf
       schema: pkg
@@ -140,7 +140,7 @@ hydra:
     - path: ''
       schema: structured
       provider: schema
-    output_dir: /workspace/zecheng/modelzipper/projects/custom_llama/outputs/2023-12-27/06-05-17
+    output_dir: /workspace/zecheng/modelzipper/outputs/2023-12-27/09-37-36
     choices:
       hydra/env: default
       hydra/callbacks: null

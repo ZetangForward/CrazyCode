@@ -1,22 +1,22 @@
 dataset:
   train_data_path: /zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl
-  max_path_nums: 258
+  max_path_nums: 256
   pad_token_id: -1
   batch_size: 32
   nworkers: 0
   pin_memory: false
   x_channels: 9
 vqvae:
-  levels: 2
+  levels: 3
   downs_t:
-  - 3
-  - 2
-  - 2
+  - 1
+  - 1
+  - 1
   strides_t:
   - 2
   - 2
   - 2
-  emb_width: 64
+  emb_width: 2048
   l_bins: 2048
   l_mu: 0.99
   commit: 0.02
@@ -30,7 +30,7 @@ vqvae:
   width: 32
   depth: 4
   m_conv: 1.0
-  dilation_growth_rate: 3
+  dilation_growth_rate: 1
   use_nonrelative_specloss: true
   use_bottleneck: true
   linf_k: 2048

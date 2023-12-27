@@ -17,17 +17,21 @@ class EncoderConvBlock(nn.Module):
                  dilation_growth_rate=1, dilation_cycle=None, zero_out=False,
                  res_scale=False):
         super().__init__()
-        #print("input_emb_width: ", input_emb_width)
-        #print("width: ", width)
-        #print("output_emb_width: ", output_emb_width)
         blocks = []
         filter_t, pad_t = stride_t * 2, stride_t // 2
+        # filter_t, pad_t = stride_t * 1, stride_t // 1
         if down_t > 0:
             for i in range(down_t):
                 block = nn.Sequential(
-                    nn.Conv1d(input_emb_width if i == 0 else width,
-                              width, filter_t, stride_t, pad_t),
-                    Resnet1D(width, depth, m_conv, dilation_growth_rate,
+                    nn.Conv1d(
+                        in_channels= input_emb_width if i == 0 else width,
+                        out_channels = width, 
+                        kernel_size = filter_t, 
+                        stride = stride_t, 
+                        padding = pad_t
+                    ),
+                    Resnet1D(
+                        width, depth, m_conv, dilation_growth_rate,
                              dilation_cycle, zero_out, res_scale),
                 )
                 blocks.append(block)

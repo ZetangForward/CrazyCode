@@ -150,14 +150,15 @@ class VQVAE(nn.Module):
 
     def forward(self, x, padding_mask=None, loss_fn='l2'):
         metrics = {}
-        # Encode/Decode
-        x_in = x.permute(0, 2, 1).float()
+        # x (32, 256, 9)
+        x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
         xs = []
 
         for level in range(self.levels):
             encoder = self.encoders[level]
             x_out = encoder(x_in)
             xs.append(x_out[-1])
+            # [32, 2048, 128], [32, 2048, 64], [32, 2048, 32]
 
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
 
