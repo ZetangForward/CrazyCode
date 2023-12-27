@@ -18,15 +18,15 @@ vqvae:
   spectral: 0.0
   multispectral: 1.0
   hvqvae_multipliers: [2, 1, 1]
-  loss_fn: 'lmix'
-  lmix_l2: 1.0
-  lmix_linf: 0.02
+  loss_fn: 'l2'
   width: 32
   depth: 4
   m_conv: 1.0
   dilation_growth_rate: 3
   use_nonrelative_specloss: True
   use_bottleneck: True
+  linf_k: 2048
+
 
 vqvae_conv_block:
   depth: 3

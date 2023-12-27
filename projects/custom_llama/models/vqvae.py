@@ -26,24 +26,15 @@ def average_metrics(_metrics):
     return {key: sum(vals)/len(vals) for key, vals in metrics.items()}
 
 
-def _loss_fn(loss_fn, x_target, x_pred, hps):
+def _loss_fn(loss_fn, x_target, x_pred, cfg):
     if loss_fn == 'l1':
-        return t.mean(t.abs(x_pred - x_target)) / hps.bandwidth['l1']
+        return t.mean(t.abs(x_pred - x_target)) 
     elif loss_fn == 'l2':
-        return t.mean((x_pred - x_target) ** 2) / hps.bandwidth['l2']
+        return t.mean((x_pred - x_target) ** 2) 
     elif loss_fn == 'linf':
         residual = ((x_pred - x_target) ** 2).reshape(x_target.shape[0], -1)
-        values, _ = t.topk(residual, hps.linf_k, dim=1)
-        return t.mean(values) / hps.bandwidth['l2']
-    elif loss_fn == 'lmix':
-        loss = 0.0
-        if hps.lmix_l1:
-            loss += hps.lmix_l1 * _loss_fn('l1', x_target, x_pred, hps)
-        if hps.lmix_l2:
-            loss += hps.lmix_l2 * _loss_fn('l2', x_target, x_pred, hps)
-        if hps.lmix_linf:
-            loss += hps.lmix_linf * _loss_fn('linf', x_target, x_pred, hps)
-        return loss
+        values, _ = t.topk(residual, cfg.linf_k, dim=1)
+        return t.mean(values)
     else:
         assert False, f"Unknown loss_fn {loss_fn}"
 
@@ -156,7 +147,7 @@ class VQVAE(nn.Module):
                         device='cuda') for z_shape in self.z_shapes]
         return self.decode(zs)
 
-    def forward(self, x, hps, loss_fn='l1'):
+    def forward(self, x, loss_fn='l2'):
         metrics = {}
         # Encode/Decode
         x_in = x.permute(0, 2, 1).float()
@@ -192,7 +183,7 @@ class VQVAE(nn.Module):
 
         for level in reversed(range(self.levels)):
             x_out = x_outs[level].permute(0, 2, 1).float()
-            this_recons_loss = _loss_fn(loss_fn, x_target, x_out, hps)
+            this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss
 
@@ -200,9 +191,9 @@ class VQVAE(nn.Module):
         loss = recons_loss + self.commit * commit_loss
 
         with t.no_grad():
-            l2_loss = _loss_fn("l2", x_target, x_out, hps)
-            l1_loss = _loss_fn("l1", x_target, x_out, hps)
-            linf_loss = _loss_fn("linf", x_target, x_out, hps)
+            l2_loss = _loss_fn("l2", x_target, x_out, self.cfg)
+            l1_loss = _loss_fn("l1", x_target, x_out, self.cfg)
+            linf_loss = _loss_fn("linf", x_target, x_out, self.cfg)
 
         quantiser_metrics = average_metrics(quantiser_metrics)
 
