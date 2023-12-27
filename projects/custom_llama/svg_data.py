@@ -42,6 +42,7 @@ class SvgDataModule(pl.LightningDataModule):
     def __init__(self, config, transform=None):
         self.cfg = config       
         self.transform = transform
+        self.prepare_data_per_node = True
 
     def prepare_data(self) -> None:
         # dataset processing operations here
