@@ -65,7 +65,7 @@ class Experiment(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        betas = (self.cfg.experiment.beta1, self.cfg.experiment.beta2)
+        betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
         optimizer = FusedAdam(
             self.model.parameters(), 
             lr=self.cfg.experiment.lr,
