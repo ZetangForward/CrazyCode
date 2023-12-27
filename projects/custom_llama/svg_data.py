@@ -40,6 +40,7 @@ class BasicDataset(Dataset):
 class SvgDataModule(pl.LightningDataModule):
     
     def __init__(self, config, transform=None):
+        super().__init__()
         self.cfg = config       
         self.transform = transform
         self.prepare_data_per_node = True
@@ -65,16 +66,14 @@ class SvgDataModule(pl.LightningDataModule):
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.train_dataset, batch_size=self.cfg.batch_size, 
-            num_workers=self.cfg.nworkers, sampler=self.train_sampler, 
-            pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
+            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
             collate_fn=BasicDataset.custom_datacollator,
         )
     
     def valid_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.valid_dataset, batch_size=self.cfg.batch_size, 
-            num_workers=self.cfg.nworkers, sampler=self.valid_sampler, 
-            pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=False,
+            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=False,
             collate_fn=BasicDataset.custom_datacollator
         )
 
