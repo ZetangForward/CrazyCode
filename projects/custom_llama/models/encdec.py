@@ -78,10 +78,13 @@ class Encoder(nn.Module):
         if 'reverse_decoder_dilation' in block_kwargs_copy:
             del block_kwargs_copy['reverse_decoder_dilation']
 
-        def level_block(level, down_t, stride_t): return EncoderConvBlock(input_emb_width if level == 0 else output_emb_width,
-                                                                          output_emb_width,
-                                                                          down_t, stride_t,
-                                                                          **block_kwargs_copy)
+        def level_block(level, down_t, stride_t): 
+            return EncoderConvBlock(
+                input_emb_width if level == 0 else output_emb_width,
+                output_emb_width,
+                down_t, stride_t,
+                **block_kwargs_copy
+            )
         self.level_blocks = nn.ModuleList()
         iterator = zip(list(range(self.levels)), downs_t, strides_t)
         for level, down_t, stride_t in iterator:
