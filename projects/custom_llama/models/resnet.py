@@ -1,6 +1,6 @@
 import torch as t
 import torch.nn as nn
-
+import math
 
 class ResConvBlock(nn.Module):
     def __init__(self, n_in, n_state):

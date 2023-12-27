@@ -2,7 +2,6 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-from projects.custom_llama.models.encdec import Resnet, Resnet1D, Encoder, Decoder, EncoderConvBlock
 from models.bottleneck import BottleneckBlock, NoBottleneck, Bottleneck
 from models.resnet import ResConv1DBlock, Resnet1D
 from models.encdec import Encoder, Decoder, EncoderConvBlock
