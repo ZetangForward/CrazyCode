@@ -47,7 +47,7 @@ class ResConv1DBlock(nn.Module):
 
 
 class Resnet1D(nn.Module):
-    def __init__(self, n_in, n_depth, m_conv=1.0, dilation_growth_rate=1, dilation_cycle=None, zero_out=False, res_scale=False, reverse_dilation=False, checkpoint_res=False):
+    def __init__(self, n_in, n_depth, m_conv=1.0, dilation_growth_rate=1, dilation_cycle=None, zero_out=False, res_scale=False, reverse_dilation=False):
         super().__init__()
 
         def _get_depth(depth):
