@@ -80,7 +80,6 @@ class DecoderConvBock(nn.Module):
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
-        #print("decoder")
         return self.model(x)
 
 
