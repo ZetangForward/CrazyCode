@@ -20,7 +20,8 @@ class Resnet(nn.Module):
     def __init__(self, n_in, n_depth, m_conv=1.0):
         super().__init__()
         self.model = nn.Sequential(
-            *[ResConvBlock(n_in, int(m_conv * n_in)) for _ in range(n_depth)])
+            *[ResConvBlock(n_in, int(m_conv * n_in)) for _ in range(n_depth)]
+        )
 
     def forward(self, x):
         return self.model(x)
@@ -64,7 +65,7 @@ class Resnet1D(nn.Module):
                 res_scale=1.0 if not res_scale else 1.0 / math.sqrt(n_depth)
             ) for depth in range(n_depth)
         ]
-        
+
         if reverse_dilation:
             blocks = blocks[::-1]
         
