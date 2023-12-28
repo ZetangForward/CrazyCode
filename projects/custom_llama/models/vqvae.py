@@ -179,7 +179,7 @@ class VQVAE(nn.Module):
 
             assert_shape(x_out, x_in.shape)
             x_outs.append(x_out)
-        # [[32, 9, 256], [32, 9, 256], [32, 9, 256]]
+        # x_outs: [[32, 9, 256], [32, 9, 256], [32, 9, 256]]
             
         recons_loss = t.zeros(()).to(x.device)
         x_target = x.float()

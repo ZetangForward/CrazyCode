@@ -29,7 +29,7 @@ class EncoderConvBlock(nn.Module):
                     ),
                     Resnet1D(
                         n_in = width,
-                        n_state = depth,
+                        n_depth=depth,
                         m_conv = m_conv,
                         dilation_growth_rate = dilation_growth_rate,
                         dilation_cycle = dilation_cycle,
