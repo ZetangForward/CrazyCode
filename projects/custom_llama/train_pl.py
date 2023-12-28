@@ -125,7 +125,7 @@ def main(config):
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
-        fast_dev_run=True, num_sanity_val_steps=2  # for debugging
+        # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
     # print(f"======= Training {config['model_params']['name']} =======")

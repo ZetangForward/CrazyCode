@@ -2,9 +2,8 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
-from models.bottleneck import BottleneckBlock, NoBottleneck, Bottleneck
-from models.resnet import ResConv1DBlock, Resnet1D
-from models.encdec import Encoder, Decoder, EncoderConvBlock
+from models.bottleneck import NoBottleneck, Bottleneck
+from models.encdec import Encoder, Decoder
 
 
 # helper functions
@@ -158,10 +157,11 @@ class VQVAE(nn.Module):
             encoder = self.encoders[level]
             x_out = encoder(x_in)
             xs.append(x_out[-1])
-            # [32, 2048, 128], [32, 2048, 64], [32, 2048, 32]
+            # xs: [[32, 2048, 128], [32, 2048, 64], [32, 2048, 32]]
 
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
-        # [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
+        # zs: [32, 4096, 128] ?
+        # xs_quantised: [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
         
         x_outs = []
         for level in range(self.levels):
