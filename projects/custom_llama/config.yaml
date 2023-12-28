@@ -14,7 +14,6 @@ vqvae:
   emb_width: 4096
   l_bins: 9012
   l_mu: 0.99
-  commit: 0.02
   spectral: 0.0
   multispectral: 1.0
   hvqvae_multipliers: [2, 1, 1]
@@ -25,6 +24,8 @@ vqvae:
   dilation_growth_rate: 1
   use_nonrelative_specloss: True
   use_bottleneck: True
+  commit: 1.0
+  recon: 1.0
   linf_k: 2048
 
 vqvae_conv_block:

@@ -191,7 +191,7 @@ class VQVAE(nn.Module):
             recons_loss += this_recons_loss # 7782.4131
 
         commit_loss = sum(commit_losses) # 0.0104 
-        loss = recons_loss + self.commit * commit_loss 
+        loss = self.recon * recons_loss + self.commit * commit_loss 
 
         with t.no_grad():
             l2_loss = _loss_fn("l2", x_target, x_out, self.cfg)

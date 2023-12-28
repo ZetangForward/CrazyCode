@@ -9,8 +9,6 @@ def assert_shape(x, exp_shape):
 def calculate_strides(strides, downs):
     return [stride ** down for stride, down in zip(strides, downs)]
 
-
-
 class EncoderConvBlock(nn.Module):
     def __init__(self, input_emb_width, output_emb_width, down_t,
                  stride_t, width, depth, m_conv,
@@ -19,7 +17,6 @@ class EncoderConvBlock(nn.Module):
         super().__init__()
         blocks = []
         filter_t, pad_t = stride_t * 2, stride_t // 2
-        # filter_t, pad_t = stride_t * 1, stride_t // 1
         if down_t > 0:
             for i in range(down_t):
                 block = nn.Sequential(
@@ -40,7 +37,6 @@ class EncoderConvBlock(nn.Module):
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
-        #print("encoder")
         return self.model(x)
 
 
@@ -100,7 +96,6 @@ class Encoder(nn.Module):
         assert_shape(x, (N, emb, T))
         xs = []
 
-        # 64, 32, ...
         iterator = zip(list(range(self.levels)), self.downs_t, self.strides_t)
         for level, down_t, stride_t in iterator:
             level_block = self.level_blocks[level]
@@ -124,10 +119,13 @@ class Decoder(nn.Module):
 
         self.strides_t = strides_t
 
-        def level_block(level, down_t, stride_t): return DecoderConvBock(output_emb_width,
-                                                                         output_emb_width,
-                                                                         down_t, stride_t,
-                                                                         **block_kwargs)
+        def level_block(level, down_t, stride_t): 
+            return DecoderConvBock(
+                output_emb_width,
+                output_emb_width,
+                down_t, stride_t,
+                **block_kwargs
+            )
         self.level_blocks = nn.ModuleList()
         iterator = zip(list(range(self.levels)), downs_t, strides_t)
         for level, down_t, stride_t in iterator:
@@ -145,7 +143,6 @@ class Decoder(nn.Module):
         emb = self.output_emb_width
         assert_shape(x, (N, emb, T))
 
-        # 32, 64 ...
         iterator = reversed(
             list(zip(list(range(self.levels)), self.downs_t, self.strides_t)))
         for level, down_t, stride_t in iterator:
