@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models.bottleneck import NoBottleneck, Bottleneck
 from models.encdec import Encoder, Decoder
-
+from torchvision import transforms
 
 # helper functions
 def assert_shape(x, exp_shape):
@@ -52,6 +52,7 @@ class VQVAE(nn.Module):
         self.x_channels = config.dataset.x_channels
         self.x_shape = (config.dataset.max_path_nums, config.dataset.x_channels)
         self.levels = self.cfg.levels
+
 
         if multipliers is None:
             self.multipliers = [1] * self.cfg.levels
@@ -150,6 +151,7 @@ class VQVAE(nn.Module):
     def forward(self, x, padding_mask=None, loss_fn='l2'):
         metrics = {}
         # x (32, 256, 9)
+        
         x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
         xs = []
 
