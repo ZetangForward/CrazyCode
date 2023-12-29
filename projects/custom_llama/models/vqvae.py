@@ -25,17 +25,34 @@ def average_metrics(_metrics):
     return {key: sum(vals)/len(vals) for key, vals in metrics.items()}
 
 
-def _loss_fn(loss_fn, x_target, x_pred, cfg):
+def normalize_func(tensor, min_val=0, max_val=200):
+    # normalize to [-1, 1]
+    normalized_tensor = (tensor - min_val) / (max_val - min_val)
+    normalized_tensor = normalized_tensor * 2 - 1
+    return normalized_tensor
+
+
+def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
+    if padding_mask is not None:
+        padding_mask = padding_mask.unsqueeze(-1).expand_as(x_target)
+        x_target = t.where(padding_mask, x_target, t.zeros_like(x_target)).to(x_pred.device)
+        x_pred = t.where(padding_mask, x_pred, t.zeros_like(x_pred)).to(x_pred.device)
+        mask_sum = padding_mask.sum()
+
     if loss_fn == 'l1':
-        return t.mean(t.abs(x_pred - x_target)) 
+        loss = t.sum(t.abs(x_pred - x_target)) / mask_sum
     elif loss_fn == 'l2':
-        return t.mean((x_pred - x_target) ** 2) 
+        loss = t.sum((x_pred - x_target) ** 2) / mask_sum
     elif loss_fn == 'linf':
         residual = ((x_pred - x_target) ** 2).reshape(x_target.shape[0], -1)
-        values, _ = t.topk(residual, cfg.linf_k, dim=1)
-        return t.mean(values)
+        # onlu consider the residual of the padded part
+        masked_residual = t.where(padding_mask.reshape(x_target.shape[0], -1), residual, t.zeros_like(residual))
+        values, _ = t.topk(masked_residual, cfg.linf_k, dim=1)
+        loss = t.mean(values)
     else:
         assert False, f"Unknown loss_fn {loss_fn}"
+
+    return loss
 
 
 class VQVAE(nn.Module):
@@ -149,9 +166,13 @@ class VQVAE(nn.Module):
         return self.decode(zs)
 
     def forward(self, x, padding_mask=None, loss_fn='l2'):
+        """
+        x: [B, L, C]
+        padding_mask: [B, L]
+        """
         metrics = {}
-        # x (32, 256, 9)
         
+        x = normalize_func(x) # normalize to [-1, 1]
         x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
         xs = []
 
@@ -188,7 +209,7 @@ class VQVAE(nn.Module):
 
         for level in reversed(range(self.levels)):
             x_out = x_outs[level].permute(0, 2, 1).float()
-            this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg)
+            this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss # 7782.4131
 
