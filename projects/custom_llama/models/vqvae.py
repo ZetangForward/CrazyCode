@@ -61,15 +61,12 @@ class VQVAE(nn.Module):
         self.cfg = config.vqvae
         self.commit = self.cfg.commit
         self.spectral = self.cfg.spectral
-
         self.downsamples = calculate_strides(self.cfg.strides_t, self.cfg.downs_t)
         self.hop_lengths = np.cumprod(self.downsamples)
-
         self.sample_length = config.dataset.max_path_nums
         self.x_channels = config.dataset.x_channels
         self.x_shape = (config.dataset.max_path_nums, config.dataset.x_channels)
         self.levels = self.cfg.levels
-
 
         if multipliers is None:
             self.multipliers = [1] * self.cfg.levels
@@ -183,8 +180,8 @@ class VQVAE(nn.Module):
             # xs: [[32, 2048, 128], [32, 2048, 64], [32, 2048, 32]]
 
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
-        # zs: [32, 4096, 128] ?
-        # xs_quantised: [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
+        # zs (index): [[32, 128], [32, 64], [32, 32]]
+        # xs_quantised (hidden states): [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
         
         x_outs = []
         for level in range(self.levels):
@@ -211,9 +208,9 @@ class VQVAE(nn.Module):
             x_out = x_outs[level].permute(0, 2, 1).float()
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
-            recons_loss += this_recons_loss # 7782.4131
+            recons_loss += this_recons_loss 
 
-        commit_loss = sum(commit_losses) # 0.0104 
+        commit_loss = sum(commit_losses)
         loss = self.recon * recons_loss + self.commit * commit_loss 
 
         with t.no_grad():

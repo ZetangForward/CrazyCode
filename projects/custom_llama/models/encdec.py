@@ -74,7 +74,8 @@ class DecoderConvBock(nn.Module):
                         kernel_size=filter_t,
                         stride=stride_t,
                         padding=pad_t,     
-                    )
+                    ),
+                    nn.Tanh()
                 )
                 blocks.append(block)
         self.model = nn.Sequential(*blocks)
