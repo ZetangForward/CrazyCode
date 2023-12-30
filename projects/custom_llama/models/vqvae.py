@@ -60,6 +60,7 @@ class VQVAE(nn.Module):
         super().__init__()
         self.cfg = config.vqvae
         self.commit = self.cfg.commit
+        self.recon = self.cfg.recon
         self.spectral = self.cfg.spectral
         self.downsamples = calculate_strides(self.cfg.strides_t, self.cfg.downs_t)
         self.hop_lengths = np.cumprod(self.downsamples)
