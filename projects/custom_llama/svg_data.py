@@ -26,11 +26,21 @@ class BasicDataset(Dataset):
             sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
         else:
             sample = sample[:self.max_path_nums]
+        sample = self.custom_command(sample)
+        sample = torch.clamp(sample, min=0, max=200)
         padding_mask = ~(sample == -1).all(dim=1, keepdim=True).squeeze()
         return {
             "svg_path": sample, 
             "padding_mask": padding_mask,
         }
+
+    def custom_command(self, svg_tensor):
+        col1 = svg_tensor[:, 0]
+        col1[col1 == 1] = 100
+        col1[col1 == 2] = 200
+        svg_tensor[:, 0] = col1
+        return svg_tensor
+        
 
     @staticmethod
     def custom_datacollator(batch):
