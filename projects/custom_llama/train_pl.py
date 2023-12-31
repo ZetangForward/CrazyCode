@@ -54,6 +54,7 @@ class Experiment(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
+        self.log("my_loss", loss_w, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
         return loss_w
 

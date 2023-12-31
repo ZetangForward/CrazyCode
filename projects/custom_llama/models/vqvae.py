@@ -215,9 +215,9 @@ class VQVAE(nn.Module):
         loss = self.recon * recons_loss + self.commit * commit_loss 
 
         with t.no_grad():
-            l2_loss = _loss_fn("l2", x_target, x_out, self.cfg)
-            l1_loss = _loss_fn("l1", x_target, x_out, self.cfg)
-            linf_loss = _loss_fn("linf", x_target, x_out, self.cfg)
+            l2_loss = _loss_fn("l2", x_target, x_out, self.cfg, padding_mask)
+            l1_loss = _loss_fn("l1", x_target, x_out, self.cfg, padding_mask)
+            linf_loss = _loss_fn("linf", x_target, x_out, self.cfg, padding_mask)
 
         quantiser_metrics = average_metrics(quantiser_metrics)
 
