@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, Dataset
 from pathlib import Path  
 from typing import List, Optional, Sequence, Union, Any, Callable, Dict, Tuple  
 from pytorch_lightning import Trainer
-from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.strategies import DDPStrategy, FSDPStrategy
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import torch.distributed as dist
@@ -86,7 +86,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='.', config_name='config')
+@hydra.main(config_path='./configs', config_name='multigpu_config')
 def main(config):
     # config = load_yaml_config(config_path)
 
@@ -121,7 +121,7 @@ def main(config):
                 filename="pure_numerical_vae-{epoch:02d}",
                 save_last= True),
         ],
-        strategy=DDPStrategy(find_unused_parameters=False),
+        strategy=FSDPStrategy(find_unused_parameters=False),
         max_epochs=config.experiment.max_epoch,
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
