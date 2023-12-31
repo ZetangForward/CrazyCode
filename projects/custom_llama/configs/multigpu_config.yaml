@@ -2,7 +2,7 @@ dataset:
   train_data_path: "/zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl"
   max_path_nums: 512
   pad_token_id: -1
-  batch_size: 64
+  batch_size: 96
   nworkers: 0
   pin_memory: False
   x_channels: 9
@@ -37,7 +37,7 @@ vqvae_conv_block:
   vqvae_reverse_decoder_dilation: True
 
 experiment:
-  model_save_dir: "/zecheng/vqllama"
+  model_save_dir: "/zecheng/vqllama_model/vqllama_multigpu"
   exp_name: "train_vq"
   beta_1: 0.9
   beta_2: 0.999

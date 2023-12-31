@@ -121,7 +121,7 @@ def main(config):
                 filename="pure_numerical_vae-{epoch:02d}",
                 save_last= True),
         ],
-        strategy=FSDPStrategy(find_unused_parameters=False),
+        strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
