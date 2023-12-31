@@ -6,7 +6,7 @@ dataset:
   nworkers: 0
   pin_memory: False
   x_channels: 9
-  inference_mode: False
+  inference_mode: True
   test_data_path: "/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
 
 vqvae:
@@ -40,8 +40,8 @@ vqvae_conv_block:
 
 experiment:
   model_save_dir: "/zecheng/vqllama_model/vqllama_multigpu"
-  exp_name: "train_vq"
   version: 1
+  exp_name: "train_vq"
   beta_1: 0.9
   beta_2: 0.999
   lr: 0.0003
@@ -55,7 +55,7 @@ experiment:
   lr_start_linear_decay: 0
   lr_use_cosine_decay: False
   max_epoch: 50
-  device_num: 8
+  device_num: 1
 
 
   

@@ -105,7 +105,7 @@ def main(args):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-    data_foler = '/zecheng/svg/icon-shop/meta_data_filter_750.jsonl'
+    data_foler = '/zecheng/svg/icon-shop/test_data_snaps/total_750_test.jsonl'
     meta_data = auto_read_data(data_foler)
 
     saved_ = []
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         # import pdb; pdb.set_trace()
         saved_.append({'keywords': keywords, 'mesh_data': mesh_data})
     
-    auto_save_data(saved_, '/zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl')
+    auto_save_data(saved_, '/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl')
 
 
     # parser = ArgumentParser()

@@ -44,6 +44,13 @@ class Experiment(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         _, loss_w, _ = self.forward(batch)
         self.log_dict({"val_loss": loss_w.item()}, sync_dist=True)
+        return loss_w
+
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        output, loss_w, metrics = self.forward(batch)
+        self.log_dict(metrics, sync_dist=True)
+        return loss_w
 
 
     def configure_optimizers(self):
@@ -67,17 +74,11 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs', config_name='multigpu_config')
+@hydra.main(config_path='./configs', config_name='config_test')
 def main(config):
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
-
-    tb_logger = TensorBoardLogger(
-        save_dir=config.experiment.model_save_dir, 
-        name=f"{config.experiment.exp_name}",
-        version=config.experiment.version
-    )
 
     block_kwargs = dict(
         width=config.vqvae_conv_block.width, depth=config.vqvae_conv_block.depth, m_conv=config.vqvae_conv_block.m_conv,
@@ -89,6 +90,8 @@ def main(config):
     vqvae = VQVAE(config, multipliers=None, **block_kwargs)
 
     experiment = Experiment(vqvae, config)
+    ckp_path = os.path.join(config.experiment.model_save_dir, config.experiment.exp_name)
+    experiment.load_from_checkpoint(config.experiment.model_save_dir)
 
     trainer = pl.Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
@@ -98,9 +101,9 @@ def main(config):
             ModelCheckpoint(
                 save_top_k=5, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor="val_loss",
+                monitor= "val_loss",
                 filename="pure_numerical_vae-{epoch:02d}",
-                save_last=True),
+                save_last= True),
         ],
         strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,

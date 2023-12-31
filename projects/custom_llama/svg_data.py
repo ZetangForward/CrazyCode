@@ -1,4 +1,4 @@
-from pytorch_lightning.utilities.types import TRAIN_DATALOADERS
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 import torch   
 from torch.utils.data import DataLoader, Dataset  
 from pathlib import Path  
@@ -72,6 +72,13 @@ class SvgDataModule(pl.LightningDataModule):
             self.valid_file, max_path_nums=self.cfg.max_path_nums, 
             mode='valid', pad_token_id=self.cfg.pad_token_id
         )    
+        self.test_dataset = None
+        if self.cfg.inference_mode:
+            self.test_file = auto_read_data(self.cfg.test_data_path)
+            self.test_dataset = BasicDataset(
+                self.test_file, max_path_nums=self.cfg.max_path_nums, 
+                mode='test', pad_token_id=self.cfg.pad_token_id
+            )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
@@ -87,11 +94,10 @@ class SvgDataModule(pl.LightningDataModule):
             # collate_fn=BasicDataset.custom_datacollator
         )
 
-
-
-
-### for data testing
-# data_module = SvgDataModule(config.dataset)
-# data_module.setup()  
-# tmp = data_module.train_dataset[0]
-# print(tmp)
+    def test_dataloader(self) -> EVAL_DATALOADERS:
+        if self.test_dataloader is not None:
+            return DataLoader(
+                self.test_dataset, batch_size=self.cfg.batch_size, 
+                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+            )
+        return None
