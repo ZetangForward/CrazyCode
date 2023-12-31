@@ -1,0 +1,60 @@
+dataset:
+  train_data_path: /zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl
+  max_path_nums: 256
+  pad_token_id: -1
+  batch_size: 32
+  nworkers: 0
+  pin_memory: false
+  x_channels: 9
+vqvae:
+  levels: 3
+  downs_t:
+  - 1
+  - 1
+  - 1
+  strides_t:
+  - 2
+  - 2
+  - 2
+  emb_width: 4096
+  l_bins: 9012
+  l_mu: 0.99
+  commit: 0.02
+  spectral: 0.0
+  multispectral: 1.0
+  hvqvae_multipliers:
+  - 2
+  - 1
+  - 1
+  loss_fn: l2
+  width: 32
+  depth: 4
+  m_conv: 1.0
+  dilation_growth_rate: 1
+  use_nonrelative_specloss: true
+  use_bottleneck: true
+  linf_k: 2048
+vqvae_conv_block:
+  depth: 3
+  width: 128
+  m_conv: 1.0
+  dilation_growth_rate: 1
+  dilation_cycle: null
+  vqvae_reverse_decoder_dilation: true
+experiment:
+  model_save_dir: /zecheng/vqllama
+  exp_name: train_vq
+  beta_1: 0.9
+  beta_2: 0.999
+  lr: 0.0003
+  weight_decay: 0.0
+  eps: 1.0e-08
+  lr_warmup: 100.0
+  lr_decay: 10000000000.0
+  lr_gamma: 1.0
+  lr_scale: 1.0
+  lr_use_linear_decay: false
+  lr_start_linear_decay: 0
+  lr_use_cosine_decay: false
+  max_epoch: 50
+  device_num: 1
