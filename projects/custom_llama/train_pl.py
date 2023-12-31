@@ -54,6 +54,7 @@ class Experiment(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
+        self.log("my_loss", loss_w, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
         return loss_w
 
@@ -125,7 +126,7 @@ def main(config):
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
-        fast_dev_run=True, num_sanity_val_steps=2  # for debugging
+        # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
     # print(f"======= Training {config['model_params']['name']} =======")

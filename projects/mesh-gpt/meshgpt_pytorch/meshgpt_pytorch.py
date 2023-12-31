@@ -216,7 +216,6 @@ def scatter_mean(
     den = torch.zeros_like(tgt).scatter_add(dim, indices, torch.ones_like(src))
     return num / den.clamp(min = eps)
 
-# resnet block
 
 class SqueezeExcite(Module):
     def __init__(

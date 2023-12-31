@@ -457,6 +457,7 @@ class MeshAutoencoderTrainer(Module):
         return epoch_losses[-1]
 # mesh transformer trainer
 
+
 class MeshTransformerTrainer(Module):
     @beartype
     def __init__(
