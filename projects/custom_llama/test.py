@@ -34,6 +34,7 @@ class Experiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
+
     def training_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
         self.log("total_loss", loss_w, prog_bar=True)
@@ -49,8 +50,8 @@ class Experiment(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         output, loss_w, metrics = self.forward(batch)
-        self.log_dict(metrics, sync_dist=True)
-        return loss_w
+        import pdb; pdb.set_trace()
+        return output, metrics
 
 
     def configure_optimizers(self):
@@ -88,33 +89,21 @@ def main(config):
     )
 
     vqvae = VQVAE(config, multipliers=None, **block_kwargs)
-
     experiment = Experiment(vqvae, config)
-    ckp_path = os.path.join(config.experiment.model_save_dir, config.experiment.exp_name)
-    experiment.load_from_checkpoint(config.experiment.model_save_dir)
+    # experiment = Experiment.load_from_checkpoint(config.experiment.ckeckpoint_path)
 
-    trainer = pl.Trainer(
-        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
-        logger=tb_logger,
-        callbacks=[
-            LearningRateMonitor(),
-            ModelCheckpoint(
-                save_top_k=5, 
-                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor= "val_loss",
-                filename="pure_numerical_vae-{epoch:02d}",
-                save_last= True),
-        ],
-        strategy=DDPStrategy(find_unused_parameters=True),
-        max_epochs=config.experiment.max_epoch,
-        devices=config.experiment.device_num,
-        gradient_clip_val=1.5,
-        enable_model_summary=True,
-        # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
-    )
+    trainer = pl.Trainer()
 
     # print(f"======= Training {config['model_params']['name']} =======")
-    trainer.fit(experiment, datamodule=data_module)
+    predictions = trainer.predict(
+        experiment, 
+        datamodule=data_module,
+        return_predictions=True,
+        ckpt_path=config.experiment.ckeckpoint_path
+    )
+
+    import pdb; pdb.set_trace()
+    print(predictions)
 
 if __name__ == '__main__':
     main()

@@ -39,6 +39,7 @@ vqvae_conv_block:
   vqvae_reverse_decoder_dilation: True
 
 experiment:
+  ckeckpoint_path: "/zecheng/vqllama_model/vqllama_multigpu/train_vq/version_0/checkpoints/last.ckpt"
   model_save_dir: "/zecheng/vqllama_model/vqllama_multigpu"
   version: 1
   exp_name: "train_vq"

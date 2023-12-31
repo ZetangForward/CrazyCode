@@ -43,7 +43,7 @@ class Experiment(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         _, loss_w, _ = self.forward(batch)
-        self.log_dict({"val_loss": loss_w.item()}, sync_dist=True)
+        self.log("val_loss", loss_w)
 
 
     def configure_optimizers(self):
@@ -99,7 +99,7 @@ def main(config):
                 save_top_k=5, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_loss",
-                filename="pure_numerical_vae-{epoch:02d}",
+                filename="vqvae-{epoch:02d}",
                 save_last=True),
         ],
         strategy=DDPStrategy(find_unused_parameters=True),
@@ -110,7 +110,6 @@ def main(config):
         # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
-    # print(f"======= Training {config['model_params']['name']} =======")
     trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
