@@ -5,7 +5,7 @@ dataset:
   batch_size: 96
   nworkers: 0
   pin_memory: False
-  x_channels: 4608  # seq_len * 9
+  input_embed_width: 4096  # seq_len * 9
   inference_mode: False
   vocab_size: 202
 

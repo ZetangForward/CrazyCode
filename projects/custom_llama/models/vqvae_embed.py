@@ -65,8 +65,8 @@ class VQVAE(nn.Module):
         self.downsamples = calculate_strides(self.cfg.strides_t, self.cfg.downs_t)
         self.hop_lengths = np.cumprod(self.downsamples)
         self.sample_length = config.dataset.max_path_nums
-        self.x_channels = config.dataset.x_channels
-        self.x_shape = (config.dataset.max_path_nums, config.dataset.x_channels)
+        self.input_embed_width = config.dataset.input_embed_width
+        self.x_shape = (config.dataset.max_path_nums, config.dataset.input_embed_width)
         self.levels = self.cfg.levels
         self.vocab_size = config.dataset.vocab_size
 
@@ -91,7 +91,7 @@ class VQVAE(nn.Module):
         
         def encoder(level): 
             return Encoder(
-                input_emb_width=self.x_channels, 
+                input_emb_width=self.input_embed_width, 
                 output_emb_width=self.cfg.emb_width, 
                 levels=level + 1, 
                 downs_t=self.cfg.downs_t[:level+1],
@@ -101,7 +101,7 @@ class VQVAE(nn.Module):
         
         def decoder(level): 
             return Decoder(
-                input_emb_width=self.x_channels, 
+                input_emb_width=self.input_embed_width, 
                 output_emb_width=self.cfg.emb_width, 
                 levels=level + 1, 
                 downs_t=self.cfg.downs_t[:level+1],
