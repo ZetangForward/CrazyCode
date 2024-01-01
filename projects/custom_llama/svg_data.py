@@ -8,13 +8,14 @@ from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9):
+    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=202):
         super().__init__()
         self.dataset = dataset
         self.max_path_nums = max_path_nums
         self.mode = mode
         self.pad_token_id = pad_token_id
         self.num_bins = num_bins
+        self.vocab_size = vocab_size
 
     def __len__(self):
         return len(self.dataset)
@@ -27,10 +28,10 @@ class BasicDataset(Dataset):
         else:
             sample = sample[:self.max_path_nums]
         sample = self.custom_command(sample)
-        sample = torch.clamp(sample, min=0, max=200)
+        sample = torch.clamp(sample, min=0, max=self.vocab_size)
         padding_mask = ~(sample == -1).all(dim=1, keepdim=True).squeeze()
         return {
-            "svg_path": sample, 
+            "svg_path": sample.long(), 
             "padding_mask": padding_mask,
         }
 
@@ -48,7 +49,6 @@ class BasicDataset(Dataset):
     
 
 class SvgDataModule(pl.LightningDataModule):
-    
     def __init__(self, config, transform=None):
         super().__init__()
         self.cfg = config       

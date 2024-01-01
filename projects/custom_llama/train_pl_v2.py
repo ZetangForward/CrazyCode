@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import hydra  
 from svg_data import SvgDataModule
 from modelzipper.tutils import *
-from models.vqvae import VQVAE
+from models.vqvae_embed import VQVAE
 from models.utils import *
 
 class Experiment(pl.LightningModule):
@@ -108,7 +108,7 @@ def main(config):
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
-        # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
+        fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)

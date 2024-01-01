@@ -68,6 +68,7 @@ class VQVAE(nn.Module):
         self.x_channels = config.dataset.x_channels
         self.x_shape = (config.dataset.max_path_nums, config.dataset.x_channels)
         self.levels = self.cfg.levels
+        self.vocab_size = config.dataset.vocab_size
 
         if multipliers is None:
             self.multipliers = [1] * self.cfg.levels
@@ -75,9 +76,8 @@ class VQVAE(nn.Module):
             assert len(multipliers) == self.cfg.levels, "Invalid number of multipliers"
             self.multipliers = multipliers
 
-        self.z_shapes = [(self.x_shape[0] // self.hop_lengths[level],) for level in range(self.cfg.levels)]
         # define embedding
-        self.numerical_embedding = nn.Embedding(self.cfg.num_bins, self.cfg.emb_width)
+        self.numerical_embedding = nn.Embedding(self.vocab_size, self.cfg.emb_width)
 
         # define encoder and decoder
         self.encoders = nn.ModuleList()
@@ -91,14 +91,22 @@ class VQVAE(nn.Module):
         
         def encoder(level): 
             return Encoder(
-                self.x_channels, self.cfg.emb_width, level + 1,
-                self.cfg.downs_t[:level+1], self.cfg.strides_t[:level+1], **_block_kwargs(level)
+                input_emb_width=self.x_channels, 
+                output_emb_width=self.cfg.emb_width, 
+                levels=level + 1, 
+                downs_t=self.cfg.downs_t[:level+1],
+                strides_t=self.cfg.strides_t[:level+1], 
+                **_block_kwargs(level)
             )
         
         def decoder(level): 
             return Decoder(
-                self.x_channels, self.cfg.emb_width, level + 1,
-                self.cfg.downs_t[:level+1], self.cfg.strides_t[:level+1], **_block_kwargs(level)
+                input_emb_width=self.x_channels, 
+                output_emb_width=self.cfg.emb_width, 
+                levels=level + 1, 
+                downs_t=self.cfg.downs_t[:level+1],
+                strides_t=self.cfg.strides_t[:level+1],
+                **_block_kwargs(level)
             )
 
         for level in range(self.cfg.levels):
@@ -160,10 +168,6 @@ class VQVAE(nn.Module):
         zs = [t.cat(zs_level_list, dim=0) for zs_level_list in zip(*zs_list)]
         return zs
 
-    def sample(self, n_samples):
-        zs = [t.randint(0, self.l_bins, size=(n_samples, *z_shape),
-                        device='cuda') for z_shape in self.z_shapes]
-        return self.decode(zs)
 
     def forward(self, x, padding_mask=None, loss_fn='l2'):
         """
@@ -172,21 +176,21 @@ class VQVAE(nn.Module):
         """
         metrics = {}
         embed_x = self.numerical_embedding(x)
-        flatten_embed_x = embed_x.view(embed_x.size(0), -1, embed_x.size(-1)).continguous()
+        flatten_embed_x = embed_x.view(embed_x.size(0), -1, embed_x.size(-1)).contiguous()
 
         x_in = flatten_embed_x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
         xs = []
-
         for level in range(self.levels):
             encoder = self.encoders[level]
+            import pdb; pdb.set_trace()
             x_out = encoder(x_in)
             xs.append(x_out[-1])
             # xs: [[32, 2048, 128], [32, 2048, 64], [32, 2048, 32]]
-
+        import pdb; pdb.set_trace()
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
         # zs (index): [[32, 128], [32, 64], [32, 32]]
         # xs_quantised (hidden states): [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
-        
+        import pdb; pdb.set_trace()
         x_outs = []
         for level in range(self.levels):
             decoder = self.decoders[level]
@@ -207,8 +211,9 @@ class VQVAE(nn.Module):
             
         recons_loss = t.zeros(()).to(x.device)
         x_target = x.float()
-
+        import pdb; pdb.set_trace()
         for level in reversed(range(self.levels)):
+            import pdb; pdb.set_trace()
             x_out = x_outs[level].permute(0, 2, 1).float()
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
