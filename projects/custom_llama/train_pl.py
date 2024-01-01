@@ -96,11 +96,12 @@ def main(config):
         callbacks=[
             LearningRateMonitor(),
             ModelCheckpoint(
-                save_top_k=5, 
+                save_top_k=50, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor="val_loss",
+                monitor="total_loss",
                 filename="vqvae-{epoch:02d}",
-                save_last=True),
+                save_last=True
+            ),
         ],
         strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,

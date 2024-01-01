@@ -1,0 +1,20 @@
+[2023-12-31 14:36:55,951][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmprbdyjvnc
+[2023-12-31 14:36:55,952][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmprbdyjvnc/_remote_module_non_scriptable.py
+[2023-12-31 14:36:56,303][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 6
+[2023-12-31 14:36:56,463][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmpu_yvyfiq
+[2023-12-31 14:36:56,464][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmpu_yvyfiq/_remote_module_non_scriptable.py
+[2023-12-31 14:36:56,477][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmpm_2g7mka
+[2023-12-31 14:36:56,477][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmpm_2g7mka/_remote_module_non_scriptable.py
+[2023-12-31 14:36:56,557][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmppgf4hidr
+[2023-12-31 14:36:56,558][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmppgf4hidr/_remote_module_non_scriptable.py
+[2023-12-31 14:36:56,638][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmp1a8cqmfs
+[2023-12-31 14:36:56,639][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmp1a8cqmfs/_remote_module_non_scriptable.py
+[2023-12-31 14:36:56,741][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 7
+[2023-12-31 14:36:56,784][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 3
+[2023-12-31 14:36:56,827][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 1
+[2023-12-31 14:36:56,943][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 2
+[2023-12-31 14:36:56,943][torch.distributed.distributed_c10d][INFO] - Rank 2: Completed store-based barrier for key:store_based_barrier_key:1 with 8 nodes.
+[2023-12-31 14:36:56,947][torch.distributed.distributed_c10d][INFO] - Rank 6: Completed store-based barrier for key:store_based_barrier_key:1 with 8 nodes.
+[2023-12-31 14:36:56,948][torch.distributed.distributed_c10d][INFO] - Rank 7: Completed store-based barrier for key:store_based_barrier_key:1 with 8 nodes.
+[2023-12-31 14:36:56,950][torch.distributed.distributed_c10d][INFO] - Rank 3: Completed store-based barrier for key:store_based_barrier_key:1 with 8 nodes.
+[2023-12-31 14:36:56,952][torch.distributed.distributed_c10d][INFO] - Rank 1: Completed store-based barrier for key:store_based_barrier_key:1 with 8 nodes.
