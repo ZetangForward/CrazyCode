@@ -16,28 +16,23 @@ class Experiment(pl.LightningModule):
 
     def __init__(self, model, config, state="train") -> None:
         super(Experiment, self).__init__()
+
         self.model = model
         if state == "train":
             self.model.train()
         else:
             self.model.eval()
+
         self.cfg = config
+
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
             pass
         
     
-    def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
-        tensor = (normalized_tensor + 1) / 2
-        tensor = tensor * (max_val - min_val) + min_val
-        tensor = torch.round(tensor).long()
-        return tensor
-
-
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
-
 
     def training_step(self, batch, batch_idx):
         output, loss_w, metrics = self.forward(batch)
@@ -48,15 +43,7 @@ class Experiment(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         _, loss_w, _ = self.forward(batch)
-        self.log_dict({"val_loss": loss_w.item()}, sync_dist=True)
-        return loss_w
-
-
-    def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output, loss_w, metrics = self.forward(batch)
-        output = self.denormalize_func(output)
-        import pdb; pdb.set_trace()
-        return output, metrics
+        self.log("val_loss", loss_w)
 
 
     def configure_optimizers(self):
@@ -80,11 +67,17 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs', config_name='config_test')
+@hydra.main(config_path='./configs', config_name='config_embed')
 def main(config):
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
+
+    tb_logger = TensorBoardLogger(
+        save_dir=config.experiment.model_save_dir, 
+        name=f"{config.experiment.exp_name}",
+        version=config.experiment.version
+    )
 
     block_kwargs = dict(
         width=config.vqvae_conv_block.width, depth=config.vqvae_conv_block.depth, m_conv=config.vqvae_conv_block.m_conv,
@@ -94,21 +87,31 @@ def main(config):
     )
 
     vqvae = VQVAE(config, multipliers=None, **block_kwargs)
+
     experiment = Experiment(vqvae, config)
-    # experiment = Experiment.load_from_checkpoint(config.experiment.ckeckpoint_path)
 
-    trainer = pl.Trainer(devices=config.experiment.device_num)
-
-    # print(f"======= Training {config['model_params']['name']} =======")
-    predictions = trainer.predict(
-        experiment, 
-        datamodule=data_module,
-        return_predictions=True,
-        ckpt_path=config.experiment.ckeckpoint_path
+    trainer = pl.Trainer(
+        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+        logger=tb_logger,
+        callbacks=[
+            LearningRateMonitor(),
+            ModelCheckpoint(
+                save_top_k=50, 
+                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
+                monitor="total_loss",
+                filename="vqvae-{epoch:02d}",
+                save_last=True
+            ),
+        ],
+        strategy=DDPStrategy(find_unused_parameters=True),
+        max_epochs=config.experiment.max_epoch,
+        devices=config.experiment.device_num,
+        gradient_clip_val=1.5,
+        enable_model_summary=True,
+        # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
-    import pdb; pdb.set_trace()
-    print(predictions)
+    trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
     main()

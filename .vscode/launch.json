@@ -11,6 +11,18 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "train_pl_v2",
+            "type": "python",
+            "request": "launch",
+            "program": "/workspace/zecheng/modelzipper/projects/custom_llama/train_pl_v2.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0",
+                "PYTHONPATH": "/home/v-zetang/.conda/envs/svg/bin/python3.10"
+            }
         }
     ]
 }

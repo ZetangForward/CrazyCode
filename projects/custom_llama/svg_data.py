@@ -94,7 +94,7 @@ class SvgDataModule(pl.LightningDataModule):
             # collate_fn=BasicDataset.custom_datacollator
         )
 
-    def test_dataloader(self) -> EVAL_DATALOADERS:
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
         if self.test_dataloader is not None:
             return DataLoader(
                 self.test_dataset, batch_size=self.cfg.batch_size, 
