@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from models.bottleneck import NoBottleneck, Bottleneck
 from models.encdec import Encoder, Decoder
 from torchvision import transforms
+from einops import rearrange
 
 # helper functions
 def assert_shape(x, exp_shape):
@@ -76,6 +77,7 @@ class VQVAE(nn.Module):
         self.levels = self.cfg.levels
         self.vocab_size = config.dataset.vocab_size
         self.pad_token_id = config.dataset.pad_token_id
+        self.num_bins = config.dataset.num_bins
 
         if multipliers is None:
             self.multipliers = [1] * self.cfg.levels
@@ -176,8 +178,16 @@ class VQVAE(nn.Module):
         zs = [t.cat(zs_level_list, dim=0) for zs_level_list in zip(*zs_list)]
         return zs
 
+    def postprocess(self, x_out, num_bins=9):
+        """
+        x_out: b x embed_dim x (seq_len x num_bins)
+        """
+        x_out = rearrange(x_out, '... (p c) -> ... p c', c = num_bins)
+        x_out = x_out.permute(0, 2, 3, 1).float()
+        return x_out
 
-    def forward(self, x, padding_mask=None, loss_fn='l2'):
+
+    def forward(self, x, padding_mask=None):
         """
         x: [B, L, C]
         padding_mask: [B, L]
@@ -202,7 +212,8 @@ class VQVAE(nn.Module):
         for level in range(self.levels):
             decoder = self.decoders[level]
             x_out = decoder(xs_quantised[level:level+1], all_levels=False)
-            predicted_logits = self.prediction_head(x_out.permute(0, 2, 1).float())
+            p_x_out = self.postprocess(x_out, num_bins=self.num_bins)
+            predicted_logits = self.prediction_head(p_x_out)
             # happens when deploying
             if (x_out.shape != x_in.shape):
                 x_out = F.pad(
@@ -215,13 +226,14 @@ class VQVAE(nn.Module):
             assert_shape(x_out, x_in.shape)
             x_outs.append(x_out)
         # x_outs: [[16, 4608, 4096], [16, 4608, 4096], [16, 4608, 4096]]
+        # predicted_logits: [[16, 512, 9, 202], [16, 512, 9, 202], [16, 512, 9, 202]]
     
         recons_loss = t.zeros(()).to(x.device)
         x_target = x.long()
 
         for level in reversed(range(self.levels)):
             predict_logit = predicted_logits[level]
-            this_recons_loss = _loss_fn(loss_fn, x_target, predict_logit, self.cfg, padding_mask, ignore_index=self.pad_token_id)
+            this_recons_loss = _loss_fn(self.cfg.loss_fn, x_target, predict_logit, self.cfg, padding_mask, ignore_index=self.pad_token_id)
             import pdb; pdb.set_trace()
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss 
