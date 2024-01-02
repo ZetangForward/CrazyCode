@@ -67,7 +67,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs', config_name='config_embed')
+@hydra.main(config_path='./configs/experiment', config_name='config_embed')
 def main(config):
 
     # set training dataset
