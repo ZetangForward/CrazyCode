@@ -4,5 +4,5 @@ torchrun \
     --max-restarts=3 \
     --rdzv_id=111 \
     --rdzv_backend=c10d \
-    --rdzv_endpoint=10.184.185.106:4331 \
+    --rdzv_endpoint=worker-0:4331 \
     train_pl_v2.py;
