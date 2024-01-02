@@ -103,13 +103,13 @@ def main(config):
                 save_last=True
             ),
         ],
+        accelerator="gpu",
+        devices=config.experiment.device_num,
+        num_nodes=config.experiment.node_num,
         strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,
-        devices=config.experiment.device_num,
-        accelerator="gpu",
         gradient_clip_val=1.5,
         enable_model_summary=True,
-        num_nodes=config.experiment.node_num,
         # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
