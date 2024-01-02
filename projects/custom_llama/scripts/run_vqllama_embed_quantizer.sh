@@ -1,7 +1,8 @@
 torchrun \
-    --nnodes=16 \
+    --nnodes=1:4 \
     --nproc-per-node=4 \
-    --rdzv_id=223 \
+    --max-restarts=3 \
+    --rdzv_id=543 \
     --rdzv_backend=c10d \
-    --rdzv_endpoint=worker-0:2234 \
+    --rdzv_endpoint=10.184.185.106:4321 \
     train_pl_v2.py;
