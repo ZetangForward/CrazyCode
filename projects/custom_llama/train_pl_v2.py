@@ -30,20 +30,20 @@ class Experiment(pl.LightningModule):
         except:
             pass
         
-    
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
+
     def training_step(self, batch, batch_idx):
-        output, loss_w, metrics = self.forward(batch)
-        self.log("total_loss", loss_w, prog_bar=True)
+        output, loss, metrics = self.forward(batch)
+        self.log("total_loss", loss, sync_dist=True, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
-        return loss_w
+        return loss
 
 
     def validation_step(self, batch, batch_idx):
-        _, loss_w, _ = self.forward(batch)
-        self.log("val_loss", loss_w)
+        _, loss, _ = self.forward(batch)
+        self.log_dict({"val_loss": loss}, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
@@ -96,9 +96,9 @@ def main(config):
         callbacks=[
             LearningRateMonitor(),
             ModelCheckpoint(
-                save_top_k=50, 
+                save_top_k=10, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor="total_loss",
+                monitor="val_loss",
                 filename="vqvae-{epoch:02d}",
                 save_last=True
             ),
@@ -108,7 +108,7 @@ def main(config):
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
-        fast_dev_run=True, num_sanity_val_steps=2  # for debugging
+        # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)

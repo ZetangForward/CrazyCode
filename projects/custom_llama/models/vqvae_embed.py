@@ -239,7 +239,6 @@ class VQVAE(nn.Module):
         
         commit_loss = sum(commit_losses)
         loss = self.recon * recons_loss + self.commit * commit_loss 
-        import pdb; pdb.set_trace()
 
         quantiser_metrics = average_metrics(quantiser_metrics)
 

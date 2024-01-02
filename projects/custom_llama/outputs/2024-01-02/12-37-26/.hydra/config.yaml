@@ -1,61 +1,66 @@
 dataset:
-  train_data_path: "/zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl"
+  train_data_path: /zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl
   max_path_nums: 512
   pad_token_id: 201
   batch_size: 12
   nworkers: 16
-  pin_memory: False
-  input_embed_width: 4096  # seq_len * 9
-  inference_mode: False
+  pin_memory: false
+  input_embed_width: 4096
+  inference_mode: false
   vocab_size: 202
-  return_all_token_mask: True
+  return_all_token_mask: true
   num_bins: 9
-
 vqvae:
   levels: 3
-  downs_t: [2, 2, 2]
-  strides_t: [2, 2, 2]
+  downs_t:
+  - 2
+  - 2
+  - 2
+  strides_t:
+  - 2
+  - 2
+  - 2
   emb_width: 4096
   l_bins: 16384
   l_mu: 0.99
   spectral: 0.0
   multispectral: 1.0
-  hvqvae_multipliers: [2, 1, 1]
-  loss_fn: 'ce_loss'
+  hvqvae_multipliers:
+  - 2
+  - 1
+  - 1
+  loss_fn: ce_loss
   width: 32
   depth: 4
   m_conv: 1.0
   dilation_growth_rate: 1
-  use_nonrelative_specloss: True
-  use_bottleneck: True
+  use_nonrelative_specloss: true
+  use_bottleneck: true
   commit: 1.0
   recon: 1.0
   linf_k: 2048
-  
-
 vqvae_conv_block:
   depth: 3
   width: 128
   m_conv: 1.0
   dilation_growth_rate: 1
   dilation_cycle: null
-  vqvae_reverse_decoder_dilation: True
-
+  vqvae_reverse_decoder_dilation: true
 experiment:
-  model_save_dir: "/zecheng2/vqllama"
-  exp_name: "vqllama_embed_quantizer"
-  version: 0
+  model_save_dir: /zecheng/vqllama
+  exp_name: train_vq_embed
+  version: 2
   beta_1: 0.9
   beta_2: 0.999
   lr: 0.0003
   weight_decay: 0.0
-  eps: 0.00000001
+  eps: 1.0e-08
   lr_warmup: 100.0
   lr_decay: 10000000000.0
   lr_gamma: 1.0
   lr_scale: 1.0
-  lr_use_linear_decay: False
+  lr_use_linear_decay: false
   lr_start_linear_decay: 0
-  lr_use_cosine_decay: False
+  lr_use_cosine_decay: false
   max_epoch: 50
   device_num: 8
