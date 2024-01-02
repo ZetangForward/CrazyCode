@@ -1,5 +1,5 @@
 torchrun \
-    --nnodes=1:4 \
+    --nnodes=16 \
     --nproc-per-node=4 \
     --max-restarts=3 \
     --rdzv_id=123 \
