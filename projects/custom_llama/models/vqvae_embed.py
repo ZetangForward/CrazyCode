@@ -32,8 +32,8 @@ def normalize_func(tensor, min_val=0, max_val=200):
     return normalized_tensor
 
 
-def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
-    if padding_mask is not None:
+def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None, ignore_index=201):
+    if padding_mask is not None and loss_fn != "ce_loss":
         padding_mask = padding_mask.unsqueeze(-1).expand_as(x_target)
         x_target = t.where(padding_mask, x_target, t.zeros_like(x_target)).to(x_pred.device)
         x_pred = t.where(padding_mask, x_pred, t.zeros_like(x_pred)).to(x_pred.device)
@@ -50,8 +50,10 @@ def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
         values, _ = t.topk(masked_residual, cfg.linf_k, dim=1)
         loss = t.mean(values)
     elif loss_fn == "ce_loss":
-        x_target = x_target.contiguous().reshape(-1)
-        loss = F.cross_entropy(x_pred, x_target, reduction="mean", ignore_index=201)
+        import pdb; pdb.set_trace()
+        x_target = x_target.contiguous().view(-1)
+        x_pred = x_pred.contiguous().view(-1, x_pred.size(-1))
+        loss = F.cross_entropy(x_pred, x_target, reduction="mean", ignore_index=ignore_index)
 
     else:
         assert False, f"Unknown loss_fn {loss_fn}"
@@ -73,6 +75,7 @@ class VQVAE(nn.Module):
         self.x_shape = (config.dataset.max_path_nums, config.dataset.input_embed_width)
         self.levels = self.cfg.levels
         self.vocab_size = config.dataset.vocab_size
+        self.pad_token_id = config.dataset.pad_token_id
 
         if multipliers is None:
             self.multipliers = [1] * self.cfg.levels
@@ -199,8 +202,7 @@ class VQVAE(nn.Module):
         for level in range(self.levels):
             decoder = self.decoders[level]
             x_out = decoder(xs_quantised[level:level+1], all_levels=False)
-            x_out = x_out.permute(0, 2, 1).float()
-            predicted_logits = self.prediction_head(x_out)
+            predicted_logits = self.prediction_head(x_out.permute(0, 2, 1).float())
             # happens when deploying
             if (x_out.shape != x_in.shape):
                 x_out = F.pad(
@@ -218,9 +220,9 @@ class VQVAE(nn.Module):
         x_target = x.long()
 
         for level in reversed(range(self.levels)):
-            import pdb; pdb.set_trace()
             predict_logit = predicted_logits[level]
-            this_recons_loss = _loss_fn(loss_fn, x_target, predict_logit, self.cfg, padding_mask)
+            this_recons_loss = _loss_fn(loss_fn, x_target, predict_logit, self.cfg, padding_mask, ignore_index=self.pad_token_id)
+            import pdb; pdb.set_trace()
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss 
 

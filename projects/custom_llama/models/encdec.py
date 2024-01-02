@@ -141,7 +141,7 @@ class Decoder(nn.Module):
 
         def level_block(level, down_t, stride_t): 
             return DecoderConvBock(
-                output_emb_width,
+                input_emb_width if level == 0 else output_emb_width,
                 output_emb_width,
                 down_t, stride_t,
                 **block_kwargs
