@@ -49,6 +49,10 @@ def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
         masked_residual = t.where(padding_mask.reshape(x_target.shape[0], -1), residual, t.zeros_like(residual))
         values, _ = t.topk(masked_residual, cfg.linf_k, dim=1)
         loss = t.mean(values)
+    elif loss_fn == "ce_loss":
+        x_target = x_target.contiguous().reshape(-1)
+        loss = F.cross_entropy(x_pred, x_target, reduction="mean", ignore_index=201)
+
     else:
         assert False, f"Unknown loss_fn {loss_fn}"
 
@@ -216,8 +220,7 @@ class VQVAE(nn.Module):
         for level in reversed(range(self.levels)):
             import pdb; pdb.set_trace()
             predict_logit = predicted_logits[level]
-            
-            this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
+            this_recons_loss = _loss_fn(loss_fn, x_target, predict_logit, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss 
 
