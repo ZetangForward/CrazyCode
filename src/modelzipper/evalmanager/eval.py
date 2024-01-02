@@ -2,7 +2,7 @@ import math
 import numpy as np
 from argparse import ArgumentParser
 from nltk import ngrams
-from tokenizer import SimpleTokenizer
+from build.lib.modelzipper.evalmanager.tokenizer import SimpleTokenizer
 from transformers import AutoTokenizer,AutoModelForCausalLM
 import nltk
 import torch
