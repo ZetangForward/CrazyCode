@@ -51,7 +51,6 @@ def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None, ignore_index=201
         values, _ = t.topk(masked_residual, cfg.linf_k, dim=1)
         loss = t.mean(values)
     elif loss_fn == "ce_loss":
-        import pdb; pdb.set_trace()
         x_target = x_target.contiguous().view(-1)
         x_pred = x_pred.contiguous().view(-1, x_pred.size(-1))
         loss = F.cross_entropy(x_pred, x_target, reduction="mean", ignore_index=ignore_index)
