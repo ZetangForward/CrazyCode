@@ -16,7 +16,7 @@ dataset:
   batch_size: 12
   nworkers: 16
   pin_memory: False
-  input_embed_width: 4096  # seq_len * 9
+  input_embed_width: 4096
   inference_mode: False
   vocab_size: 202
   return_all_token_mask: True

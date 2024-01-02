@@ -1,4 +1,0 @@
-[2024-01-01 05:04:22,125][torch.distributed.nn.jit.instantiator][INFO] - Created a temporary directory at /tmp/tmpb4atl28u
-[2024-01-01 05:04:22,125][torch.distributed.nn.jit.instantiator][INFO] - Writing /tmp/tmpb4atl28u/_remote_module_non_scriptable.py
-[2024-01-01 05:04:22,498][torch.distributed.distributed_c10d][INFO] - Added key: store_based_barrier_key:1 to store for rank: 1
-[2024-01-01 05:04:22,652][torch.distributed.distributed_c10d][INFO] - Rank 1: Completed store-based barrier for key:store_based_barrier_key:1 with 8 nodes.
