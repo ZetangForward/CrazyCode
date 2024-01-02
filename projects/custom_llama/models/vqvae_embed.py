@@ -213,7 +213,7 @@ class VQVAE(nn.Module):
             decoder = self.decoders[level]
             x_out = decoder(xs_quantised[level:level+1], all_levels=False)
             p_x_out = self.postprocess(x_out, num_bins=self.num_bins)
-            predicted_logits = self.prediction_head(p_x_out)
+            predicted_logits.append(self.prediction_head(p_x_out))
             # happens when deploying
             if (x_out.shape != x_in.shape):
                 x_out = F.pad(
@@ -234,26 +234,20 @@ class VQVAE(nn.Module):
         for level in reversed(range(self.levels)):
             predict_logit = predicted_logits[level]
             this_recons_loss = _loss_fn(self.cfg.loss_fn, x_target, predict_logit, self.cfg, padding_mask, ignore_index=self.pad_token_id)
-            import pdb; pdb.set_trace()
+            
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss 
-
+        
         commit_loss = sum(commit_losses)
         loss = self.recon * recons_loss + self.commit * commit_loss 
-
-        with t.no_grad():
-            l2_loss = _loss_fn("l2", x_target, x_out, self.cfg, padding_mask)
-            l1_loss = _loss_fn("l1", x_target, x_out, self.cfg, padding_mask)
-            linf_loss = _loss_fn("linf", x_target, x_out, self.cfg, padding_mask)
+        import pdb; pdb.set_trace()
 
         quantiser_metrics = average_metrics(quantiser_metrics)
 
         metrics.update(dict(
             recons_loss=recons_loss,
-            l2_loss=l2_loss,
-            l1_loss=l1_loss,
-            linf_loss=linf_loss,
             commit_loss=commit_loss,
+            total_loss=loss,
             **quantiser_metrics))
 
         for key, val in metrics.items():
