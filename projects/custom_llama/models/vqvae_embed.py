@@ -215,7 +215,8 @@ class VQVAE(nn.Module):
 
         for level in reversed(range(self.levels)):
             import pdb; pdb.set_trace()
-            x_out = x_outs[level].permute(0, 2, 1).float()
+            predict_logit = predicted_logits[level]
+            
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
             recons_loss += this_recons_loss 
