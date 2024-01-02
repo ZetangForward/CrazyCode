@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=202):
+    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=202, return_all_token_mask=False):
         super().__init__()
         self.dataset = dataset
         self.max_path_nums = max_path_nums
@@ -16,7 +16,8 @@ class BasicDataset(Dataset):
         self.pad_token_id = pad_token_id
         self.num_bins = num_bins
         self.vocab_size = vocab_size
-
+        self.return_all_token_mask = return_all_token_mask
+    
     def __len__(self):
         return len(self.dataset)
 
@@ -29,7 +30,10 @@ class BasicDataset(Dataset):
             sample = sample[:self.max_path_nums]
         sample = self.custom_command(sample)
         sample = torch.clamp(sample, min=0, max=self.vocab_size)
-        padding_mask = ~(sample == -1).all(dim=1, keepdim=True).squeeze()
+        if self.return_all_token_mask:
+            padding_mask = ~(sample == self.pad_token_id)
+        else:
+            padding_mask = ~(sample == self.pad_token_id).all(dim=1, keepdim=True).squeeze()
         return {
             "svg_path": sample.long(), 
             "padding_mask": padding_mask,
@@ -66,18 +70,20 @@ class SvgDataModule(pl.LightningDataModule):
 
         self.train_dataset = BasicDataset(
             self.train_file, max_path_nums=self.cfg.max_path_nums, 
-            mode='train', pad_token_id=self.cfg.pad_token_id
+            mode='train', pad_token_id=self.cfg.pad_token_id, return_all_token_mask=self.cfg.return_all_token_mask
         )
         self.valid_dataset = BasicDataset(
             self.valid_file, max_path_nums=self.cfg.max_path_nums, 
-            mode='valid', pad_token_id=self.cfg.pad_token_id
+            mode='valid', pad_token_id=self.cfg.pad_token_id,
+            return_all_token_mask=self.cfg.return_all_token_mask
         )    
         self.test_dataset = None
         if self.cfg.inference_mode:
             self.test_file = auto_read_data(self.cfg.test_data_path)
             self.test_dataset = BasicDataset(
                 self.test_file, max_path_nums=self.cfg.max_path_nums, 
-                mode='test', pad_token_id=self.cfg.pad_token_id
+                mode='test', pad_token_id=self.cfg.pad_token_id,
+                return_all_token_mask=self.cfg.return_all_token_mask
             )
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:

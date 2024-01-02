@@ -76,8 +76,9 @@ class VQVAE(nn.Module):
             assert len(multipliers) == self.cfg.levels, "Invalid number of multipliers"
             self.multipliers = multipliers
 
-        # define embedding
+        # define embedding and prediction head
         self.numerical_embedding = nn.Embedding(self.vocab_size, self.cfg.emb_width)
+        self.prediction_head = nn.Linear(self.cfg.emb_width, self.vocab_size, bias=False)
 
         # define encoder and decoder
         self.encoders = nn.ModuleList()
@@ -178,24 +179,24 @@ class VQVAE(nn.Module):
         embed_x = self.numerical_embedding(x)
         flatten_embed_x = embed_x.view(embed_x.size(0), -1, embed_x.size(-1)).contiguous()
 
-        x_in = flatten_embed_x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
+        x_in = flatten_embed_x.permute(0, 2, 1).float()  # x_in [64, 4096, 4608]
         xs = []
         for level in range(self.levels):
             encoder = self.encoders[level]
-            import pdb; pdb.set_trace()
             x_out = encoder(x_in)
             xs.append(x_out[-1])
-            # xs: [[32, 2048, 128], [32, 2048, 64], [32, 2048, 32]]
-        import pdb; pdb.set_trace()
+            # xs: [[64, 4096, 1152], [64, 4096, 288], [64, 4096, 72]]
+
         zs, xs_quantised, commit_losses, quantiser_metrics = self.bottleneck(xs)
-        # zs (index): [[32, 128], [32, 64], [32, 32]]
+        # zs (index): [[64, 1152], [64, 288], [64, 72]]
         # xs_quantised (hidden states): [[32, 4096, 128], [32, 4096, 64], [32, 4096, 32]]
-        import pdb; pdb.set_trace()
-        x_outs = []
+
+        x_outs, predicted_logits = [], []
         for level in range(self.levels):
             decoder = self.decoders[level]
             x_out = decoder(xs_quantised[level:level+1], all_levels=False)
-
+            x_out = x_out.permute(0, 2, 1).float()
+            predicted_logits = self.prediction_head(x_out)
             # happens when deploying
             if (x_out.shape != x_in.shape):
                 x_out = F.pad(
@@ -207,11 +208,11 @@ class VQVAE(nn.Module):
 
             assert_shape(x_out, x_in.shape)
             x_outs.append(x_out)
-        # x_outs: [[32, 9, 256], [32, 9, 256], [32, 9, 256]]
-            
+        # x_outs: [[16, 4608, 4096], [16, 4608, 4096], [16, 4608, 4096]]
+    
         recons_loss = t.zeros(()).to(x.device)
-        x_target = x.float()
-        import pdb; pdb.set_trace()
+        x_target = x.long()
+
         for level in reversed(range(self.levels)):
             import pdb; pdb.set_trace()
             x_out = x_outs[level].permute(0, 2, 1).float()
