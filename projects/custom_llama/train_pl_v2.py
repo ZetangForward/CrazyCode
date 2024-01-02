@@ -106,10 +106,7 @@ def main(config):
         accelerator="gpu",
         devices=config.experiment.device_num,
         num_nodes=config.experiment.node_num,
-        plugins= pl.plugins.DDPPlugin(
-             num_nodes=config.experiment.node_num, # ADDED
-             find_unused_parameters=False
-        ),
+        strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,
         gradient_clip_val=1.5,
         enable_model_summary=True,
