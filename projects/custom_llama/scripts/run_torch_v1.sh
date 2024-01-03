@@ -1,4 +1,4 @@
-x=($(python -c "import torch;import os;x = ['151'];l = ','.join([f'worker-{e}' for e in x]).split(',');print(l[0], len(l), torch.cuda.device_count(), l.index(os.environ['HOSTNAME']))")) 
+x=($(python -c "import torch;import os;x = list(range(16));l = ','.join(['worker-{}'.format(e) for e in x]).split(',');print(l[0], len(l), torch.cuda.device_count(), l.index(os.environ['HOSTNAME']))")) 
 
 export NCCL_DEBUG=INFO 
 
