@@ -35,6 +35,14 @@ def postprocess(x):
     return full_x
 
 
+def merge_dicts(dict_list):
+    keys = dict_list[0].keys()
+    merge_res = []
+    for k in keys:
+        tmp = [d[k] for d in dict_list]
+        merge_res.append({k: torch.stack(tmp, dim=0).cpu()})
+    return merge_res
+
 
 class Experiment(pl.LightningModule):
 
@@ -63,19 +71,6 @@ class Experiment(pl.LightningModule):
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
 
-    def training_step(self, batch, batch_idx):
-        output, loss_w, metrics = self.forward(batch)
-        self.log("total_loss", loss_w, prog_bar=True)
-        self.log_dict(metrics, sync_dist=True)
-        return loss_w
-
-
-    def validation_step(self, batch, batch_idx):
-        _, loss_w, _ = self.forward(batch)
-        self.log_dict({"val_loss": loss_w.item()}, sync_dist=True)
-        return loss_w
-
-
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         output, _, _ = self.forward(batch)
         output = self.denormalize_func(output)
@@ -86,28 +81,7 @@ class Experiment(pl.LightningModule):
             "p_predict": post_process_output,
             "golden": batch['svg_path'],
         }
-
-
-    def configure_optimizers(self):
-        betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
-        optimizer = FusedAdam(
-            self.model.parameters(), 
-            lr=self.cfg.experiment.lr,
-            weight_decay=self.cfg.experiment.weight_decay, 
-            betas=betas, 
-            eps=self.cfg.experiment.eps
-        )
-
-        def lr_lambda(step):
-            return self.cfg.experiment.lr_scale * (self.cfg.experiment.lr_gamma ** (step // self.cfg.experiment.lr_decay)) * min(1.0, step / self.cfg.experiment.lr_warmup)
-
-        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": scheduler,
-        }
-
+    
 
 @hydra.main(config_path='./configs/experiment', config_name='config_test')
 def main(config):
