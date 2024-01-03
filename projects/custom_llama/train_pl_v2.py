@@ -124,7 +124,6 @@ def main(config):
 if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--local-rank', type=int, default=-1)
-    # args = parser.parse_args()  # for torch.distributed.launch
-
+    args = parser.parse_args()  # for torch.distributed.launch
     
-    main()
+    main(args)
