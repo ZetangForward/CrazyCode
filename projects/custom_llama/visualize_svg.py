@@ -19,14 +19,11 @@ from tqdm import trange
 def convert_svg(t, colored=False):
     svg = SVGTensor.from_data(t)
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
-    str_svg = svg.to_str()
     if colored:
-        svg = svg.draw_colored()
+        svg = svg.normalize().split_paths().set_color("random")
+    str_svg = svg.to_str()
     return svg, str_svg
   
-
-
-
 
 def main():
     FILE = "/zecheng2/vqllama/test_vqllama_quantizer/test_0/predictions.pkl"
