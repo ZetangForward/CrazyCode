@@ -1,14 +1,14 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
 JOB_ID: &JOB_ID 16
 EXP_NAME: &EXP_NAME "vqllama_embed_quantizer"
-local-rank: 0
+
 
 hydra:
   job:
     id: ${JOB_ID}
     name: hydra_${EXP_NAME}
   run:
-    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name}   
+    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
   train_data_path: "/zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl"

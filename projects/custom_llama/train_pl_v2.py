@@ -14,8 +14,6 @@ from models.utils import *
 import argparse
 from omegaconf import DictConfig
 
-# parser = argparse.ArgumentParser(add_help=False)
-# parser.add_argument('--local-rank', type=int, default=0)
 
 class Experiment(pl.LightningModule):
 
