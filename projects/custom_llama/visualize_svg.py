@@ -34,7 +34,7 @@ def merge_images(
     ):
     image_list = []
     for i in range(num_images):
-        filename = f'{i}{image_suffix}'
+        filename = f'{i}_{image_suffix}'
         image_path = os.path.join(folder_path, filename)
         image = Image.open(image_path)
         image_list.append(image)
@@ -47,23 +47,20 @@ def merge_images(
     big_images = []
 
     for i, image in enumerate(image_list):
-        
-        if i == image_row * image_col:
-            big_images.append(big_image)
-            big_image = Image.new('RGB', big_image_size)
-
         row = i // image_row
         col = i % image_col
         big_image.paste(image, (col * image.size[0], row * image.size[1]))
 
+        if i == image_row * image_col - 1:
+            big_images.append(big_image)
+            big_image = Image.new('RGB', big_image_size)
+    
     if save_dir is not None:
         for i, big_image in enumerate(big_images):
-            big_image.save(os.path.join(save_dir, f'big_map_{i}.png'))
-
+            save_path = os.path.join(save_dir, f'big_map_{i}_{image_suffix}.png')
+            big_image.save(save_path)
+            print_c(f"save big map {i} to {save_path}")
     return big_images
-
-
-
 
 
 def main():
@@ -75,16 +72,18 @@ def main():
 
         p_svg_images = merge_images(
             folder_path=SAVED_PATH, 
-            image_suffix='_p_svg.png', 
+            image_suffix='p_svg.png', 
             num_images=200, 
             save_dir=SAVED_PATH
         )
         g_svg_images = merge_images(
             folder_path=SAVED_PATH, 
-            image_suffix='_g_svg.png', 
+            image_suffix='g_svg.png', 
             num_images=200, 
             save_dir=SAVED_PATH
         )
+
+        exit()
 
     results = auto_read_data(FILE)
     keys = ['raw_predict', 'p_predict', 'golden']
