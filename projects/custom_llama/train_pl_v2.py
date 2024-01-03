@@ -14,8 +14,8 @@ from models.utils import *
 import argparse
 from omegaconf import DictConfig
 
-parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument('--local-rank', type=int, default=0)
+# parser = argparse.ArgumentParser(add_help=False)
+# parser.add_argument('--local-rank', type=int, default=0)
 
 class Experiment(pl.LightningModule):
 
@@ -123,6 +123,6 @@ def main(config: DictConfig):
 if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--local-rank', type=int, default=-1)
-    args = parser.parse_args()  # for torch.distributed.launch
+    # args = parser.parse_args()  # for torch.distributed.launch
     
     main()
