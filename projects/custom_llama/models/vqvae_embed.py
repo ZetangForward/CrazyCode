@@ -245,7 +245,6 @@ class VQVAE(nn.Module):
         metrics.update(dict(
             recons_loss=recons_loss,
             commit_loss=commit_loss,
-            total_loss=loss,
             **quantiser_metrics))
 
         for key, val in metrics.items():
