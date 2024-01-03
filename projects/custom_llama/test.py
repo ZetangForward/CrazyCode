@@ -55,7 +55,6 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         output, loss_w, metrics = self.forward(batch)
         output = self.denormalize_func(output)
-        import pdb; pdb.set_trace()
         return output, metrics
 
 
@@ -80,7 +79,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs', config_name='config_test')
+@hydra.main(config_path='./configs/experiment', config_name='config_test')
 def main(config):
 
     # set training dataset
