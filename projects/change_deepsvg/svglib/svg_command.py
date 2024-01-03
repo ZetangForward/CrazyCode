@@ -133,7 +133,7 @@ class SVGCommand:
     @staticmethod
     def from_tensor(vector: torch.Tensor):
         cmd_index, args = int(vector[0]), vector[1:]
-
+        
         cmd = SVGCmdEnum(SVGTensor.COMMANDS_SIMPLIFIED[cmd_index])
         # radius = Radius(*args[:2].tolist())
         # x_axis_rotation = Angle(*args[2:3].tolist())

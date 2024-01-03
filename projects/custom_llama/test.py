@@ -32,6 +32,10 @@ def postprocess(x):
     x_0_y_0[:, 1:, 1] = m_x[:, :-1, -1]  # y_3 of the previous row
     full_x = torch.cat((m_x[:, :, :1], x_0_y_0, m_x[:, :, 1:]), dim=2)
 
+    # replace the command value to 0, 1, 2
+    full_x[:, :, 0][full_x[:, :, 0] == 100] = 1
+    full_x[:, :, 0][full_x[:, :, 0] == 200] = 2
+
     return full_x
 
 
