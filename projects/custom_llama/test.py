@@ -12,6 +12,33 @@ from modelzipper.tutils import *
 from models.vqvae import VQVAE
 from models.utils import *
 
+
+
+def postprocess(x):
+    """
+    x: seq_len x 9
+    """
+    # first remove the 1, 2 columns
+    m_x = torch.cat((x[:, :1], x[:, 3:]), dim=1)
+
+    # find the right command value
+    m_x[:, 0] = torch.round(m_x[:, 0] / 100) * 100
+
+    # clip all the value to max bins 
+    m_x = torch.clamp(m_x, 0, 200)
+
+    # process the M and L path
+    m_x[:, 1:5][m_x[:, 0] != 200] = 0
+
+    # add to extra column to satify the 9 columns
+    x_0_y_0 = torch.zeros((m_x.size(0), 2), dtype=m_x.dtype)
+    x_0_y_0[1:, 0] = m_x[:-1, -2]  # x_3 of the previous row
+    x_0_y_0[1:, 1] = m_x[:-1, -1]  # y_3 of the previous row
+    full_x = torch.cat((m_x[:, :1], x_0_y_0, m_x[:, 1:]), 1)
+    return full_x
+
+
+
 class Experiment(pl.LightningModule):
 
     def __init__(self, model, config, state="train") -> None:
@@ -55,9 +82,14 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         output, _, metrics = self.forward(batch)
         output = self.denormalize_func(output)
+        import pdb; pdb.set_trace()
+        post_process_output = postprocess(output)
+        import pdb; pdb.set_trace()
+
         return {
-            "predict": output,
-            "input": batch['svg_path'], 
+            "raw_predict": output,
+            "p_predict": post_process_output,
+            "golden": batch['svg_path'], 
             "metrics": metrics,
         }
 
@@ -110,6 +142,8 @@ def main(config):
         ckpt_path=config.experiment.ckeckpoint_path
     )
     
+    import pdb; pdb.set_trace()
+
     save_path = os.path.join(config.experiment.prediction_save_path, "predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}")
