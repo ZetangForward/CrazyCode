@@ -93,7 +93,7 @@ def main(cl: int = 0):
             raw_predict = results['raw_predict'][i]
             p_predict = results['p_predict'][i]
             golden = results['golden'][i]
-            import pdb; pdb.set_trace()
+
             p_svg, p_svg_str = convert_svg(p_predict, True)
             g_svg, g_svg_str = convert_svg(golden, True)
 
