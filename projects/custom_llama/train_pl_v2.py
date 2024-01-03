@@ -12,7 +12,7 @@ from modelzipper.tutils import *
 from models.vqvae_embed import VQVAE
 from models.utils import *
 import argparse
-
+from omegaconf import DictConfig
 
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument('--local-rank', type=int, default=0)
@@ -73,7 +73,7 @@ class Experiment(pl.LightningModule):
 
 
 @hydra.main(config_path='./configs/experiment', config_name='config_embed')
-def main(config, aregs):
+def main(config: DictConfig, args):
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
