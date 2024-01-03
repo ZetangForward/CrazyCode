@@ -1,3 +1,14 @@
+SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
+JOB_ID: &JOB_ID 16
+EXP_NAME: &EXP_NAME "test_vqllama_embed_quantizer"
+
+hydra:
+  job:
+    id: ${JOB_ID}
+    name: hydra_${EXP_NAME}
+  run:
+    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
+
 dataset:
   train_data_path: "/zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl"
   max_path_nums: 512
@@ -39,7 +50,7 @@ vqvae_conv_block:
   vqvae_reverse_decoder_dilation: True
 
 experiment:
-  ckeckpoint_path: "/zecheng/vqllama_model/vqllama_multigpu/train_vq/version_1/checkpoints/vqvae-epoch=20.ckpt"
+  ckeckpoint_path: "/zecheng/vqllama_model/vqllama_multigpu/train_vq/version_1/checkpoints/vqvae-epoch=49.ckpt"
   model_save_dir: "/zecheng/vqllama_model/vqllama_multigpu"
   version: 1
   exp_name: "train_vq"
