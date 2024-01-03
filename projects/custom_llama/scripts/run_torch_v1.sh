@@ -8,4 +8,4 @@ python -m torch.distributed.launch \
     --node_rank ${x[3]} \
     --master_addr ${x[0]} \
     --master_port 9504 \
-    train_pl_v2.py
+    train_pl_v2.py;
