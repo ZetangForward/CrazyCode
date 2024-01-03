@@ -14,7 +14,7 @@ hydra:
 dataset:
   max_path_nums: 512
   pad_token_id: -1
-  batch_size: 200
+  batch_size: 400
   nworkers: 0
   pin_memory: False
   x_channels: 9
