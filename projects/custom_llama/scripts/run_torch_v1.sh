@@ -3,8 +3,8 @@
 x=($(python -c "import torch;import os;x = ['106','117'];l = ','.join([f'GCRHYPC{e}' for e in x]).split(',');print(l[0], len(l), torch.cuda.device_count(), l.index(os.environ['HOSTNAME']))"))
 
 export NCCL_DEBUG=INFO 
-export NCCL_IB_DISABLE=1
-export NCCL_IBEXT_DISABLE=1 
+# export NCCL_IB_DISABLE=1
+# export NCCL_IBEXT_DISABLE=1 
 
 
 echo "NCCL_DEBUG: ${NCCL_DEBUG}"
