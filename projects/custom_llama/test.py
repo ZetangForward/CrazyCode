@@ -50,20 +50,17 @@ def merge_dicts(dict_list):
 
 class Experiment(pl.LightningModule):
 
-    def __init__(self, model, config, state="train") -> None:
+    def __init__(self, model, config, state="eval") -> None:
         super(Experiment, self).__init__()
         self.model = model
-        if state == "train":
-            self.model.train()
-        else:
-            self.model.eval()
+        self.model.eval()
         self.cfg = config
+        self.return_all_quantized_res = True
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
             pass
         
-
     def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
         tensor = (normalized_tensor + 1) / 2
         tensor = tensor * (max_val - min_val) + min_val
@@ -82,11 +79,20 @@ class Experiment(pl.LightningModule):
         golden = batch['svg_path']
         golden[:, :, 0][golden[:, :, 0] == 100] = 1
         golden[:, :, 0][golden[:, :, 0] == 200] = 2
-        return {
+        standard_test_reconstruct = {
             "raw_predict": output,
             "p_predict": post_process_output,
             "golden": golden,
         }
+
+        if self.return_all_quantized_res:
+            zs, xs_quantised = self.model.encode(batch['svg_path'], start_level=0, end_level=None)
+            standard_test_reconstruct.update({
+                "zs": zs,
+                "xs_quantised": xs_quantised
+            })
+
+        return standard_test_reconstruct
     
 
 @hydra.main(config_path='./configs/experiment', config_name='config_test')
@@ -116,7 +122,6 @@ def main(config):
         ckpt_path=config.experiment.ckeckpoint_path
     )
     
-
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     auto_save_data(m_predictions, save_path)

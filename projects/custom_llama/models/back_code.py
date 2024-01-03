@@ -148,22 +148,16 @@ class VQVAE(nn.Module):
         zs = self.bottleneck.encode(xs)
         return zs[start_level:end_level]
 
-    def encode(self, x, start_level=0, end_level=None):
-        x = normalize_func(x) # normalize to [-1, 1]
-        x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
-        xs = []
+    def encode(self, x, start_level=0, end_level=None, bs_chunks=1):
 
-        if end_level is None:
-            end_level = self.levels
-
-        for level in range(self.levels):
-            encoder = self.encoders[level]
-            x_out = encoder(x_in)
-            xs.append(x_out[-1])
-
-        zs, xs_quantised = self.bottleneck(xs[start_level:end_level], just_return_zs=True)
-
-        return zs, xs_quantised
+        x_chunks = t.chunk(x, bs_chunks, dim=0)
+        zs_list = []
+        for x_i in x_chunks:
+            zs_i = self._encode(
+                x_i, start_level=start_level, end_level=end_level)
+            zs_list.append(zs_i)
+        zs = [t.cat(zs_level_list, dim=0) for zs_level_list in zip(*zs_list)]
+        return zs
 
 
     def sample(self, n_samples):
