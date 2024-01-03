@@ -10,7 +10,7 @@ results = auto_read_data(FILE)
 
 def postprocess(x):
     """
-    x: seq_len x 9
+    x: batch x seq_len x 9
     """
     # first remove the 1, 2 columns
     m_x = torch.cat((x[:, :1], x[:, 3:]), dim=1)
