@@ -73,8 +73,7 @@ class Experiment(pl.LightningModule):
 
 
 @hydra.main(config_path='./configs/experiment', config_name='config_embed')
-def main(config):
-    local_rank = int(os.getenv('LOCAL_RANK', '0')) # for torch.distributed.launch
+def main(config, aregs):
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
