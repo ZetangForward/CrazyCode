@@ -13,6 +13,10 @@ from models.vqvae_embed import VQVAE
 from models.utils import *
 import argparse
 
+
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('--local-rank', type=int, default=0)
+
 class Experiment(pl.LightningModule):
 
     def __init__(self, model, config, state="train") -> None:
@@ -121,4 +125,6 @@ if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--local-rank', type=int, default=-1)
     # args = parser.parse_args()  # for torch.distributed.launch
+
+    
     main()
