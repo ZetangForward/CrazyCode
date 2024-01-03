@@ -11,6 +11,7 @@ from svg_data import SvgDataModule
 from modelzipper.tutils import *
 from models.vqvae_embed import VQVAE
 from models.utils import *
+import argparse
 
 class Experiment(pl.LightningModule):
 
@@ -116,4 +117,7 @@ def main(config):
     trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--local-rank', type=int, default=-1)
+    args = parser.parse_args()  # for torch.distributed.launch
     main()
