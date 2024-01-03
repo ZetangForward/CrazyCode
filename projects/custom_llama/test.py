@@ -79,11 +79,13 @@ class Experiment(pl.LightningModule):
         output, _, _ = self.forward(batch)
         output = self.denormalize_func(output)
         post_process_output = postprocess(output)
-
+        golden = batch['svg_path']
+        golden[:, :, 0][golden[:, :, 0] == 100] = 1
+        golden[:, :, 0][golden[:, :, 0] == 200] = 2
         return {
             "raw_predict": output,
             "p_predict": post_process_output,
-            "golden": batch['svg_path'],
+            "golden": golden,
         }
     
 

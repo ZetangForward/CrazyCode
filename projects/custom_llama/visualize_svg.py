@@ -17,12 +17,12 @@ from tqdm import trange
 
 
 def convert_svg(t, colored=False):
-    import pdb; pdb.set_trace()
     svg = SVGTensor.from_data(t)
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
+    str_svg = svg.to_str()
     if colored:
         svg = svg.draw_colored()
-    return svg
+    return svg, str_svg
   
 
 
@@ -39,8 +39,8 @@ def main():
         p_predict = results['p_predict'][i]
         golden = results['golden'][i]
         
-        p_svg = convert_svg(p_predict, True), 
-        g_svg = convert_svg(golden, True)
+        p_svg, p_svg_str = convert_svg(p_predict, True)
+        g_svg, g_svg_str = convert_svg(golden, True)
         
         import pdb; pdb.set_trace()
         p_svg.save_png(f"p_svg_{i}.png")

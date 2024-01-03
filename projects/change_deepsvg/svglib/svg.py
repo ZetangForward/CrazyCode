@@ -184,8 +184,7 @@ class SVG:
             else:
                 raise ValueError(f"Unsupported file_path extension {file_extension}")
 
-        svg_str = self.to_str(fill=fill, with_points=with_points, with_handles=with_handles, with_bboxes=with_bboxes,
-                              with_markers=with_markefrom_datars, color_firstlast=color_firstlast, with_moves=with_moves)
+        svg_str = self.to_str(fill=fill, with_points=with_points, with_handles=with_handles, with_bboxes=with_bboxes, with_markers=with_markers, color_firstlast=color_firstlast, with_moves=with_moves)
 
         if do_display:
             ipd.display(ipd.SVG(svg_str))
