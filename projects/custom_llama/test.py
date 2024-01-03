@@ -79,10 +79,11 @@ class Experiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
-
+    @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output, _, _ = self.forward(batch, return_all_quantized_res=False)
-        # output = outputs[self.cfg.experiment.compress_level - 1]
+        outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
+        outputs = reversed(outputs)  # follow the decoder setting
+        output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
         post_process_output = postprocess(output)
         golden = batch['svg_path']

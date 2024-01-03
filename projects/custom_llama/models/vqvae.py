@@ -208,13 +208,12 @@ class VQVAE(nn.Module):
                 )
 
             assert_shape(x_out, x_in.shape)
-            x_outs.append(x_out)
-        # x_outs: [[32, 9, 256], [32, 9, 256], [32, 9, 256]]
-            
+            x_outs.append(x_out) # x_outs: [[32, 9, 256], [32, 9, 256], [32, 9, 256]]
+        
         recons_loss = t.zeros(()).to(x.device)
         x_target = x.float()
 
-        for level in reversed(range(self.levels)):
+        for level in reversed(range(self.levels)):  # attention: here utilize the reversed order
             x_out = x_outs[level].permute(0, 2, 1).float()
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
@@ -242,6 +241,7 @@ class VQVAE(nn.Module):
             metrics[key] = val.detach()
 
         if return_all_quantized_res:
+            x_outs = [tmp.permute(0, 2, 1).float() for tmp in x_outs]
             return x_outs, loss, metrics
 
         return x_out, loss, metrics
