@@ -3,9 +3,9 @@ x=($(python -c "import torch;import os;x = list(range(16));l = ','.join(['worker
 export NCCL_DEBUG=INFO 
 
 python -m torch.distributed.launch \
-    --nproc_per_node ${x[2]} \
+    --nproc-per-node ${x[2]} \
     --nnodes ${x[1]} \
-    --node_rank ${x[3]} \
-    --master_addr ${x[0]} \
-    --master_port 9504 \
+    --node-rank ${x[3]} \
+    --master-addr ${x[0]} \
+    --master-port 9504 \
     train_pl_v2.py;
