@@ -129,7 +129,8 @@ def main(config):
         return_predictions=True,
         ckpt_path=config.experiment.ckeckpoint_path
     )
-    import pdb; pdb.set_trace()
+    print_c(f"======= prediction end, begin to save =======", "magenta")
+
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     auto_save_data(m_predictions, save_path)
