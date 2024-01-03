@@ -242,7 +242,6 @@ class VQVAE(nn.Module):
 
         if return_all_quantized_res:
             x_outs = [tmp.permute(0, 2, 1).float() for tmp in x_outs]
-            x_outs.reverse() # follow the decoder setting
             return x_outs, loss, metrics
 
         return x_out, loss, metrics
