@@ -13,7 +13,6 @@ from models.vqvae import VQVAE
 from models.utils import *
 
 
-
 def postprocess(x):
     """
     x: batch_size x seq_len x 9
@@ -97,16 +96,16 @@ class Experiment(pl.LightningModule):
         if self.return_all_quantized_res:
             zs, xs_quantised = self.model.encode(batch['svg_path'], start_level=0, end_level=None)
             standard_test_reconstruct.update({
-                "zs": zs,
-                "xs_quantised": xs_quantised
+                "zs": zs[self.cfg.experiment.compress_level - 1],
+                "xs_quantised": xs_quantised[self.cfg.experiment.compress_level - 1]
             })
 
         return standard_test_reconstruct
     
 
-@hydra.main(config_path='./configs/experiment', config_name='config_test')
+@hydra.main(config_path='./configs/experiment', config_name='config_test', version_base='1.1')
 def main(config):
-
+    print_c(f"compress_level: {config.experiment.compress_level}", "magenta")
     # set training dataset
     data_module = SvgDataModule(config.dataset)
 
