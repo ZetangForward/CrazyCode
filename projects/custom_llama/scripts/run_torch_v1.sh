@@ -1,6 +1,4 @@
-# x=($(python -c "import torch;import os;x = ['106','117','154','146','150','122','124','145','126','138','139','137','151','105','136','142'];l = ','.join([f'GCRHYPC{e}' for e in x]).split(',');print(l[0], len(l), torch.cuda.device_count(), l.index(os.environ['HOSTNAME']))"))
-
-x=($(python -c "import torch;import os;x = ['106','117'];l = ','.join([f'GCRHYPC{e}' for e in x]).split(',');print(l[0], len(l), torch.cuda.device_count(), l.index(os.environ['HOSTNAME']))"))
+x=($(python -c "import torch;import os;x = ['106','117','154','146','150','122','124','145','126','138','139','137','151','105','136','142'];l = ','.join([f'GCRHYPC{e}' for e in x]).split(',');print(l[0], len(l), torch.cuda.device_count(), l.index(os.environ['HOSTNAME']))"))
 
 export NCCL_DEBUG=INFO 
 # export NCCL_IB_DISABLE=1
@@ -15,6 +13,6 @@ python -m torch.distributed.launch \
     --nnodes ${x[1]} \
     --node_rank ${x[3]} \
     --master_addr ${x[0]} \
-    --master_port 9404 \
+    --master_port 8404 \
     --use_env \
     train_pl_v2.py;

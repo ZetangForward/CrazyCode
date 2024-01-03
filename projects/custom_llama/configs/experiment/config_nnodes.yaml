@@ -70,4 +70,4 @@ experiment:
   lr_use_cosine_decay: False
   max_epoch: 50
   device_num: 4
-  node_num: 2
+  node_num: 16
