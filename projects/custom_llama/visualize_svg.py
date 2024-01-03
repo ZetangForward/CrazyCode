@@ -47,15 +47,20 @@ def merge_images(
     big_images = []
 
     for i, image in enumerate(image_list):
-        row = i // 10
-        col = i % 10
-        big_image.paste(image, (col * image.size[0], row * image.size[1]))
-
-        if i == 10:
+        
+        if i == image_row * image_col:
             big_images.append(big_image)
             big_image = Image.new('RGB', big_image_size)
 
-    return big_image
+        row = i // image_row
+        col = i % image_col
+        big_image.paste(image, (col * image.size[0], row * image.size[1]))
+
+    if save_dir is not None:
+        for i, big_image in enumerate(big_images):
+            big_image.save(os.path.join(save_dir, f'big_map_{i}.png'))
+
+    return big_images
 
 
 
@@ -64,7 +69,23 @@ def merge_images(
 def main():
     FILE = "/zecheng2/vqllama/test_vqllama_quantizer/test_0/predictions.pkl"
     SAVED_PATH = "/zecheng2/svg/svgvq/test_vq_v1"
-    
+    DIRECT_GENERATE_BIG_MAP = True
+
+    if DIRECT_GENERATE_BIG_MAP:
+
+        p_svg_images = merge_images(
+            folder_path=SAVED_PATH, 
+            image_suffix='_p_svg.png', 
+            num_images=200, 
+            save_dir=SAVED_PATH
+        )
+        g_svg_images = merge_images(
+            folder_path=SAVED_PATH, 
+            image_suffix='_g_svg.png', 
+            num_images=200, 
+            save_dir=SAVED_PATH
+        )
+
     results = auto_read_data(FILE)
     keys = ['raw_predict', 'p_predict', 'golden']
     num_svgs = len(results[keys[0]])
@@ -88,8 +109,7 @@ def main():
     
     auto_save_data(str_paths, os.path.join(SAVED_PATH, "str_paths.jsonl"))
 
-    p_svg_image = merge_images(SAVED_PATH, '_p_svg.png')
-    g_svg_image = merge_images(SAVED_PATH, '_g_svg.png')
+    
         
 if __name__ == "__main__":
     main()
