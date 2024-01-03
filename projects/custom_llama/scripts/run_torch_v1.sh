@@ -10,5 +10,5 @@ python -m torch.distributed.launch \
     --nnodes ${x[1]} \
     --node-rank ${x[3]} \
     --master-addr ${x[0]} \
-    --master-port 9504 \
+    --master-port 9404 \
     train_pl_v2.py;
