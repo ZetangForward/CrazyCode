@@ -27,7 +27,7 @@ def postprocess(x):
     # process the M and L path
     m_x[:, :, 1:5][m_x[:, :, 0] != 200] = 0
     # add to extra column to satisfy the 9 columns
-    x_0_y_0 = torch.zeros((m_x.size(0), m_x.size(1), 2), dtype=m_x.dtype)
+    x_0_y_0 = torch.zeros((m_x.size(0), m_x.size(1), 2), dtype=m_x.dtype, device=m_x.device)
     x_0_y_0[:, 1:, 0] = m_x[:, :-1, -2]  # x_3 of the previous row
     x_0_y_0[:, 1:, 1] = m_x[:, :-1, -1]  # y_3 of the previous row
     full_x = torch.cat((m_x[:, :, :1], x_0_y_0, m_x[:, :, 1:]), dim=2)
@@ -77,17 +77,14 @@ class Experiment(pl.LightningModule):
 
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output, _, metrics = self.forward(batch)
+        output, _, _ = self.forward(batch)
         output = self.denormalize_func(output)
-        import pdb; pdb.set_trace()
         post_process_output = postprocess(output)
-        import pdb; pdb.set_trace()
 
         return {
             "raw_predict": output,
             "p_predict": post_process_output,
-            "golden": batch['svg_path'], 
-            "metrics": metrics,
+            "golden": batch['svg_path'],
         }
 
 
