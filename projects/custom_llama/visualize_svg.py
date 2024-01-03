@@ -65,16 +65,26 @@ def merge_images(
     return big_images
 
 
-def main():
-    FILE = "/zecheng2/vqllama/test_vqllama_quantizer/test_0/predictions.pkl"
-    SAVED_PATH = "/zecheng2/svg/svgvq/test_vq_v1"
-    BIG_MAP_SAVED_PATH = "/zecheng2/svg/svgvq/test_vq_v1_big_map"  # save big picture map and str_paths
+def main(cl: int = 0):
+    assert cl in [1, 2, 3], "compress level must be 1, 2, 3"
+    print_c(f"visualize compress level: {cl}, begin!", "magenta")
+
+
+    ROOT_DIR = "/zecheng2/vqllama/test_vqllama_quantizer/test_0"
+    COMPRESS_LEVEL = cl
+    FILE_PATH = os.path.join(ROOT_DIR, f"compress_level_{COMPRESS_LEVEL}_predictions.pkl")
+    
+    SAVE_DIR = auto_mkdir(os.path.join(ROOT_DIR, f"visualized_compress_level_{COMPRESS_LEVEL}"))
+    BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(SAVE_DIR, "big_map")) # save big picture map
+    SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(SAVE_DIR, "single_image")) # save single image    
+    PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
+
     DIRECT_GENERATE_BIG_MAP = True
     DIRECT_GENERATE_SINGLE_IMAGE = True
 
 
     if DIRECT_GENERATE_SINGLE_IMAGE:
-        results = auto_read_data(FILE)
+        results = auto_read_data(FILE_PATH)
         keys = ['raw_predict', 'p_predict', 'golden']
         num_svgs = len(results[keys[0]])
         str_paths = []
@@ -92,27 +102,27 @@ def main():
                 "g_svg_str": g_svg_str,
             })
             
-            p_svg.save_png(os.path.join(SAVED_PATH, f"{i}_p_svg.png"))
-            g_svg.save_png(os.path.join(SAVED_PATH, f"{i}_g_svg.png"))
+            p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
         
-        auto_save_data(str_paths, os.path.join(BIG_MAP_SAVED_PATH, "str_paths.jsonl"))
+        auto_save_data(str_paths, PATH_SAVED_PATH)
 
     if DIRECT_GENERATE_BIG_MAP:
         p_svg_images = merge_images(
-            folder_path=SAVED_PATH, 
+            folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='p_svg.png', 
             num_images=2000, 
-            save_dir=BIG_MAP_SAVED_PATH
+            save_dir=BIG_MAP_SAVED_DIR
         )
         g_svg_images = merge_images(
-            folder_path=SAVED_PATH, 
+            folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='g_svg.png', 
             num_images=2000, 
-            save_dir=BIG_MAP_SAVED_PATH
+            save_dir=BIG_MAP_SAVED_DIR
         )
 
     
 if __name__ == "__main__":
-    main()
+    fire.Fire(main)
 
 

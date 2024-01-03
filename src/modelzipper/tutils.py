@@ -54,6 +54,104 @@ def print_c(s, c='green', *args, **kwargs):
     # Pass 'attrs' as a keyword argument to 'colored'
     print(colored(s, color=c, attrs=attributes))
 
+###########################
+##### Automatic utils #####
+###########################
+
+def auto_read_data(file_path, return_format="list"):
+    """
+    Read data from a file and return it in the specified format.
+
+    Parameters:
+        file_path (str): The path to the file to be read.
+        return_format (str, optional): The format in which the data should be returned. Defaults to "list".
+
+    Returns:
+        list or str: The data read from the file, in the specified format.
+    """
+    file_type = file_path.split('.')[-1].lower()  
+    
+    if file_type == 'jsonl':  
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = [json.loads(line.strip()) for line in file]  
+    elif file_type == 'json':
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = json.load(file)
+    elif file_type == 'pkl':  
+        with open(file_path, 'rb') as file:  
+            data = pickle.load(file)  
+    elif file_type == 'txt':  
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = [line.strip() for line in file]  
+    else:  
+        raise ValueError(f"Unsupported file type: {file_type}")  
+  
+    if return_format != "list":  
+        raise ValueError(f"Unsupported return format: {return_format}")  
+  
+    return data  
+
+
+def auto_save_data(lst: List, file_path):
+    """
+    Save a list of items to a file.
+    Automatically detect the file type by the suffix of the file_path.
+
+    Args:
+        lst (List): The list of items to be saved.
+        file_path (str): The path to the file.
+        //* Support file types
+            - jsonl
+            - pkl
+            - txt
+        *//
+        
+    Raises:
+        ValueError: If the file type is not supported.
+    """
+    
+    data_dir = os.path.dirname(file_path)
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        print_c(f"{data_dir} not exist! --> Create data dir {data_dir}")
+    suffix_ = file_path.split(".")[-1]
+    
+    if suffix_ == "jsonl":
+        with open(file_path, "w") as f:
+            for item in lst:
+                json.dump(item, f)
+                f.write("\n")
+        print_c("jsonl file saved successfully!")
+        
+    elif suffix_ == "pkl":
+        with open(file_path, "wb") as f:
+            pickle.dump(lst, f)
+        print_c("pkl file saved successfully!")
+        
+    elif suffix_ == "txt":
+        with open(file_path, "w") as f:
+            for item in lst:
+                f.write(item + "\n")
+        print_c("txt file saved successfully!")
+    else:
+        raise ValueError(f"file_type {suffix_} not supported!")
+    
+    print_c(f"Save file to {file_path} | len: {len(lst)}")
+
+
+def auto_mkdir(dir_path):
+    """
+    Automatically create a directory if it does not exist.
+
+    Args:
+        dir_path (str): The path to the directory.
+    """
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+        print_c(f"{dir_path} not exist! --> Create dir {dir_path}")
+    return dir_path
+
+
 
 def top_k_top_p_sampling(logits: torch.FloatTensor, top_k: int = 0, top_p: float = 1.0, temperature: float = 0.7, filter_value: float = -float("Inf"), min_tokens_to_keep: int = 1, num_samples = 1):
     next_token_scores = top_k_top_p_filtering(logits, top_k=top_k, top_p=top_p, temperature=temperature, filter_value=filter_value, min_tokens_to_keep=min_tokens_to_keep)
@@ -158,7 +256,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
         os.makedirs(output_dir)
         print_c(f"{output_dir} not exist! --> Create output dir {output_dir}")
     
-    content = load_jsonl(file_path)
+    content = auto_read_data(file_path)
     
     snap_length = len(content) // num_snaps + 1
 
@@ -168,7 +266,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
     
     origin_file_name = os.path.basename(file_path).split(".")[0]
     for i, item in enumerate(new_content):
-        save_file(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
+        auto_save_data(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
         
     print_c(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
 
@@ -216,87 +314,6 @@ def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, outpu
         plt.savefig(output_file, bbox_inches='tight')
     else:
         plt.show()  
-
-
-def auto_read_data(file_path, return_format="list"):
-    """
-    Read data from a file and return it in the specified format.
-
-    Parameters:
-        file_path (str): The path to the file to be read.
-        return_format (str, optional): The format in which the data should be returned. Defaults to "list".
-
-    Returns:
-        list or str: The data read from the file, in the specified format.
-    """
-    file_type = file_path.split('.')[-1].lower()  
-    
-    if file_type == 'jsonl':  
-        with open(file_path, 'r', encoding='utf-8') as file:  
-            data = [json.loads(line.strip()) for line in file]  
-    elif file_type == 'json':
-        with open(file_path, 'r', encoding='utf-8') as file:  
-            data = json.load(file)
-    elif file_type == 'pkl':  
-        with open(file_path, 'rb') as file:  
-            data = pickle.load(file)  
-    elif file_type == 'txt':  
-        with open(file_path, 'r', encoding='utf-8') as file:  
-            data = [line.strip() for line in file]  
-    else:  
-        raise ValueError(f"Unsupported file type: {file_type}")  
-  
-    if return_format != "list":  
-        raise ValueError(f"Unsupported return format: {return_format}")  
-  
-    return data  
-
-
-def auto_save_data(lst: List, file_path):
-    """
-    Save a list of items to a file.
-    Automatically detect the file type by the suffix of the file_path.
-
-    Args:
-        lst (List): The list of items to be saved.
-        file_path (str): The path to the file.
-        //* Support file types
-            - jsonl
-            - pkl
-            - txt
-        *//
-        
-    Raises:
-        ValueError: If the file type is not supported.
-    """
-    
-    data_dir = os.path.dirname(file_path)
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-        print_c(f"{data_dir} not exist! --> Create data dir {data_dir}")
-    suffix_ = file_path.split(".")[-1]
-    
-    if suffix_ == "jsonl":
-        with open(file_path, "w") as f:
-            for item in lst:
-                json.dump(item, f)
-                f.write("\n")
-        print_c("jsonl file saved successfully!")
-        
-    elif suffix_ == "pkl":
-        with open(file_path, "wb") as f:
-            pickle.dump(lst, f)
-        print_c("pkl file saved successfully!")
-        
-    elif suffix_ == "txt":
-        with open(file_path, "w") as f:
-            for item in lst:
-                f.write(item + "\n")
-        print_c("txt file saved successfully!")
-    else:
-        raise ValueError(f"file_type {suffix_} not supported!")
-    
-    print_c(f"Save file to {file_path} | len: {len(lst)}")
 
 
 def sample_dict_items(dict_, n=3):
