@@ -37,10 +37,10 @@ def postprocess(x):
 
 def merge_dicts(dict_list):
     keys = dict_list[0].keys()
-    merge_res = []
+    merge_res = dict()
     for k in keys:
         tmp = [d[k] for d in dict_list]
-        merge_res.append({k: torch.cat(tmp, dim=0).cpu()})
+        merge_res[k] = torch.cat(tmp, dim=0).cpu()
     return merge_res
 
 
