@@ -214,7 +214,7 @@ class Bottleneck(nn.Module):
 
     def forward(self, xs, just_return_zs=False):
         zs, xs_quantised, commit_losses, metrics = [], [], [], []
-        for level in range(min(self.levels, xs)):  # 3 or the input level (must start from 1)
+        for level in range(min(self.levels, len(xs))):  # 3 or the input level (must start from 1)
             level_block = self.level_blocks[level]
             x = xs[level] # 32, 4096, 128
             z, x_quantised, commit_loss, metric = level_block(x, update_k=self.training)

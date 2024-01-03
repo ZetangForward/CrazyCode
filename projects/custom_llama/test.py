@@ -44,7 +44,15 @@ def merge_dicts(dict_list):
     merge_res = dict()
     for k in keys:
         tmp = [d[k] for d in dict_list]
-        merge_res[k] = torch.cat(tmp, dim=0).cpu()
+        if isinstance(tmp[0], torch.Tensor):
+            merge_res[k] = torch.cat(tmp, dim=0).cpu()
+        elif isinstance(tmp[0], List):
+            merged_tensors = [[], [], []]
+            for sublist in tmp:
+                for i, t_ in enumerate(sublist):
+                    merged_tensors[i].append(t_)
+            merge_res[k] = [torch.cat(t, dim=0).cpu() for t in merged_tensors]
+
     return merge_res
 
 
@@ -121,7 +129,7 @@ def main(config):
         return_predictions=True,
         ckpt_path=config.experiment.ckeckpoint_path
     )
-    
+    import pdb; pdb.set_trace()
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     auto_save_data(m_predictions, save_path)

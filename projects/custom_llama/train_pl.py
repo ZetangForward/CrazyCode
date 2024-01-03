@@ -34,16 +34,17 @@ class Experiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
+
     def training_step(self, batch, batch_idx):
-        output, loss_w, metrics = self.forward(batch)
-        self.log("total_loss", loss_w, prog_bar=True)
+        _, loss_w, metrics = self.forward(batch)
+        self.log("total_loss", loss_w, sync_dist=True, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
         return loss_w
 
 
     def validation_step(self, batch, batch_idx):
         _, loss_w, _ = self.forward(batch)
-        self.log("val_loss", loss_w)
+        self.log("val_loss", loss_w, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
@@ -98,7 +99,7 @@ def main(config):
             ModelCheckpoint(
                 save_top_k=50, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor="total_loss",
+                monitor="val_loss",
                 filename="vqvae-{epoch:02d}",
                 save_last=True
             ),
@@ -108,6 +109,7 @@ def main(config):
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
+        num_sanity_val_steps=0,
         # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
