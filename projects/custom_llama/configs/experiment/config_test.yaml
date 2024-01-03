@@ -58,6 +58,7 @@ experiment:
   exp_name: ${EXP_NAME}
   version: ${JOB_ID}
   device_num: 1
+  compress_level: 2
 
 
   

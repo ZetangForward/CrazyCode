@@ -76,7 +76,7 @@ class Experiment(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
-        output = outputs[-1]
+        output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
         post_process_output = postprocess(output)
         golden = batch['svg_path']
@@ -118,7 +118,7 @@ def main(config):
     
 
     m_predictions = merge_dicts(predictions)
-    save_path = os.path.join(config.experiment.prediction_save_path, "predictions.pkl")
+    save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     auto_save_data(m_predictions, save_path)
     print_c(f"save predictions to {save_path}")
 
