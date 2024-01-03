@@ -11,4 +11,5 @@ python -m torch.distributed.launch \
     --node_rank ${x[3]} \
     --master_addr ${x[0]} \
     --master_port 9404 \
+    --use_env \
     train_pl_v2.py;
