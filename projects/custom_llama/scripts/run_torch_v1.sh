@@ -6,9 +6,9 @@ echo "NCCL_DEBUG: ${NCCL_DEBUG}"
 echo ${x[0]} ${x[1]} ${x[2]} ${x[3]}
 
 python -m torch.distributed.launch \
-    --nproc-per-node ${x[2]} \
+    --nproc_per_node ${x[2]} \
     --nnodes ${x[1]} \
-    --node-rank ${x[3]} \
-    --master-addr ${x[0]} \
-    --master-port 9404 \
+    --node_rank ${x[3]} \
+    --master_addr ${x[0]} \
+    --master_port 9404 \
     train_pl_v2.py;
