@@ -2,6 +2,9 @@ x=($(python -c "import torch;import os;x = list(range(16));l = ','.join(['worker
 
 export NCCL_DEBUG=INFO 
 
+echo "NCCL_DEBUG: ${NCCL_DEBUG}"
+echo ${x[0]} ${x[1]} ${x[2]} ${x[3]}
+
 python -m torch.distributed.launch \
     --nproc-per-node ${x[2]} \
     --nnodes ${x[1]} \
