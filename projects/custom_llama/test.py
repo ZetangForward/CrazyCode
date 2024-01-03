@@ -63,20 +63,20 @@ class Experiment(pl.LightningModule):
         except:
             pass
         
-    
+
     def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
         tensor = (normalized_tensor + 1) / 2
         tensor = tensor * (max_val - min_val) + min_val
         tensor = torch.round(tensor).long()
         return tensor
 
-
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output, _, _ = self.forward(batch)
+        outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
+        output = outputs[-1]
         output = self.denormalize_func(output)
         post_process_output = postprocess(output)
         golden = batch['svg_path']

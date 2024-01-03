@@ -158,12 +158,14 @@ class VQVAE(nn.Module):
         zs = [t.cat(zs_level_list, dim=0) for zs_level_list in zip(*zs_list)]
         return zs
 
+
     def sample(self, n_samples):
         zs = [t.randint(0, self.l_bins, size=(n_samples, *z_shape),
                         device='cuda') for z_shape in self.z_shapes]
         return self.decode(zs)
 
-    def forward(self, x, padding_mask=None, loss_fn='l2'):
+
+    def forward(self, x, padding_mask=None, loss_fn='l2', return_all_quantized_res=False):
         """
         x: [B, L, C]
         padding_mask: [B, L]
@@ -231,6 +233,9 @@ class VQVAE(nn.Module):
 
         for key, val in metrics.items():
             metrics[key] = val.detach()
+
+        if return_all_quantized_res:
+            return x_outs, loss, metrics
 
         return x_out, loss, metrics
 

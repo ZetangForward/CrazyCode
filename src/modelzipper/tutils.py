@@ -4,7 +4,6 @@ Date: 2023-12-12 15:29:13
 LastEditors: ZetangForward 1
 LastEditTime: 2023-12-12 17:45:20
 FilePath: /Detox-CoT/modelzipper/src/modelzipper/tutils.py
-Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 '''
 import json
 import os
