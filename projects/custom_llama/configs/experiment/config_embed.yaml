@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 1
+JOB_ID: &JOB_ID 0
 EXP_NAME: &EXP_NAME "vqllama_embed_quantizer"
 
 hydra:
@@ -68,5 +68,5 @@ experiment:
   lr_start_linear_decay: 0
   lr_use_cosine_decay: False
   max_epoch: 50
-  device_num: 4
-  node_num: 16
+  device_num: 8
+  node_num: 1

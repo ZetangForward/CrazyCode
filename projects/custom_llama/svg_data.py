@@ -93,7 +93,7 @@ class SvgDataModule(pl.LightningDataModule):
             # collate_fn=BasicDataset.custom_datacollator,
         )
     
-    def valid_dataloader(self) -> TRAIN_DATALOADERS:
+    def val_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.valid_dataset, batch_size=self.cfg.batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=False,
