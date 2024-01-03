@@ -1,6 +1,8 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
 JOB_ID: &JOB_ID 0
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
+CKPT_PATH: &CKPT_PATH "/zecheng/vqllama_model/vqllama_multigpu/train_vq/version_1/checkpoints/vqvae-epoch=49.ckpt"
+TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
 
 hydra:
   job:
@@ -10,7 +12,6 @@ hydra:
     dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
-  train_data_path: "/zecheng/svg/icon-shop/mesh_data_svg_convert_p.pkl"
   max_path_nums: 512
   pad_token_id: -1
   batch_size: 96
@@ -18,7 +19,7 @@ dataset:
   pin_memory: False
   x_channels: 9
   inference_mode: True
-  test_data_path: "/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
+  test_data_path: ${TEST_DATA_PATH}
   return_all_token_mask: False
   num_bins: 9
 
@@ -52,23 +53,10 @@ vqvae_conv_block:
   vqvae_reverse_decoder_dilation: True
 
 experiment:
-  ckeckpoint_path: "/zecheng/vqllama_model/vqllama_multigpu/train_vq/version_1/checkpoints/vqvae-epoch=49.ckpt"
-  model_save_dir: "/zecheng/vqllama_model/vqllama_multigpu"
-  version: 1
-  exp_name: "train_vq"
-  beta_1: 0.9
-  beta_2: 0.999
-  lr: 0.0003
-  weight_decay: 0.0
-  eps: 0.00000001
-  lr_warmup: 100.0
-  lr_decay: 10000000000.0
-  lr_gamma: 1.0
-  lr_scale: 1.0
-  lr_use_linear_decay: False
-  lr_start_linear_decay: 0
-  lr_use_cosine_decay: False
-  max_epoch: 50
+  ckeckpoint_path: ${CKPT_PATH}
+  model_save_dir: ${SAVE_DIR}
+  exp_name: ${EXP_NAME}
+  version: ${JOB_ID}
   device_num: 1
 
 

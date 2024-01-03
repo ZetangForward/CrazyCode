@@ -64,19 +64,6 @@ class SvgDataModule(pl.LightningDataModule):
         return None
     
     def setup(self, stage: str = 'fit') -> None:
-        self.svg_files = auto_read_data(self.cfg.train_data_path)
-        self.train_file = self.svg_files[:-500]
-        self.valid_file = self.svg_files[-500:]
-
-        self.train_dataset = BasicDataset(
-            self.train_file, max_path_nums=self.cfg.max_path_nums, 
-            mode='train', pad_token_id=self.cfg.pad_token_id, return_all_token_mask=self.cfg.return_all_token_mask
-        )
-        self.valid_dataset = BasicDataset(
-            self.valid_file, max_path_nums=self.cfg.max_path_nums, 
-            mode='valid', pad_token_id=self.cfg.pad_token_id,
-            return_all_token_mask=self.cfg.return_all_token_mask
-        )    
         self.test_dataset = None
         if self.cfg.inference_mode:
             self.test_file = auto_read_data(self.cfg.test_data_path)
@@ -85,6 +72,21 @@ class SvgDataModule(pl.LightningDataModule):
                 mode='test', pad_token_id=self.cfg.pad_token_id,
                 return_all_token_mask=self.cfg.return_all_token_mask
             )
+        else:
+            self.svg_files = auto_read_data(self.cfg.train_data_path)
+            self.train_file = self.svg_files[:-500]
+            self.valid_file = self.svg_files[-500:]
+
+            self.train_dataset = BasicDataset(
+                self.train_file, max_path_nums=self.cfg.max_path_nums, 
+                mode='train', pad_token_id=self.cfg.pad_token_id, return_all_token_mask=self.cfg.return_all_token_mask
+            )
+            self.valid_dataset = BasicDataset(
+                self.valid_file, max_path_nums=self.cfg.max_path_nums, 
+                mode='valid', pad_token_id=self.cfg.pad_token_id,
+                return_all_token_mask=self.cfg.return_all_token_mask
+            )    
+        
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
