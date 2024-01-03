@@ -40,7 +40,7 @@ def merge_dicts(dict_list):
     merge_res = []
     for k in keys:
         tmp = [d[k] for d in dict_list]
-        merge_res.append({k: torch.stack(tmp, dim=0).cpu()})
+        merge_res.append({k: torch.cat(tmp, dim=0).cpu()})
     return merge_res
 
 
@@ -111,9 +111,9 @@ def main(config):
     )
     
     import pdb; pdb.set_trace()
-
+    m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, "predictions.pkl")
-    auto_save_data(predictions, save_path)
+    auto_save_data(m_predictions, save_path)
     print_c(f"save predictions to {save_path}")
 
 if __name__ == '__main__':
