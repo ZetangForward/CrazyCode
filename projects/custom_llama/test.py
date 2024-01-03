@@ -109,9 +109,10 @@ def main(config):
         return_predictions=True,
         ckpt_path=config.experiment.ckeckpoint_path
     )
-
-    import pdb; pdb.set_trace()
-    print(predictions)
+    
+    save_path = os.path.join(config.experiment.prediction_save_path, "predictions.pkl")
+    auto_save_data(predictions, save_path)
+    print_c(f"save predictions to {save_path}")
 
 if __name__ == '__main__':
     main()

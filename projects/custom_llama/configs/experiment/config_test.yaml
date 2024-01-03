@@ -9,7 +9,7 @@ hydra:
     id: ${JOB_ID}
     name: hydra_${EXP_NAME}
   run:
-    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
+    dir: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/${hydra.job.name} 
 
 dataset:
   max_path_nums: 512
@@ -54,7 +54,7 @@ vqvae_conv_block:
 
 experiment:
   ckeckpoint_path: ${CKPT_PATH}
-  model_save_dir: ${SAVE_DIR}
+  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}
   exp_name: ${EXP_NAME}
   version: ${JOB_ID}
   device_num: 1
