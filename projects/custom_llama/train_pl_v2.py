@@ -73,7 +73,7 @@ class Experiment(pl.LightningModule):
 
 
 @hydra.main(config_path='./configs/experiment', config_name='config_embed')
-def main(config: DictConfig, args):
+def main(config: DictConfig):
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
@@ -125,4 +125,4 @@ if __name__ == '__main__':
     # parser.add_argument('--local-rank', type=int, default=-1)
     args = parser.parse_args()  # for torch.distributed.launch
     
-    main(args)
+    main()
