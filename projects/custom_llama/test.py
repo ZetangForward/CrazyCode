@@ -56,7 +56,11 @@ class Experiment(pl.LightningModule):
         output, loss_w, metrics = self.forward(batch)
         output = self.denormalize_func(output)
         import pdb; pdb.set_trace()
-        return output, metrics
+        return {
+            "predict": output,
+            "input": batch['svg_path'], 
+            "metrics": metrics,
+        }
 
 
     def configure_optimizers(self):

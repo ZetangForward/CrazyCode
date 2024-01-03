@@ -113,6 +113,7 @@ def main(config: DictConfig):
         max_epochs=config.experiment.max_epoch,
         gradient_clip_val=1.5,
         enable_model_summary=True,
+        num_sanity_val_steps=0,
         # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
