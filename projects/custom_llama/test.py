@@ -40,7 +40,7 @@ def postprocess(x):
 
 
 def merge_dicts(dict_list):
-    merge_res = {k: [] for k in dict_list[0].keys()}  # 初始化结果字典
+    merge_res = {k: [] for k in dict_list[0].keys()} 
     for key in merge_res.keys():
         items = [d[key] for d in dict_list if key in d]
         if items and isinstance(items[0], torch.Tensor):
@@ -64,7 +64,7 @@ class Experiment(pl.LightningModule):
         self.model = model
         self.model.eval()
         self.cfg = config
-        self.return_all_quantized_res = True
+        self.return_all_quantized_res = False
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -81,8 +81,8 @@ class Experiment(pl.LightningModule):
 
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
-        output = outputs[self.cfg.experiment.compress_level - 1]
+        output, _, _ = self.forward(batch, return_all_quantized_res=False)
+        # output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
         post_process_output = postprocess(output)
         golden = batch['svg_path']
