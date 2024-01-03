@@ -55,6 +55,7 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         output, loss_w, metrics = self.forward(batch)
         output = self.denormalize_func(output)
+        import pdb; pdb.set_trace()
         return output, metrics
 
 

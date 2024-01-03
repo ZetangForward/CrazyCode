@@ -19,6 +19,8 @@ dataset:
   x_channels: 9
   inference_mode: True
   test_data_path: "/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
+  return_all_token_mask: False
+  num_bins: 9
 
 vqvae:
   levels: 3

@@ -10,10 +10,7 @@ def calculate_strides(strides, downs):
     return [stride ** down for stride, down in zip(strides, downs)]
 
 class EncoderConvBlock(nn.Module):
-    def __init__(self, input_emb_width, output_emb_width, down_t,
-                 stride_t, width, depth, m_conv,
-                 dilation_growth_rate=1, dilation_cycle=None, zero_out=False,
-                 res_scale=False):
+    def __init__(self, input_emb_width, output_emb_width, down_t, stride_t, width, depth, m_conv,dilation_growth_rate=1, dilation_cycle=None,zero_out=False, res_scale=False):
         super().__init__()
         blocks = []
         filter_t, pad_t = stride_t * 2, stride_t // 2
@@ -128,8 +125,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, input_emb_width, output_emb_width, levels, downs_t,
-                 strides_t, **block_kwargs):
+    def __init__(self, input_emb_width, output_emb_width, levels, downs_t, strides_t, **block_kwargs):
         super().__init__()
         self.input_emb_width = input_emb_width
         self.output_emb_width = output_emb_width
@@ -141,7 +137,8 @@ class Decoder(nn.Module):
 
         def level_block(level, down_t, stride_t): 
             return DecoderConvBock(
-                input_emb_width if level == 0 else output_emb_width,
+                # input_emb_width if level == 0 else output_emb_width,
+                output_emb_width,
                 output_emb_width,
                 down_t, stride_t,
                 **block_kwargs
