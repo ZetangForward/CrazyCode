@@ -40,19 +40,20 @@ def postprocess(x):
 
 
 def merge_dicts(dict_list):
-    keys = dict_list[0].keys()
-    merge_res = dict()
-    for k in keys:
-        tmp = [d[k] for d in dict_list]
-        if isinstance(tmp[0], torch.Tensor):
-            merge_res[k] = torch.cat(tmp, dim=0).cpu()
-        elif isinstance(tmp[0], List):
-            merged_tensors = [[], [], []]
-            for sublist in tmp:
-                for i, t_ in enumerate(sublist):
-                    merged_tensors[i].append(t_)
-            merge_res[k] = [torch.cat(t, dim=0).cpu() for t in merged_tensors]
-
+    merge_res = {k: [] for k in dict_list[0].keys()}  # 初始化结果字典
+    for key in merge_res.keys():
+        items = [d[key] for d in dict_list if key in d]
+        if items and isinstance(items[0], torch.Tensor):
+            merge_res[key] = torch.cat(items, dim=0).cpu()
+        elif items and isinstance(items[0], List):
+            num_tensors = len(items[0])
+            tensor_lists = [[] for _ in range(num_tensors)]
+            for sublist in items:
+                for i, tensor in enumerate(sublist):
+                    tensor_lists[i].append(tensor)
+            merge_res[key] = [torch.cat(t, dim=0).cpu() for t in tensor_lists]
+        else:
+            raise ValueError(f'Unsupported data type for merge: {type(items[0])}')
     return merge_res
 
 
