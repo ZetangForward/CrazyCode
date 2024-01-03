@@ -1,6 +1,7 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
 JOB_ID: &JOB_ID 16
 EXP_NAME: &EXP_NAME "vqllama_embed_quantizer"
+local_rank: 0
 
 hydra:
   job:
