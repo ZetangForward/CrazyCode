@@ -1,6 +1,6 @@
 torchrun \
-    --nnodes=16 \
-    --nproc-per-node=4 \
+    --nnodes=1 \
+    --nproc-per-node=8 \
     --max-restarts=3 \
     --rdzv_id=123 \
     --rdzv_backend=c10d \
