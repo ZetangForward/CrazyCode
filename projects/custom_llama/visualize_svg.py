@@ -27,9 +27,12 @@ def convert_svg(t, colored=False):
 
 def main():
     FILE = "/zecheng2/vqllama/test_vqllama_quantizer/test_0/predictions.pkl"
+    SAVED_PATH = "/zecheng2/svg/svgvq/test_vq_v1"
+    
     results = auto_read_data(FILE)
     keys = ['raw_predict', 'p_predict', 'golden']
     num_svgs = len(results[keys[0]])
+    str_paths = []
 
     for i in range(num_svgs):
         raw_predict = results['raw_predict'][i]
@@ -38,13 +41,17 @@ def main():
         
         p_svg, p_svg_str = convert_svg(p_predict, True)
         g_svg, g_svg_str = convert_svg(golden, True)
-        
-        import pdb; pdb.set_trace()
-        p_svg.save_png(f"p_svg_{i}.png")
-        g_svg.save_png(f"g_svg_{i}.png")
-        
 
-
+        str_paths.append({
+            "p_svg_str": p_svg_str,
+            "g_svg_str": g_svg_str,
+        })
+        
+        p_svg.save_png(os.path.join(SAVED_PATH, f"{i}_p_svg.png"))
+        g_svg.save_png(os.path.join(SAVED_PATH, f"{i}_g_svg.png"))
+    
+    auto_save_data(str_paths, os.path.join(SAVED_PATH, "str_paths.jsonl"))
+        
 if __name__ == "__main__":
     main()
 
