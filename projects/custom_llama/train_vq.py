@@ -40,7 +40,7 @@ class Experiment(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         _, loss_w, _ = self.forward(batch)
-        self.log("val_loss", loss_w, sync_dist=True, prog_bar=True)
+        self.log_dict("val_loss", loss_w, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
@@ -99,10 +99,12 @@ def main(config):
                 save_top_k=70, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_loss",
-                filename="vqvae-{epoch:02d}",
-                save_last=True
+                filename="vq-{epoch:02d}",
+                save_last=False,
+                mode='min',
             ),
         ],
+        check_val_every_n_epoch=1,
         strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,
         devices=config.experiment.device_num,
