@@ -30,9 +30,9 @@ def convert_svg(t, colored=False):
 def add_background(image_obj=None, image_path=None, save_suffix="b", raw_image_size_w=None, raw_image_size_h=None):
     if image_obj is not None:
         image = image_obj
-    else:
+    elif image_path is not None:
         image = Image.open(image_path)
-    
+
     sub_image_w = raw_image_size_w if raw_image_size_w is not None else image.size[0]
     sub_image_h = raw_image_size_h if raw_image_size_h is not None else image.size[1]
 
@@ -84,14 +84,12 @@ def merge_images(
     return big_images
 
 
-def main(cl: int = 0, a_b: bool = False):
+def main(cl: int = 0):
     """
     c_l: compress_level
-    a_b: add_background
     """
     assert cl in [1, 2, 3], "compress level must be 1, 2, 3"
     print_c(f"visualize compress level: {cl}", "magenta")
-    print_c(f"add background: {a_b}", "magenta")
 
     ROOT_DIR = "/zecheng2/vqllama/test_vqllama_quantizer/test_0"
     COMPRESS_LEVEL = cl
@@ -102,8 +100,9 @@ def main(cl: int = 0, a_b: bool = False):
     SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(SAVE_DIR, "single_image")) # save single image    
     PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
 
-    DIRECT_GENERATE_BIG_MAP = True
-    DIRECT_GENERATE_SINGLE_IMAGE = True
+    DIRECT_GENERATE_BIG_MAP = False
+    DIRECT_GENERATE_SINGLE_IMAGE = False
+    DIRECT_ADD_BACKGROUND = True
 
 
     if DIRECT_GENERATE_SINGLE_IMAGE:
@@ -111,7 +110,7 @@ def main(cl: int = 0, a_b: bool = False):
         keys = ['raw_predict', 'p_predict', 'golden', 'zs', 'xs_quantised']
         num_svgs = len(results[keys[0]])
         str_paths = []
-
+        all_image_paths = []
         for i in trange(num_svgs):
             raw_predict = results['raw_predict'][i]
             p_predict = results['p_predict'][i]
@@ -127,12 +126,16 @@ def main(cl: int = 0, a_b: bool = False):
             
             p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
             g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
-
-            if a_b: # add background
-                add_background(image_obj=p_svg)
-                add_background(image_obj=g_svg)
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
 
         auto_save_data(str_paths, PATH_SAVED_PATH)
+
+    if DIRECT_ADD_BACKGROUND:
+        if len(all_image_paths) == 0:
+            all_image_paths = glob.glob(os.path.join(SINGLE_IMAGE_SAVED_DIR, "*.png"))
+        for image_path in all_image_paths:
+            add_background(image_path=image_path)
 
     if DIRECT_GENERATE_BIG_MAP:
         p_svg_images = merge_images(
