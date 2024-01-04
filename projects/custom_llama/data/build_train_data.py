@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # auto_save_data(saved_, '/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl')
 
     saved_ = []
-    with futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
+    with futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
         # 创建一个进度条
         with tqdm(total=len(meta_data), desc='处理SVG文件') as pbar:
             # 使用executor.map，它会自动为meta_data中的每个样本调用convert_svg函数
