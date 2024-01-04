@@ -13,7 +13,7 @@ dataset:
   train_data_path: "/zecheng2/svg/icon-shop/pkl_data/mesh_data_svg_convert_p.pkl"
   max_path_nums: 512
   pad_token_id: 0
-  batch_size: 156
+  batch_size: 128
   nworkers: 16
   pin_memory: False
   x_channels: 9
