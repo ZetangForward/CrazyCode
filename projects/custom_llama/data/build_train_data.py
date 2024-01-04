@@ -13,6 +13,7 @@ from change_deepsvg.difflib.tensor import SVGTensor
 from modelzipper.tutils import *
 import torch
 from tqdm import trange
+from tqdm.auto import tqdm  # 使用 auto 模块中的 tqdm，以兼容多进程
 import multiprocessing
 
 BLACK_BOX = torch.tensor([
@@ -93,14 +94,19 @@ if __name__ == '__main__':
     
     # auto_save_data(saved_, '/zecheng/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl')
 
+
+
     saved_ = []
     with futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
         # 创建一个进度条
-        with tqdm(total=len(meta_data), desc='处理SVG文件', multiprocessing=True) as pbar:
-            # 使用executor.map，它会自动为meta_data中的每个样本调用convert_svg函数
-            for result in executor.map(convert_svg, meta_data):
+        with tqdm(total=len(meta_data), desc='处理SVG文件') as pbar:
+            # 将任务分解成列表，每个任务的结果将自动反馈给进度条
+            futures_list = [executor.submit(convert_svg, meta) for meta in meta_data]
+            for future in futures.as_completed(futures_list):
+                # 当任务完成时，结果将被返回，且进度条会更新
+                result = future.result()
                 saved_.append(result)
-                # 更新进度条
                 pbar.update(1)
+
 
     auto_save_data(saved_, '/zecheng2/svg/icon-shop/pkl_data/full_data.pkl')
