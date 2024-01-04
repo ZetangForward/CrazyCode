@@ -16,13 +16,9 @@ class Experiment(pl.LightningModule):
 
     def __init__(self, model, config, state="train") -> None:
         super(Experiment, self).__init__()
-
         self.model = model
         self.model.train()
-
-
         self.cfg = config
-
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -66,7 +62,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs', config_name='multigpu_config')
+@hydra.main(config_path='./configs/experiment', config_name='config_quantizer')
 def main(config):
 
     # set training dataset
@@ -97,7 +93,7 @@ def main(config):
         callbacks=[
             LearningRateMonitor(),
             ModelCheckpoint(
-                save_top_k=50, 
+                save_top_k=70, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_loss",
                 filename="vqvae-{epoch:02d}",

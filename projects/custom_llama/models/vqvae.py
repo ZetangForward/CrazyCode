@@ -89,8 +89,12 @@ class VQVAE(nn.Module):
         
         def encoder(level): 
             return Encoder(
-                self.x_channels, self.cfg.emb_width, level + 1,
-                self.cfg.downs_t[:level+1], self.cfg.strides_t[:level+1], **_block_kwargs(level)
+                input_emb_width=self.x_channels,
+                output_emb_width=self.cfg.emb_width,
+                level=level + 1,
+                downs_t=self.cfg.downs_t[:level+1],
+                strides_t=self.cfg.strides_t[:level+1],
+                **_block_kwargs(level)
             )
         
         def decoder(level): 
