@@ -22,9 +22,24 @@ def convert_svg(t, colored=False):
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
     svg.numericalize(n=200)
     if colored:
-        svg = svg.split_paths().set_color("random")
+        svg = svg.normalize().split_paths().set_color("random")
     str_svg = svg.to_str()
     return svg, str_svg
+
+
+def add_background(image_path, save_suffix="b", raw_image_size_w=None, raw_image_size_h=None):
+    image = Image.open(image_path)
+    sub_image_w = raw_image_size_w if raw_image_size_w is not None else image.size[0]
+    sub_image_h = raw_image_size_h if raw_image_size_h is not None else image.size[1]
+
+    new_image_size = (sub_image_w, sub_image_h)
+    background_image = Image.new('RGB', new_image_size)
+
+    background_image.paste(image, (sub_image_w, sub_image_h))
+
+    save_path = image_path.replace(".png", f"_{save_suffix}.png")
+    background_image.save(save_path)
+    return background_image
 
 
 def merge_images(
@@ -65,10 +80,14 @@ def merge_images(
     return big_images
 
 
-def main(cl: int = 0):
+def main(cl: int = 0, a_b: bool = False):
+    """
+    c_l: compress_level
+    a_b: add_background
+    """
     assert cl in [1, 2, 3], "compress level must be 1, 2, 3"
-    print_c(f"visualize compress level: {cl}, begin!", "magenta")
-
+    print_c(f"visualize compress level: {cl}", "magenta")
+    print_c(f"add background: {a_b}", "magenta")
 
     ROOT_DIR = "/zecheng2/vqllama/test_vqllama_quantizer/test_0"
     COMPRESS_LEVEL = cl
@@ -104,7 +123,11 @@ def main(cl: int = 0):
             
             p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
             g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
-        
+
+            if a_b: # add background
+                add_background(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+                add_background(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+
         auto_save_data(str_paths, PATH_SAVED_PATH)
 
     if DIRECT_GENERATE_BIG_MAP:
