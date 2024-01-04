@@ -93,8 +93,8 @@ class SvgDataModule(pl.LightningDataModule):
             )
         else:
             self.svg_files = auto_read_data(self.cfg.train_data_path)
-            self.train_file = self.svg_files[:-2500]
-            self.valid_file = self.svg_files[-2500:]
+            self.train_file = self.svg_files[:-2000]
+            self.valid_file = self.svg_files[-2000:]
 
             self.train_dataset = BasicDataset(
                 self.train_file, max_path_nums=self.cfg.max_path_nums, 
@@ -111,14 +111,14 @@ class SvgDataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
-            self.train_dataset, batch_size=self.cfg.batch_size, 
+            self.train_dataset, batch_size=self.cfg.train_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
             # collate_fn=BasicDataset.custom_datacollator,
         )
     
     def val_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
-            self.valid_dataset, batch_size=self.cfg.batch_size, 
+            self.valid_dataset, batch_size=self.cfg.val_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
             # collate_fn=BasicDataset.custom_datacollator
         )
@@ -126,7 +126,7 @@ class SvgDataModule(pl.LightningDataModule):
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         if self.test_dataloader is not None:
             return DataLoader(
-                self.test_dataset, batch_size=self.cfg.batch_size, 
+                self.test_dataset, batch_size=self.cfg.val_batch_size, 
                 num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
             )
         return None
