@@ -110,7 +110,7 @@ def main(config):
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
-        num_sanity_val_steps=0,
+        num_sanity_val_steps=2,
         # fast_dev_run=True, num_sanity_val_steps=2  # for debugging
     )
 
