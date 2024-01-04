@@ -13,6 +13,7 @@ from change_deepsvg.difflib.tensor import SVGTensor
 from modelzipper.tutils import *
 import torch
 from tqdm import trange
+import multiprocessing
 
 BLACK_BOX = torch.tensor([
     [  0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,  96.],
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     saved_ = []
     with futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
         # 创建一个进度条
-        with tqdm(total=len(meta_data), desc='处理SVG文件') as pbar:
+        with tqdm(total=len(meta_data), desc='处理SVG文件', multiprocessing=True) as pbar:
             # 使用executor.map，它会自动为meta_data中的每个样本调用convert_svg函数
             for result in executor.map(convert_svg, meta_data):
                 saved_.append(result)
