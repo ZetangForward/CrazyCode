@@ -64,7 +64,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs/experiment', config_name='config_quantizer')
+@hydra.main(config_path='./configs/experiment', config_name='default')
 def main(config):
 
     # set training dataset

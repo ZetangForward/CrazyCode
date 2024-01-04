@@ -19,7 +19,7 @@ EDGE = torch.tensor([  # after convert function
 
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=202, return_all_token_mask=False):
+    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False):
         super().__init__()
         self.dataset = dataset
         self.max_path_nums = max_path_nums
@@ -28,6 +28,7 @@ class BasicDataset(Dataset):
         self.num_bins = num_bins
         self.vocab_size = vocab_size
         self.return_all_token_mask = return_all_token_mask
+        self.remove_redundant_col = remove_redundant_col
     
     def __len__(self):
         return len(self.dataset)
@@ -44,6 +45,9 @@ class BasicDataset(Dataset):
             sample = sample[:self.max_path_nums]
         sample = self.custom_command(sample)
         
+        if self.remove_redundant_col:  # remove 2nd and 3rd column
+            sample = torch.cat([sample[:, :1], sample[:, 3:]], dim=1)
+
         if self.return_all_token_mask:
             padding_mask = ~(sample == self.pad_token_id)
         else:
@@ -84,7 +88,8 @@ class SvgDataModule(pl.LightningDataModule):
             self.test_dataset = BasicDataset(
                 self.test_file, max_path_nums=self.cfg.max_path_nums, 
                 mode='test', pad_token_id=self.cfg.pad_token_id,
-                return_all_token_mask=self.cfg.return_all_token_mask
+                return_all_token_mask=self.cfg.return_all_token_mask,
+                remove_redundant_col=self.cfg.remove_redundant_col
             )
         else:
             self.svg_files = auto_read_data(self.cfg.train_data_path)
@@ -93,12 +98,14 @@ class SvgDataModule(pl.LightningDataModule):
 
             self.train_dataset = BasicDataset(
                 self.train_file, max_path_nums=self.cfg.max_path_nums, 
-                mode='train', pad_token_id=self.cfg.pad_token_id, return_all_token_mask=self.cfg.return_all_token_mask
+                mode='train', pad_token_id=self.cfg.pad_token_id, return_all_token_mask=self.cfg.return_all_token_mask,
+                remove_redundant_col=self.cfg.remove_redundant_col
             )
             self.valid_dataset = BasicDataset(
                 self.valid_file, max_path_nums=self.cfg.max_path_nums, 
                 mode='valid', pad_token_id=self.cfg.pad_token_id,
-                return_all_token_mask=self.cfg.return_all_token_mask
+                return_all_token_mask=self.cfg.return_all_token_mask,
+                remove_redundant_col=self.cfg.remove_redundant_col
             )    
         
 

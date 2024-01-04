@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 2
-EXP_NAME: &EXP_NAME "vqllama_quantizer"
+JOB_ID: &JOB_ID 0
+EXP_NAME: &EXP_NAME "vqllama_quantizer_remove_redundant_col"
 
 hydra:
   job:
@@ -16,12 +16,12 @@ dataset:
   batch_size: 128
   nworkers: 16
   pin_memory: False
-  x_channels: 9
+  x_channels: 7
   inference_mode: False
   vocab_size: 200  # max number
   return_all_token_mask: False
   num_bins: 9
-  remove_redundant_col: False  # remove the 2nd and 3rd coloumns
+  remove_redundant_col: True  # remove the 2nd and 3rd coloumns
 
 vqvae:
   levels: 3
@@ -69,5 +69,5 @@ experiment:
   lr_start_linear_decay: 0
   lr_use_cosine_decay: False
   max_epoch: 150
-  device_num: 16
+  device_num: 8
   node_num: 1
