@@ -39,7 +39,7 @@ def add_background(image_obj=None, image_path=None, save_suffix="b", raw_image_s
     new_image_size = (sub_image_w, sub_image_h)
     background_image = Image.new('RGB', new_image_size)
 
-    background_image.paste(image, (sub_image_w, sub_image_h))
+    background_image.paste(image, (0, 0))
 
     save_path = image_path.replace(".png", f"_{save_suffix}.png")
     background_image.save(save_path)
