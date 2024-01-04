@@ -138,6 +138,8 @@ def main(cl: int = 0):
             all_image_paths = glob.glob(os.path.join(SINGLE_IMAGE_SAVED_DIR, "*.png"))
         for i in trange(len(all_image_paths)):
             image_path = all_image_paths[i]
+            if "_b.png" in image_path:
+                continue
             add_background(image_path=image_path)
 
     if DIRECT_GENERATE_BIG_MAP:
