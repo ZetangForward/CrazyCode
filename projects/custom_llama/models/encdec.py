@@ -72,7 +72,6 @@ class DecoderConvBock(nn.Module):
                         stride=stride_t,
                         padding=pad_t,     
                     ),
-                    nn.Tanh()
                 )
                 blocks.append(block)
         self.model = nn.Sequential(*blocks)
@@ -130,9 +129,7 @@ class Decoder(nn.Module):
         self.input_emb_width = input_emb_width
         self.output_emb_width = output_emb_width
         self.levels = levels
-
         self.downs_t = downs_t
-
         self.strides_t = strides_t
 
         def level_block(level, down_t, stride_t): 
@@ -148,7 +145,10 @@ class Decoder(nn.Module):
         for level, down_t, stride_t in iterator:
             self.level_blocks.append(level_block(level, down_t, stride_t))
 
-        self.out = nn.Conv1d(output_emb_width, input_emb_width, 3, 1, 1)
+        self.out = nn.Sequential(
+            nn.Conv1d(output_emb_width, input_emb_width, 3, 1, 1),
+            nn.Tanh()
+        )
 
     def forward(self, xs, all_levels=True):
         if all_levels:
