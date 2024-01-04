@@ -7,6 +7,17 @@ from modelzipper.tutils import *
 from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 
+EDGE = torch.tensor([  # after convert function
+    [    0,    0,    0,    0,    0,    0,    0,    4,  104],
+    [    1,    4,  104,    0,    0,    0,    0,    4,  199],
+    [    1,    4,  199,    0,    0,    0,    0,  199,  199],
+    [    1,  199,  199,    0,    0,    0,    0,  199,    4],
+    [    1,  199,    4,    0,    0,    0,    0,    4,    4],
+    [    1,    4,    4,    0,    0,    0,    0,    4,  104],
+    [    1,    4,  104,    0,    0,    0,    0,    4,  104],
+])
+
+
 class BasicDataset(Dataset):
     def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=202, return_all_token_mask=False):
         super().__init__()
@@ -24,12 +35,15 @@ class BasicDataset(Dataset):
     def __getitem__(self, idx):
         item = self.dataset[idx]
         keywords, sample = item['keywords'], item['mesh_data']
+        sample = torch.clamp(sample, min=0, max=self.vocab_size)
+        if sample[:7] == EDGE:
+            sample = sample[7:]
         if len(sample) < self.max_path_nums:
             sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
         else:
             sample = sample[:self.max_path_nums]
         sample = self.custom_command(sample)
-        sample = torch.clamp(sample, min=0, max=self.vocab_size)
+        
         if self.return_all_token_mask:
             padding_mask = ~(sample == self.pad_token_id)
         else:
