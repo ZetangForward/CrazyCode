@@ -27,8 +27,12 @@ def convert_svg(t, colored=False):
     return svg, str_svg
 
 
-def add_background(image_path, save_suffix="b", raw_image_size_w=None, raw_image_size_h=None):
-    image = Image.open(image_path)
+def add_background(image_obj=None, image_path=None, save_suffix="b", raw_image_size_w=None, raw_image_size_h=None):
+    if image_obj is not None:
+        image = image_obj
+    else:
+        image = Image.open(image_path)
+    
     sub_image_w = raw_image_size_w if raw_image_size_w is not None else image.size[0]
     sub_image_h = raw_image_size_h if raw_image_size_h is not None else image.size[1]
 
@@ -125,8 +129,8 @@ def main(cl: int = 0, a_b: bool = False):
             g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
 
             if a_b: # add background
-                add_background(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-                add_background(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+                add_background(image_obj=p_svg)
+                add_background(image_obj=g_svg)
 
         auto_save_data(str_paths, PATH_SAVED_PATH)
 
