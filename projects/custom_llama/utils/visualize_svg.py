@@ -104,13 +104,14 @@ def main(cl: int = 0):
     DIRECT_GENERATE_SINGLE_IMAGE = False
     DIRECT_ADD_BACKGROUND = True
 
+    all_image_paths = []
 
     if DIRECT_GENERATE_SINGLE_IMAGE:
         results = auto_read_data(FILE_PATH)
         keys = ['raw_predict', 'p_predict', 'golden', 'zs', 'xs_quantised']
         num_svgs = len(results[keys[0]])
         str_paths = []
-        all_image_paths = []
+        
         for i in trange(num_svgs):
             raw_predict = results['raw_predict'][i]
             p_predict = results['p_predict'][i]
@@ -133,8 +134,10 @@ def main(cl: int = 0):
 
     if DIRECT_ADD_BACKGROUND:
         if len(all_image_paths) == 0:
+            print_c(f"no image path, read all image paths from {SINGLE_IMAGE_SAVED_DIR}", "magenta")
             all_image_paths = glob.glob(os.path.join(SINGLE_IMAGE_SAVED_DIR, "*.png"))
-        for image_path in all_image_paths:
+        for i in trange(len(all_image_paths)):
+            image_path = all_image_paths[i]
             add_background(image_path=image_path)
 
     if DIRECT_GENERATE_BIG_MAP:
