@@ -36,7 +36,7 @@ class BasicDataset(Dataset):
         item = self.dataset[idx]
         keywords, sample = item['keywords'], item['mesh_data']
         sample = torch.clamp(sample, min=0, max=self.vocab_size)
-        if sample[:7] == EDGE:
+        if sample[:7].equal(EDGE):
             sample = sample[7:]
         if len(sample) < self.max_path_nums:
             sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
