@@ -91,7 +91,7 @@ class VQVAE(nn.Module):
             return Encoder(
                 input_emb_width=self.x_channels,
                 output_emb_width=self.cfg.emb_width,
-                level=level + 1,
+                levels=level + 1,
                 downs_t=self.cfg.downs_t[:level+1],
                 strides_t=self.cfg.strides_t[:level+1],
                 **_block_kwargs(level)

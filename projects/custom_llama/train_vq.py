@@ -1,4 +1,6 @@
-import os  
+import os 
+import sys
+sys.path.append(os.getcwd()) 
 import torch   
 import pytorch_lightning as pl
 from torch import optim, Tensor  
