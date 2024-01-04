@@ -40,7 +40,7 @@ class Experiment(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         _, loss_w, _ = self.forward(batch)
-        self.log_dict("val_loss", loss_w, sync_dist=True, prog_bar=True)
+        self.log("val_loss", loss_w, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
