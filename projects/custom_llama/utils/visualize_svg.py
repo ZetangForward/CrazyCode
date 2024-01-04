@@ -20,9 +20,9 @@ from PIL import Image
 def convert_svg(t, colored=False):
     svg = SVGTensor.from_data(t)
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
-    if colored:
-        svg = svg.normalize().split_paths().set_color("random")
     svg.numericalize(n=200)
+    if colored:
+        svg = svg.split_paths().set_color("random")
     str_svg = svg.to_str()
     return svg, str_svg
 

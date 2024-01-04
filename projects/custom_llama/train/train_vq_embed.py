@@ -9,8 +9,11 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import hydra  
 from svg_data import SvgDataModule
 from modelzipper.tutils import *
-from models.vqvae import VQVAE
+from models.vqvae_embed import VQVAE
 from models.utils import *
+import argparse
+from omegaconf import DictConfig
+
 
 class Experiment(pl.LightningModule):
 
@@ -18,11 +21,7 @@ class Experiment(pl.LightningModule):
         super(Experiment, self).__init__()
 
         self.model = model
-        if state == "train":
-            self.model.train()
-        else:
-            self.model.eval()
-
+        self.model.train()
         self.cfg = config
 
         try:
@@ -30,21 +29,20 @@ class Experiment(pl.LightningModule):
         except:
             pass
         
-    
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
 
     def training_step(self, batch, batch_idx):
-        _, loss_w, metrics = self.forward(batch)
-        self.log("total_loss", loss_w, sync_dist=True, prog_bar=True)
+        output, loss, metrics = self.forward(batch)
+        self.log("total_loss", loss, sync_dist=True, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
-        return loss_w
+        return loss
 
 
     def validation_step(self, batch, batch_idx):
-        _, loss_w, _ = self.forward(batch)
-        self.log("val_loss", loss_w, sync_dist=True, prog_bar=True)
+        _, loss, _ = self.forward(batch)
+        self.log_dict({"val_loss": loss}, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
@@ -68,8 +66,8 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs', config_name='multigpu_config')
-def main(config):
+@hydra.main(config_path='./configs/experiment', config_name='config_nnodes')
+def main(config: DictConfig):
 
     # set training dataset
     data_module = SvgDataModule(config.dataset)
@@ -81,7 +79,9 @@ def main(config):
     )
 
     block_kwargs = dict(
-        width=config.vqvae_conv_block.width, depth=config.vqvae_conv_block.depth, m_conv=config.vqvae_conv_block.m_conv,
+        width=config.vqvae_conv_block.width, 
+        depth=config.vqvae_conv_block.depth, 
+        m_conv=config.vqvae_conv_block.m_conv,
         dilation_growth_rate=config.vqvae_conv_block.dilation_growth_rate,
         dilation_cycle=config.vqvae_conv_block.dilation_cycle,
         reverse_decoder_dilation=config.vqvae_conv_block.vqvae_reverse_decoder_dilation
@@ -104,9 +104,11 @@ def main(config):
                 save_last=True
             ),
         ],
+        accelerator="gpu",
+        devices=config.experiment.device_num,
+        num_nodes=config.experiment.node_num,
         strategy=DDPStrategy(find_unused_parameters=True),
         max_epochs=config.experiment.max_epoch,
-        devices=config.experiment.device_num,
         gradient_clip_val=1.5,
         enable_model_summary=True,
         num_sanity_val_steps=0,
@@ -116,4 +118,8 @@ def main(config):
     trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--local-rank', type=int, default=-1)
+    # args = parser.parse_args()  # for torch.distributed.launch
+    
     main()

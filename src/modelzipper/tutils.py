@@ -100,11 +100,16 @@ def auto_save_data(lst: List, file_path):
     Args:
         lst (List): The list of items to be saved.
         file_path (str): The path to the file.
+
         //* Support file types
             - jsonl
             - pkl
             - txt
         *//
+    
+    Attention:
+        Input must by in a list, even if there is only one item.
+        e.g., auto_save_data([item], file_path)
         
     Raises:
         ValueError: If the file type is not supported.

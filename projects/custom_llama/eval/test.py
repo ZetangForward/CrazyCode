@@ -7,7 +7,7 @@ from pytorch_lightning.strategies import DDPStrategy, FSDPStrategy
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import hydra  
-from svg_data import SvgDataModule
+from data.svg_data import SvgDataModule
 from modelzipper.tutils import *
 from models.vqvae import VQVAE
 from models.utils import *
