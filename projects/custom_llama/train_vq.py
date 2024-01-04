@@ -67,6 +67,7 @@ class Experiment(pl.LightningModule):
 @hydra.main(config_path='./configs/experiment', config_name='default')
 def main(config):
 
+    print(config)
     # set training dataset
     data_module = SvgDataModule(config.dataset)
 
