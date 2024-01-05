@@ -28,21 +28,18 @@ def path_interpolation(x):
             row = x[i][j]
             cmd = 100 * torch.round(row[0] / 100).item()
             cmd = 1 if cmd == 100 else 2 if cmd == 200 else 0
-
             x0, y0, x1, y1, x2, y2, x3, y3 = map(lambda coord: min(max(coord, 0), 200), row[1:].tolist())
-
             if last_x3 is not None and (last_x3 != x0 or last_y3 != y0):
                 # if the current row's start point is not the same as the previous row's end point
                 current_path.append([0, last_x3, last_y3, 0, 0, 0, 0, x0, y0])
             if cmd in [0, 100]:
                 # if the current row is M or L, set control point to 0
                 x1, y1, x2, y2 = 0, 0, 0, 0
-
             current_path.append([cmd, x0, y0, x1, y1, x2, y2, x3, y3])
             last_x3, last_y3 = x3, y3  # update the last end point
 
         interpolated_paths.append(torch.tensor(current_path, dtype=x.dtype))
-    
+
     return interpolated_paths
 
     
