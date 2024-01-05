@@ -94,17 +94,17 @@ def sanint_check_golden(x):
     """
     x: batch_size x seq_len x (7, 9)
     """
+    # replace the command value to 0, 1, 2
+    x[:, :, 0][x[:, :, 0] == 100] = 1
+    x[:, :, 0][x[:, :, 0] == 200] = 2
     if x.size(-1) == 9:
-        ...
+        return x
     elif x.size(-1) == 7:
         # add two columns
         x_0_y_0 = torch.zeros((x.size(0), x.size(1), 2), dtype=x.dtype, device=x.device)
         x_0_y_0[:, 1:, 0] = x[:, :-1, -2]  # x_3 of the previous row
         x_0_y_0[:, 1:, 1] = x[:, :-1, -1]  # y_3 of the previous row
         full_x = torch.cat((x[:, :, :1], x_0_y_0, x[:, :, 1:]), dim=2)
-    # replace the command value to 0, 1, 2
-    x[:, :, 0][x[:, :, 0] == 100] = 1
-    x[:, :, 0][x[:, :, 0] == 200] = 2
     return full_x
 
 
