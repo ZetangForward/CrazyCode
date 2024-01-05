@@ -7,7 +7,7 @@ hydra:
     id: ${JOB_ID}
     name: hydra_${EXP_NAME}
   run:
-    dir: ${SAVE_DIR}/${EXP_NAME}/subtask_${JOB_ID}/${hydra.job.name} 
+    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
   train_data_path: "/zecheng2/svg/icon-shop/pkl_data/full_data.pkl"

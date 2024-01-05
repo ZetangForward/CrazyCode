@@ -101,6 +101,9 @@ def sanint_check_golden(x):
         x_0_y_0[:, 1:, 0] = x[:, :-1, -2]  # x_3 of the previous row
         x_0_y_0[:, 1:, 1] = x[:, :-1, -1]  # y_3 of the previous row
         full_x = torch.cat((x[:, :, :1], x_0_y_0, x[:, :, 1:]), dim=2)
+    # replace the command value to 0, 1, 2
+    x[:, :, 0][x[:, :, 0] == 100] = 1
+    x[:, :, 0][x[:, :, 0] == 200] = 2
     return full_x
 
 
@@ -162,12 +165,13 @@ class Experiment(pl.LightningModule):
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
-        post_process_output = path_interpolation(output)  # path interpolation
-        # post_process_output = postprocess(output)  # naive post process
-        golden = batch['svg_path']
-        golden[:, :, 0][golden[:, :, 0] == 100] = 1
-        golden[:, :, 0][golden[:, :, 0] == 200] = 2
-
+        
+        post_process_output = postprocess(
+            output, batch['padding_mask'], 
+            self.cfg.experiment.path_interpolation
+        )  # path interpolation
+        golden = sanint_check_golden(batch['svg_path'])
+        
         standard_test_reconstruct = {
             "raw_predict": output,
             "p_predict": post_process_output,
