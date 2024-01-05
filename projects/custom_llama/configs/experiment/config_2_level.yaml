@@ -16,7 +16,7 @@ dataset:
   pad_token_id: 0
   train_batch_size: 128
   val_batch_size: 32
-  nworkers: 0
+  nworkers: 16
   pin_memory: False
   x_channels: 9
   inference_mode: False
@@ -73,4 +73,4 @@ experiment:
   lr_use_cosine_decay: False
   max_epoch: 150
   device_num: 1
-  node_num: 1
+  node_num: 8

@@ -38,7 +38,6 @@ def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
         x_target = t.where(padding_mask, x_target, t.zeros_like(x_target)).to(x_pred.device)
         x_pred = t.where(padding_mask, x_pred, t.zeros_like(x_pred)).to(x_pred.device)
         mask_sum = padding_mask.sum()
-    import pdb; pdb.set_trace()
 
     if loss_fn == 'l1':
         loss = t.sum(t.abs(x_pred - x_target)) / mask_sum
