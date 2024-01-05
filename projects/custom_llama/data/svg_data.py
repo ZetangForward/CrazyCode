@@ -134,19 +134,27 @@ class PadCollate:
             xs - a tensor of all examples in 'batch' after padding
             ys - a LongTensor of all labels in batch
         """
-        import pdb; pdb.set_trace()
         if self.cluster_batch_length:
             # find longest sequence
             max_len = max(map(lambda x: x.shape[0], batch))
             max_len = min(max_len, self.max_seq_length)
-            # pad according to max_len
-            
-            batch = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), batch))
-            import pdb; pdb.set_trace()
-        # stack all
-        xs = torch.stack(map(lambda x: x[0], batch), dim=0)
-        ys = torch.LongTensor(map(lambda x: x[1], batch))
-        return xs, ys
+        else:
+            max_len = self.max_seq_length
+
+        # pad according to max_len
+        batch = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), batch))
+        batch = torch.stack(batch, dim=0)
+
+        # get padding mask
+        if self.return_all_token_mask:
+            padding_mask = ~(batch == self.pad_token_id)
+        else:
+            padding_mask = ~(batch == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
+
+        return {
+            "svg_path": batch, 
+            "padding_mask": padding_mask,
+        }
 
     def __call__(self, batch):
         return self.pad_collate(batch)
@@ -196,8 +204,8 @@ class SvgDataModule(pl.LightningDataModule):
                 remove_redundant_col=self.cfg.remove_redundant_col,
                 cluster_batch_length=self.cfg.cluster_batch_length
             )    
-            print_c(f"train dataset length: {len(self.train_dataset)}", color='magenta')
-            print_c(f"train dataset length: {len(self.valid_dataset)}", color='magenta')
+            print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
+            print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
