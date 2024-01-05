@@ -67,16 +67,16 @@ class BottleneckBlock(nn.Module):
             y = self._tile(x)
             _k_rand = y[t.randperm(y.shape[0])][:k_bins]
 
-            # dist.broadcast(_k_rand, 0)
-            # dist.all_reduce(_k_sum)
-            # dist.all_reduce(_k_elem)
+            dist.broadcast(_k_rand, 0)
+            dist.all_reduce(_k_sum)
+            dist.all_reduce(_k_elem)
 
             # to perform the update all the tensor should be on the same device
-            # _k_rand = _k_rand.to("cuda:0")
-            # _k_sum = _k_sum.to("cuda:0")
-            # _k_elem = _k_elem.to("cuda:0")
-            # self.k = self.k.to("cuda:0")
-            # self.k_sum = self.k_sum.to("cuda:0")
+            _k_rand = _k_rand.to("cuda:0")
+            _k_sum = _k_sum.to("cuda:0")
+            _k_elem = _k_elem.to("cuda:0")
+            self.k = self.k.to("cuda:0")
+            self.k_sum = self.k_sum.to("cuda:0")
 
             # Update centres
             old_k = self.k
@@ -167,7 +167,7 @@ class BottleneckBlock(nn.Module):
         x, prenorm = self.preprocess(x)  # [32, 4096, 128] -> [32 x 128 = 4096, 4096]
 
         # Init k if not inited
-        if update_k and not self.init:  # pass
+        if update_k and not self.init: 
             self.init_k(x)
 
         # Quantise and dequantise through bottleneck

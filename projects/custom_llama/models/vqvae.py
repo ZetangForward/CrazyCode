@@ -38,6 +38,7 @@ def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
         x_target = t.where(padding_mask, x_target, t.zeros_like(x_target)).to(x_pred.device)
         x_pred = t.where(padding_mask, x_pred, t.zeros_like(x_pred)).to(x_pred.device)
         mask_sum = padding_mask.sum()
+    import pdb; pdb.set_trace()
 
     if loss_fn == 'l1':
         loss = t.sum(t.abs(x_pred - x_target)) / mask_sum
@@ -45,7 +46,7 @@ def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
         loss = t.sum((x_pred - x_target) ** 2) / mask_sum
     elif loss_fn == 'linf':
         residual = ((x_pred - x_target) ** 2).reshape(x_target.shape[0], -1)
-        # onlu consider the residual of the padded part
+        # only consider the residual of the padded part
         masked_residual = t.where(padding_mask.reshape(x_target.shape[0], -1), residual, t.zeros_like(residual))
         values, _ = t.topk(masked_residual, cfg.linf_k, dim=1)
         loss = t.mean(values)
@@ -229,7 +230,7 @@ class VQVAE(nn.Module):
         with t.no_grad():
             l2_loss = _loss_fn("l2", x_target, x_out, self.cfg, padding_mask)
             l1_loss = _loss_fn("l1", x_target, x_out, self.cfg, padding_mask)
-            linf_loss = _loss_fn("linf", x_target, x_out, self.cfg, padding_mask)
+            # linf_loss = _loss_fn("linf", x_target, x_out, self.cfg, padding_mask)
 
         quantiser_metrics = average_metrics(quantiser_metrics)
 
@@ -237,7 +238,7 @@ class VQVAE(nn.Module):
             recons_loss=recons_loss,
             l2_loss=l2_loss,
             l1_loss=l1_loss,
-            linf_loss=linf_loss,
+            # linf_loss=linf_loss,
             commit_loss=commit_loss,
             **quantiser_metrics))
 
