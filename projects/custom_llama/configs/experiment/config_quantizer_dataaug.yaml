@@ -23,7 +23,8 @@ dataset:
   return_all_token_mask: False
   num_bins: 9
   remove_redundant_col: True  # remove the 2nd and 3rd coloumns
-
+  cluster_batch_length: True
+  
 vqvae:
   levels: 3
   downs_t: [1, 1, 1]
