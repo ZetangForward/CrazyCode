@@ -10,7 +10,7 @@ hydra:
     dir: ${SAVE_DIR}/${EXP_NAME}/subtask_${JOB_ID}/${hydra.job.name} 
 
 dataset:
-  train_data_path: "/zecheng2/svg/icon-shop/pkl_data/mesh_data_svg_convert_p.pkl"
+  train_data_path: "/zecheng2/svg/icon-shop/pkl_data/full_data.pkl"
   max_path_nums: 512
   min_path_nums: 4
   pad_token_id: 0
@@ -24,7 +24,7 @@ dataset:
   return_all_token_mask: False
   num_bins: 9
   remove_redundant_col: False  # remove the 2nd and 3rd coloumns
-  cluster_batch_length: False
+  cluster_batch_length: True
 
 vqvae:
   levels: 2
