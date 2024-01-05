@@ -31,6 +31,7 @@ class BasicDataset(Dataset):
         self.remove_redundant_col = remove_redundant_col
 
         if cluster_batch_length:
+            import pdb; pdb.set_trace()
             # first sort the dataset by length
             self.dataset = sorted(self.dataset, key=lambda x: x['mesh_data'].shape[0])
 
@@ -169,12 +170,14 @@ class SvgDataModule(pl.LightningDataModule):
                 mode='train', pad_token_id=self.cfg.pad_token_id, 
                 return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col,
+                cluster_batch_length=self.cfg.cluster_batch_length
             )
             self.valid_dataset = BasicDataset(
                 self.valid_file, max_path_nums=self.cfg.max_path_nums, 
                 mode='valid', pad_token_id=self.cfg.pad_token_id,
                 return_all_token_mask=self.cfg.return_all_token_mask,
-                remove_redundant_col=self.cfg.remove_redundant_col
+                remove_redundant_col=self.cfg.remove_redundant_col,
+                cluster_batch_length=self.cfg.cluster_batch_length
             )    
         
 
