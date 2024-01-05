@@ -42,7 +42,7 @@ class BasicDataset(Dataset):
         
         if self.remove_redundant_col:  # remove 2nd and 3rd column
             sample = torch.cat([sample[:, :1], sample[:, 3:]], dim=1)   
-        
+        sample = sample[:self.max_path_nums]  # prevent too long num path
         sample = self.custom_command(sample)
         
         return sample.long()
@@ -119,11 +119,11 @@ class PadCollate:
         import pdb; pdb.set_trace()
         if self.cluster_batch_length:
             # find longest sequence
-            max_len = max(map(lambda x: x[0].shape[-1], batch))
+            max_len = max(map(lambda x: x.shape[0], batch))
             max_len = min(max_len, self.max_seq_length)
             # pad according to max_len
             
-            batch = list(map(lambda items: (pad_tensor(items[0], pad=max_len, dim=-1), items[1]), batch))
+            batch = list(map(lambda x: pad_tensor(x, pad=max_len, dim=0, ), batch))
 
         # stack all
         xs = torch.stack(map(lambda x: x[0], batch), dim=0)
