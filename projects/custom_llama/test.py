@@ -89,32 +89,34 @@ def postprocess(x):
     return full_x
 
 
-def merge_dicts(dict_list):
+def merge_dicts(dict_list, device='cpu'):
     merge_res = {k: [] for k in dict_list[0].keys()} 
     for key in merge_res.keys():
+        print_c(f"begin to merge {key}", "magenta")
         items = [d[key] for d in dict_list if key in d]
-
+        import pdb; pdb.set_trace()
         # process items
         if items and isinstance(items[0], torch.Tensor):
             tmp_tensors = []
+            flag = False
             for sublist in items:
-                for tensor in sublist:
-                    tmp_tensors.append(tensor.cpu())
+                if isinstance(sublist, torch.Tensor):
+                    flag = True
+                    tmp_tensors.append(sublist.cpu())
+                elif isinstance(sublist, list):
+                    tmp_tensors.extend(sublist)
+            if flag:
+                tmp_tensors = [torch.cat(t, dim=0).cpu() for t in tmp_tensors]
+            else:
+                tmp_tensors = [tmp.cpu() for tmp in tmp_tensors]
             merge_res[key] = tmp_tensors  # each row is a tensor
 
         elif items and isinstance(items[0], List):
             tmp_lists = []
             for sublist in items:
-                for item in sublist:
-                    tmp_lists.append(item.cpu())
+                tmp_lists.extend(sublist)
+            tmp_lists = [tmp.to(device) for tmp in tmp_lists]
             merge_res[key] = tmp_lists  # each row is a tensor
-
-            # num_tensors = len(items[0])
-            # tensor_lists = [[] for _ in range(num_tensors)]
-            # for sublist in items:
-            #     for i, tensor in enumerate(sublist):
-            #         tensor_lists[i].append(tensor)
-            # merge_res[key] = [torch.cat(t, dim=0).cpu() for t in tensor_lists]
         else:
             raise ValueError(f'Unsupported data type for merge: {type(items[0])}')
     return merge_res
