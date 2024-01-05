@@ -84,14 +84,16 @@ def merge_images(
     return big_images
 
 
-def main(cl: int = 0):
+def main(cl: int = 0, rd: str = None):
     """
     c_l: compress_level
     """
     assert cl in [1, 2, 3], "compress level must be 1, 2, 3"
     print_c(f"visualize compress level: {cl}", "magenta")
+    assert rd is not None, "must specify root dir"
+    print_c(f"root dir: {rd}", "magenta")
 
-    ROOT_DIR = "/zecheng2/vqllama/test_vqllama_quantizer/test_1"
+    ROOT_DIR = rd
     COMPRESS_LEVEL = cl
     FILE_PATH = os.path.join(ROOT_DIR, f"compress_level_{COMPRESS_LEVEL}_predictions.pkl")
     
