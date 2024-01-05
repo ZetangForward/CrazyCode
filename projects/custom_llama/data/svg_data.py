@@ -19,7 +19,7 @@ EDGE = torch.tensor([  # after convert function
 
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, min_path_nums=4, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False, cluster_batch_length=False):
+    def __init__(self, dataset, min_path_nums=4, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False, cluster_batch=False):
         super().__init__()
         self.max_path_nums = max_path_nums
         self.mode = mode
@@ -31,7 +31,7 @@ class BasicDataset(Dataset):
 
         dataset = self.pre_process(dataset, min_path_nums)
         
-        if cluster_batch_length:
+        if cluster_batch:
             # first sort the dataset by length
             print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
             dataset = sorted(dataset, key=lambda x: x['mesh_data'].shape[0])
@@ -74,20 +74,6 @@ class BasicDataset(Dataset):
         
         return sample.long()
 
-        if len(sample) < self.max_path_nums:
-            sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
-        else:
-            sample = sample[:self.max_path_nums]
-
-        if self.return_all_token_mask:
-            padding_mask = ~(sample == self.pad_token_id)
-        else:
-            padding_mask = ~(sample == self.pad_token_id).all(dim=1, keepdim=True).squeeze()
-        return {
-            "svg_path": sample.long(), 
-            "padding_mask": padding_mask,
-        }
-
     def custom_command(self, svg_tensor):
         col1 = svg_tensor[:, 0]
         col1[col1 == 1] = 100
@@ -117,26 +103,25 @@ class PadCollate:
     a batch of sequences
     """
 
-    def __init__(self, cluster_batch_length=False, max_seq_length=150, pad_token_id=0, return_all_token_mask=False):
+    def __init__(self, cluster_batch=False, max_seq_length=150, pad_token_id=0, return_all_token_mask=False):
         """
         args:
-            cluster_batch_length - if True, cluster batch by length
+            cluster_batch - if True, cluster batch by length
             max_seq_length - max sequence length
             pad_token_id - padding token id
         """
 
-        self.cluster_batch_length = cluster_batch_length
+        self.cluster_batch = cluster_batch
         self.max_seq_length = max_seq_length
         self.pad_token_id = pad_token_id
         self.return_all_token_mask = return_all_token_mask
     
-
     def pad_collate(self, batch):
         """
         args:
             batch - list of (tensor, label)
         """
-        if self.cluster_batch_length:
+        if self.cluster_batch:
             # find longest sequence
             max_len = max(map(lambda x: x.shape[0], batch))
             max_len = min(max_len, self.max_seq_length)
@@ -153,11 +138,7 @@ class PadCollate:
         else:
             padding_mask = ~(batch == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
 
-        return {
-            "svg_path": batch, 
-            "padding_mask": padding_mask,
-        }
-
+        return {"svg_path": batch, "padding_mask": padding_mask}
 
     def __call__(self, batch):
         return self.pad_collate(batch)
@@ -183,6 +164,7 @@ class SvgDataModule(pl.LightningDataModule):
                 mode='test', pad_token_id=self.cfg.pad_token_id,
                 return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col
+                cluster_batch=False
             )
         else:
             self.svg_files = auto_read_data(self.cfg.train_data_path)
@@ -196,7 +178,7 @@ class SvgDataModule(pl.LightningDataModule):
                 mode='train', pad_token_id=self.cfg.pad_token_id, 
                 return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col,
-                cluster_batch_length=self.cfg.cluster_batch_length
+                cluster_batch=self.cfg.cluster_batch
             )
             self.valid_dataset = BasicDataset(
                 self.valid_file, 
@@ -205,7 +187,7 @@ class SvgDataModule(pl.LightningDataModule):
                 mode='valid', pad_token_id=self.cfg.pad_token_id,
                 return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col,
-                cluster_batch_length=self.cfg.cluster_batch_length
+                cluster_batch=self.cfg.cluster_batch
             )    
             print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
             print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
@@ -215,7 +197,7 @@ class SvgDataModule(pl.LightningDataModule):
             self.train_dataset, batch_size=self.cfg.train_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
             collate_fn=PadCollate(
-                cluster_batch_length=self.cfg.cluster_batch_length, 
+                cluster_batch=self.cfg.cluster_batch, 
                 max_seq_length=self.cfg.max_path_nums, 
                 pad_token_id=self.cfg.pad_token_id, 
                 return_all_token_mask=self.cfg.return_all_token_mask
@@ -227,7 +209,7 @@ class SvgDataModule(pl.LightningDataModule):
             self.valid_dataset, batch_size=self.cfg.val_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
             collate_fn=PadCollate(
-                cluster_batch_length=self.cfg.cluster_batch_length, 
+                cluster_batch=self.cfg.cluster_batch, 
                 max_seq_length=self.cfg.max_path_nums, 
                 pad_token_id=self.cfg.pad_token_id, 
                 return_all_token_mask=self.cfg.return_all_token_mask
@@ -239,5 +221,11 @@ class SvgDataModule(pl.LightningDataModule):
             return DataLoader(
                 self.test_dataset, batch_size=self.cfg.val_batch_size, 
                 num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+                collate_fn=PadCollate(
+                    cluster_batch=self.cfg.cluster_batch, 
+                    max_seq_length=self.cfg.max_path_nums, 
+                    pad_token_id=self.cfg.pad_token_id, 
+                    return_all_token_mask=self.cfg.return_all_token_mask
+                ),
             )
         return None

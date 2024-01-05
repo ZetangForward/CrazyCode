@@ -24,7 +24,7 @@ dataset:
   return_all_token_mask: False
   num_bins: 9
   remove_redundant_col: False  # remove the 2nd and 3rd coloumns
-  cluster_batch_length: False
+  cluster_batch: False
 
 vqvae:
   levels: 3
