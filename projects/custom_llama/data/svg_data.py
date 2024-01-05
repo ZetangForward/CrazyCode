@@ -46,6 +46,8 @@ class BasicDataset(Dataset):
         new_dataset = []
         for item in dataset:
             sample = item['mesh_data']
+            if sample is None:
+                continue
             if sample[:7].equal(EDGE):
                 sample = sample[7:]
             if min_length <= len(sample):
@@ -133,10 +135,6 @@ class PadCollate:
         """
         args:
             batch - list of (tensor, label)
-
-        reutrn:
-            xs - a tensor of all examples in 'batch' after padding
-            ys - a LongTensor of all labels in batch
         """
         if self.cluster_batch_length:
             # find longest sequence
