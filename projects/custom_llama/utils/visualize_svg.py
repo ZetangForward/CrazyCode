@@ -28,8 +28,8 @@ def sanint_check_svg_tensor(x):
         x_0_y_0 = torch.zeros((x.size(0), x.size(1), 2), dtype=x.dtype, device=x.device)
         x_0_y_0[:, 1:, 0] = x[:, :-1, -2]  # x_3 of the previous row
         x_0_y_0[:, 1:, 1] = x[:, :-1, -1]  # y_3 of the previous row
-        full_x = torch.cat((x[:, :, :1], x_0_y_0, x[:, :, 1:]), dim=2)
-    return full_x
+        x = torch.cat((x[:, :, :1], x_0_y_0, x[:, :, 1:]), dim=2)
+    return x
 
 def convert_svg(t, colored=False):
     svg = SVGTensor.from_data(t)
@@ -132,9 +132,9 @@ def main(cl: int = 0, rd: str = None):
             raw_predict = results['raw_predict'][i]
             p_predict = results['p_predict'][i]
             golden = results['golden'][i]
-            import pdb; pdb.set_trace()
+            p_predict = sanint_check_svg_tensor(p_predict.unsqueeze(0)).squeeze(0)
             p_svg, p_svg_str = convert_svg(p_predict, True)
-            golden = sanint_check_golden(golden.unsqueeze(0)).squeeze(0)
+            golden = sanint_check_svg_tensor(golden.unsqueeze(0)).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
 
             str_paths.append({
