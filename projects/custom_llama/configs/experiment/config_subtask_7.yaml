@@ -71,6 +71,6 @@ experiment:
   lr_use_linear_decay: False
   lr_start_linear_decay: 0
   lr_use_cosine_decay: False
-  max_epoch: 100
-  device_num: 8
+  max_epoch: 150
+  device_num: 16
   node_num: 1
