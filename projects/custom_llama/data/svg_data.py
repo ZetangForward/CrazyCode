@@ -163,7 +163,7 @@ class SvgDataModule(pl.LightningDataModule):
                 self.test_file, max_path_nums=self.cfg.max_path_nums, 
                 mode='test', pad_token_id=self.cfg.pad_token_id,
                 return_all_token_mask=self.cfg.return_all_token_mask,
-                remove_redundant_col=self.cfg.remove_redundant_col
+                remove_redundant_col=self.cfg.remove_redundant_col,
                 cluster_batch=False
             )
         else:
