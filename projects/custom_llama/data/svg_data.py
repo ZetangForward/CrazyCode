@@ -29,16 +29,20 @@ class BasicDataset(Dataset):
         self.return_all_token_mask = return_all_token_mask
         self.remove_redundant_col = remove_redundant_col
 
+        dataset = self.pre_process(dataset, min_path_nums)
+        
         if cluster_batch_length:
             # first sort the dataset by length
+            print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
             dataset = sorted(dataset, key=lambda x: x['mesh_data'].shape[0])
-            print_c("you choose to cluster by batch length, begin to filter dataset by length, this may take some time ...", color='magenta')
-            self.dataset = self.pre_process(dataset, min_path_nums)
-            print_c("filter done !", color='magenta')
+            print_c("sort done !", color='magenta')
+
+        self.dataset = dataset
 
     def pre_process(self, dataset, min_length=0):   
         # just prevent too short path
         # length exceed max_seq_length will be cut off in __getitem__
+        print_c(f"begin to saint check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
         new_dataset = []
         for item in dataset:
             sample = item['mesh_data']
