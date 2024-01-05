@@ -19,7 +19,7 @@ EDGE = torch.tensor([  # after convert function
 
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False):
+    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False, cluster_batch_length=False):
         super().__init__()
         self.dataset = dataset
         self.max_path_nums = max_path_nums
@@ -63,11 +63,67 @@ class BasicDataset(Dataset):
         col1[col1 == 2] = 200
         svg_tensor[:, 0] = col1
         return svg_tensor
-        
 
-    @staticmethod
-    def custom_datacollator(batch):
-        return batch
+
+def pad_tensor(vec, pad, dim, pad_token_id):
+        """
+        args:
+            vec - tensor to pad
+            pad - the size to pad to
+            dim - dimension to pad
+            pad_token_id - padding token id
+        return:
+            a new tensor padded to 'pad' in dimension 'dim'
+        """
+        pad_size = list(vec.shape)
+        pad_size[dim] = pad - vec.size(dim)
+        return torch.cat([vec, torch.empty(*pad_size).fill_(pad_token_id)], dim=dim)
+
+
+class PadCollate:
+    """
+    a variant of callate_fn that pads according to the longest sequence in
+    a batch of sequences
+    """
+
+    def __init__(self, cluster_batch_length=False, max_seq_length=150, pad_token_id=0):
+        """
+        args:
+            cluster_batch_length - if True, cluster batch by length
+            max_seq_length - max sequence length
+            pad_token_id - padding token id
+        """
+
+        self.cluster_batch_length = cluster_batch_length
+        self.max_seq_length = max_seq_length
+        self.pad_token_id = pad_token_id
+
+    
+
+    def pad_collate(self, batch):
+        """
+        args:
+            batch - list of (tensor, label)
+
+        reutrn:
+            xs - a tensor of all examples in 'batch' after padding
+            ys - a LongTensor of all labels in batch
+        """
+        import pdb; pdb.set_trace()
+        if self.cluster_batch_length:
+            # find longest sequence
+            max_len = max(map(lambda x: x[0].shape[-1], batch))
+            max_len = min(max_len, self.max_seq_length)
+            # pad according to max_len
+            
+            batch = map(lambda (x, y): (pad_tensor(x, pad=max_len, dim=-1), y), batch)
+        # stack all
+        xs = torch.stack(map(lambda x: x[0], batch), dim=0)
+        ys = torch.LongTensor(map(lambda x: x[1], batch))
+        return xs, ys
+
+    def __call__(self, batch):
+        return self.pad_collate(batch)
     
 
 class SvgDataModule(pl.LightningDataModule):
@@ -100,7 +156,7 @@ class SvgDataModule(pl.LightningDataModule):
                 self.train_file, max_path_nums=self.cfg.max_path_nums, 
                 mode='train', pad_token_id=self.cfg.pad_token_id, 
                 return_all_token_mask=self.cfg.return_all_token_mask,
-                remove_redundant_col=self.cfg.remove_redundant_col
+                remove_redundant_col=self.cfg.remove_redundant_col,
             )
             self.valid_dataset = BasicDataset(
                 self.valid_file, max_path_nums=self.cfg.max_path_nums, 
@@ -114,14 +170,14 @@ class SvgDataModule(pl.LightningDataModule):
         return DataLoader(
             self.train_dataset, batch_size=self.cfg.train_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
-            # collate_fn=BasicDataset.custom_datacollator,
+            collate_fn=PadCollate(cluster_batch_length=self.cfg.cluster_batch_length, max_seq_length=self.cfg.max_path_nums, pad_token_id=self.cfg.pad_token_id),
         )
     
     def val_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.valid_dataset, batch_size=self.cfg.val_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
-            # collate_fn=BasicDataset.custom_datacollator
+            collate_fn=PadCollate(cluster_batch_length=self.cfg.cluster_batch_length, max_seq_length=self.cfg.max_path_nums, pad_token_id=self.cfg.pad_token_id),
         )
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
