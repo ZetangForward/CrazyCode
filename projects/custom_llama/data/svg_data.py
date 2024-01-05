@@ -160,6 +160,7 @@ class PadCollate:
             "padding_mask": padding_mask,
         }
 
+
     def __call__(self, batch):
         return self.pad_collate(batch)
     
