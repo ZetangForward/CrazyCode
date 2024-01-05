@@ -104,7 +104,7 @@ def main(config):
             ),
         ],
         check_val_every_n_epoch=1,
-        strategy=DDPStrategy(find_unused_parameters=True),
+        strategy=DDPStrategy(find_unused_parameters=False),
         max_epochs=config.experiment.max_epoch,
         devices=config.experiment.device_num,
         gradient_clip_val=1.5,

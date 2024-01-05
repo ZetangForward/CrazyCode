@@ -71,13 +71,6 @@ class BottleneckBlock(nn.Module):
             dist.all_reduce(_k_sum)
             dist.all_reduce(_k_elem)
 
-            # to perform the update all the tensor should be on the same device
-            _k_rand = _k_rand.to("cuda:0")
-            _k_sum = _k_sum.to("cuda:0")
-            _k_elem = _k_elem.to("cuda:0")
-            self.k = self.k.to("cuda:0")
-            self.k_sum = self.k_sum.to("cuda:0")
-
             # Update centres
             old_k = self.k
             self.k_sum = mu * self.k_sum + (1. - mu) * _k_sum  # w, k_bins  9012, 4096
