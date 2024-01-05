@@ -104,9 +104,6 @@ def sanint_check_golden(x):
     return full_x
 
 
-
-
-
 def merge_dicts(dict_list, device='cpu'):
     merge_res = {k: [] for k in dict_list[0].keys()} 
     for key in merge_res.keys():
@@ -140,7 +137,6 @@ def merge_dicts(dict_list, device='cpu'):
 
 
 class Experiment(pl.LightningModule):
-
     def __init__(self, model, config, state="eval") -> None:
         super(Experiment, self).__init__()
         self.model = model
