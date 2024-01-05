@@ -182,12 +182,10 @@ def main(config):
 
     vqvae = VQVAE(config, multipliers=None, **block_kwargs)
     experiment = Experiment(vqvae, config)
-    # experiment = Experiment.load_from_checkpoint(config.experiment.ckeckpoint_path)
 
-    trainer = pl.Trainer(devices=config.experiment.device_num)
+    tester = pl.Trainer(devices=config.experiment.device_num)
 
-    # print(f"======= Training {config['model_params']['name']} =======")
-    predictions = trainer.predict(
+    predictions = tester.predict(
         experiment, 
         datamodule=data_module,
         return_predictions=True,
@@ -197,8 +195,9 @@ def main(config):
 
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
+    b_t = time.time()
     auto_save_data(m_predictions, save_path)
-    print_c(f"save predictions to {save_path}")
+    print_c(f"save predictions to {save_path}, total time: {time.time() - b_t}", "magenta")
 
 if __name__ == '__main__':
     main()
