@@ -1,9 +1,9 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
 JOB_ID: &JOB_ID 1
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
-CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_2/checkpoints/vq-epoch=70.ckpt"
+CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_2/checkpoints/vq-epoch=65.ckpt"
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
-EPOCH: &EPOCH 70
+EPOCH: &EPOCH 65
 
 hydra:
   job:
@@ -60,7 +60,7 @@ experiment:
   exp_name: ${EXP_NAME}
   version: ${JOB_ID}
   device_num: 1
-  compress_level: 3
+  compress_level: 1
   return_all_quantized_res: True
 
 

@@ -16,7 +16,6 @@ import torch
 from tqdm import trange
 from PIL import Image
 
-
 def sanint_check_golden(x):
     """
     x: batch_size x seq_len x (7, 9)

@@ -13,6 +13,37 @@ from models.vqvae import VQVAE
 from models.utils import *
 
 
+def path_interpolation(x):
+    """
+    x: batch_size x seq_len x 9
+    """
+    batch_size, seq_len, _ = x.shape
+    interpolated_paths = []
+
+    for i in range(batch_size):
+        current_path = []
+        last_x3, last_y3 = None, None
+
+        for j in range(seq_len):
+            row = x[i][j]
+            cmd = 100 * torch.round(row[0] / 100).item()
+            x0, y0, x1, y1, x2, y2, x3, y3 = map(lambda coord: min(max(coord, 0), 200), row[1:].tolist())
+
+            if last_x3 is not None and (last_x3 != x0 or last_y3 != y0):
+                # if the current row's start point is not the same as the previous row's end point
+                current_path.append([0, last_x3, last_y3, 0, 0, 0, 0, x0, y0])
+            if cmd in [0, 100]:
+                # if the current row is M or L, set control point to 0
+                x1, y1, x2, y2 = 0, 0, 0, 0
+
+            current_path.append([cmd, x0, y0, x1, y1, x2, y2, x3, y3])
+            last_x3, last_y3 = x3, y3  # update the last end point
+
+        interpolated_paths.append(torch.tensor(current_path, dtype=x.dtype))
+    
+    return interpolated_paths
+
+    
 def sanint_check_golden(x):
     """
     x: batch_size x seq_len x (7, 9)
@@ -60,15 +91,27 @@ def merge_dicts(dict_list):
     merge_res = {k: [] for k in dict_list[0].keys()} 
     for key in merge_res.keys():
         items = [d[key] for d in dict_list if key in d]
+
+        # process items
         if items and isinstance(items[0], torch.Tensor):
-            merge_res[key] = torch.cat(items, dim=0).cpu()
+            tmp_tensors = []
+            for tensor in items:
+                tmp_tensors.append(tensor.cpu())
+            merge_res[key] = tmp_tensors  # each row is a tensor
+
         elif items and isinstance(items[0], List):
-            num_tensors = len(items[0])
-            tensor_lists = [[] for _ in range(num_tensors)]
+            tmp_lists = []
             for sublist in items:
-                for i, tensor in enumerate(sublist):
-                    tensor_lists[i].append(tensor)
-            merge_res[key] = [torch.cat(t, dim=0).cpu() for t in tensor_lists]
+                for item in sublist:
+                    tmp_lists.append(item.cpu())
+            merge_res[key] = tmp_lists  # each row is a tensor
+
+            # num_tensors = len(items[0])
+            # tensor_lists = [[] for _ in range(num_tensors)]
+            # for sublist in items:
+            #     for i, tensor in enumerate(sublist):
+            #         tensor_lists[i].append(tensor)
+            # merge_res[key] = [torch.cat(t, dim=0).cpu() for t in tensor_lists]
         else:
             raise ValueError(f'Unsupported data type for merge: {type(items[0])}')
     return merge_res
@@ -101,10 +144,12 @@ class Experiment(pl.LightningModule):
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
-        post_process_output = postprocess(output)
+        post_process_output = path_interpolation(output)  # path interpolation
+        # post_process_output = postprocess(output)  # naive post process
         golden = batch['svg_path']
         golden[:, :, 0][golden[:, :, 0] == 100] = 1
         golden[:, :, 0][golden[:, :, 0] == 200] = 2
+
         standard_test_reconstruct = {
             "raw_predict": output,
             "p_predict": post_process_output,
@@ -121,7 +166,7 @@ class Experiment(pl.LightningModule):
         return standard_test_reconstruct
     
 
-@hydra.main(config_path='./configs/experiment', config_name='config_test_remove', version_base='1.1')
+@hydra.main(config_path='./configs/experiment', config_name='config_test', version_base='1.1')
 def main(config):
     print_c(f"compress_level: {config.experiment.compress_level}", "magenta")
     # set training dataset
@@ -148,7 +193,7 @@ def main(config):
         ckpt_path=config.experiment.ckeckpoint_path
     )
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-
+    import pdb; pdb.set_trace()
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     auto_save_data(m_predictions, save_path)
