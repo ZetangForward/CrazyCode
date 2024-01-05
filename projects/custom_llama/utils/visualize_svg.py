@@ -91,7 +91,7 @@ def main(cl: int = 0):
     assert cl in [1, 2, 3], "compress level must be 1, 2, 3"
     print_c(f"visualize compress level: {cl}", "magenta")
 
-    ROOT_DIR = "/zecheng2/vqllama/test_vqllama_quantizer/test_0"
+    ROOT_DIR = "/zecheng2/vqllama/test_vqllama_quantizer/test_1"
     COMPRESS_LEVEL = cl
     FILE_PATH = os.path.join(ROOT_DIR, f"compress_level_{COMPRESS_LEVEL}_predictions.pkl")
     

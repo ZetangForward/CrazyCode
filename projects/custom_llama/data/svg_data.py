@@ -19,7 +19,7 @@ EDGE = torch.tensor([  # after convert function
 
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=-1, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False):
+    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False):
         super().__init__()
         self.dataset = dataset
         self.max_path_nums = max_path_nums
@@ -98,7 +98,8 @@ class SvgDataModule(pl.LightningDataModule):
 
             self.train_dataset = BasicDataset(
                 self.train_file, max_path_nums=self.cfg.max_path_nums, 
-                mode='train', pad_token_id=self.cfg.pad_token_id, return_all_token_mask=self.cfg.return_all_token_mask,
+                mode='train', pad_token_id=self.cfg.pad_token_id, 
+                return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col
             )
             self.valid_dataset = BasicDataset(
