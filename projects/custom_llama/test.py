@@ -106,7 +106,7 @@ class Experiment(pl.LightningModule):
         return standard_test_reconstruct
     
 
-@hydra.main(config_path='./configs/experiment', config_name='config_test', version_base='1.1')
+@hydra.main(config_path='./configs/experiment', config_name='config_test_remove', version_base='1.1')
 def main(config):
     print_c(f"compress_level: {config.experiment.compress_level}", "magenta")
     # set training dataset
