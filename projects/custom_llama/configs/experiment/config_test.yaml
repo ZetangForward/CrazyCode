@@ -1,7 +1,7 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 0
+JOB_ID: &JOB_ID 1
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
-CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_1/checkpoints/vqvae-epoch=48.ckpt"
+CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_2/checkpoints/vq-epoch=122.ckpt"
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
 
 hydra:
@@ -14,7 +14,7 @@ hydra:
 dataset:
   max_path_nums: 512
   pad_token_id: -1
-  batch_size: 400
+  val_batch_size: 400
   nworkers: 16
   pin_memory: False
   x_channels: 9
@@ -22,6 +22,7 @@ dataset:
   test_data_path: ${TEST_DATA_PATH}
   return_all_token_mask: False
   num_bins: 9
+  remove_redundant_col: False
 
 vqvae:
   levels: 3
@@ -59,6 +60,7 @@ experiment:
   version: ${JOB_ID}
   device_num: 1
   compress_level: 3
+  return_all_quantized_res: True
 
 
   

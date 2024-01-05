@@ -63,7 +63,7 @@ class Experiment(pl.LightningModule):
         self.model = model
         self.model.eval()
         self.cfg = config
-        self.return_all_quantized_res = True
+        self.return_all_quantized_res = config.experiment.return_all_quantized_res
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
