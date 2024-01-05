@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 1
+JOB_ID: &JOB_ID 2
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer_remove_redundant_col/version_0/checkpoints/vq-epoch=89.ckpt"
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
@@ -18,7 +18,7 @@ dataset:
   val_batch_size: 400
   nworkers: 16
   pin_memory: False
-  x_channels: 9
+  x_channels: 7
   inference_mode: True
   test_data_path: ${TEST_DATA_PATH}
   vocab_size: 200  # max number
