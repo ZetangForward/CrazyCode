@@ -27,6 +27,8 @@ def path_interpolation(x):
         for j in range(seq_len):
             row = x[i][j]
             cmd = 100 * torch.round(row[0] / 100).item()
+            cmd = 1 if cmd == 100 else 2 if cmd == 200 else 0
+
             x0, y0, x1, y1, x2, y2, x3, y3 = map(lambda coord: min(max(coord, 0), 200), row[1:].tolist())
 
             if last_x3 is not None and (last_x3 != x0 or last_y3 != y0):

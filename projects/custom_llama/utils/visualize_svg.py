@@ -16,12 +16,13 @@ import torch
 from tqdm import trange
 from PIL import Image
 
-def sanint_check_golden(x):
+def sanint_check_svg_tensor(x):
     """
     x: batch_size x seq_len x (7, 9)
     """
     if x.size(-1) == 9:
-        ...
+        x[:, :, 0][x[:, :, 0] == 100] = 1
+        x[:, :, 0][x[:, :, 0] == 200] = 2
     elif x.size(-1) == 7:
         # add two columns
         x_0_y_0 = torch.zeros((x.size(0), x.size(1), 2), dtype=x.dtype, device=x.device)
@@ -131,7 +132,7 @@ def main(cl: int = 0, rd: str = None):
             raw_predict = results['raw_predict'][i]
             p_predict = results['p_predict'][i]
             golden = results['golden'][i]
-            
+            import pdb; pdb.set_trace()
             p_svg, p_svg_str = convert_svg(p_predict, True)
             golden = sanint_check_golden(golden.unsqueeze(0)).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
