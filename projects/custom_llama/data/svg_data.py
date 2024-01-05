@@ -157,8 +157,8 @@ class SvgDataModule(pl.LightningDataModule):
             )
         else:
             self.svg_files = auto_read_data(self.cfg.train_data_path)
-            self.train_file = self.svg_files[:-2000]
-            self.valid_file = self.svg_files[-2000:]
+            self.train_file = self.svg_files[:-1000]
+            self.valid_file = self.svg_files[-1000:]
 
             self.train_dataset = BasicDataset(
                 self.train_file, max_path_nums=self.cfg.max_path_nums, 
