@@ -29,7 +29,11 @@ class BasicDataset(Dataset):
         self.vocab_size = vocab_size
         self.return_all_token_mask = return_all_token_mask
         self.remove_redundant_col = remove_redundant_col
-    
+
+        if cluster_batch_length:
+            # first sort the dataset by length
+            self.dataset = sorted(self.dataset, key=lambda x: x['mesh_data'].shape[0])
+
     def __len__(self):
         return len(self.dataset)
 
