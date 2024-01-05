@@ -15,15 +15,18 @@ from models.utils import *
 
 def postprocess(x):
     """
-    x: batch_size x seq_len x 9
+    x: batch_size x seq_len x (7, 9)
     """
-    # first remove the 1, 2 columns
-    m_x = torch.cat((x[:, :, :1], x[:, :, 3:]), dim=2)
+    if x.size(-1) == 9:
+        # first remove the 1, 2 columns
+        m_x = torch.cat((x[:, :, :1], x[:, :, 3:]), dim=2)
+    else:
+        m_x = x
     # find the right command value
     m_x[:, :, 0] = torch.round(m_x[:, :, 0] / 100) * 100
     # clip all the value to max bins 
     m_x = torch.clamp(m_x, 0, 200)
-    # process the M and L path
+    # process the M and L path                                                              
     m_x[:, :, 1:5][m_x[:, :, 0] != 200] = 0
     # add to extra column to satisfy the 9 columns
     x_0_y_0 = torch.zeros((m_x.size(0), m_x.size(1), 2), dtype=m_x.dtype, device=m_x.device)
