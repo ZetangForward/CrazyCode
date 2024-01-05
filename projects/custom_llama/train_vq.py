@@ -95,7 +95,7 @@ def main(config):
         callbacks=[
             LearningRateMonitor(),
             ModelCheckpoint(
-                save_top_k=70, 
+                save_top_k=10, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_loss",
                 filename="vq-{epoch:02d}",
