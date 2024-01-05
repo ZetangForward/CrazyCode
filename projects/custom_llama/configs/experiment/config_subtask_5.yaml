@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 4
+JOB_ID: &JOB_ID 5
 EXP_NAME: &EXP_NAME "vqllama_quantizer"
 
 hydra:
