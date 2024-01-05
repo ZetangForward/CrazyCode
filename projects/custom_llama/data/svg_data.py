@@ -19,9 +19,8 @@ EDGE = torch.tensor([  # after convert function
 
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False, cluster_batch_length=False):
+    def __init__(self, dataset, min_path_nums=4, max_path_nums=150, mode="train", pad_token_id=0, num_bins = 9, vocab_size=200, return_all_token_mask=False, remove_redundant_col=False, cluster_batch_length=False):
         super().__init__()
-        self.dataset = dataset
         self.max_path_nums = max_path_nums
         self.mode = mode
         self.pad_token_id = pad_token_id
@@ -31,10 +30,29 @@ class BasicDataset(Dataset):
         self.remove_redundant_col = remove_redundant_col
 
         if cluster_batch_length:
-            import pdb; pdb.set_trace()
             # first sort the dataset by length
-            self.dataset = sorted(self.dataset, key=lambda x: x['mesh_data'].shape[0])
+            dataset = sorted(dataset, key=lambda x: x['mesh_data'].shape[0])
+            print_c("you choose to cluster by batch length, begin to filter dataset by length, this may take some time ...", color='magenta')
+            self.dataset = self.pre_process(dataset, min_path_nums)
+            print_c("filter done !", color='magenta')
 
+    def pre_process(self, dataset, min_length=0):   
+        # just prevent too short path
+        # length exceed max_seq_length will be cut off in __getitem__
+        new_dataset = []
+        for item in dataset:
+            sample = item['mesh_data']
+            if sample[:7].equal(EDGE):
+                sample = sample[7:]
+            if min_length <= len(sample):
+                new_dataset.append(
+                    {
+                        'keywords': item['keywords'],
+                        'mesh_data': sample,
+                    }
+                )
+        return new_dataset
+        
     def __len__(self):
         return len(self.dataset)
 
@@ -42,8 +60,6 @@ class BasicDataset(Dataset):
         item = self.dataset[idx]
         keywords, sample = item['keywords'], item['mesh_data']
         sample = torch.clamp(sample, min=0, max=self.vocab_size)
-        if sample[:7].equal(EDGE):
-            sample = sample[7:]
         
         if self.remove_redundant_col:  # remove 2nd and 3rd column
             sample = torch.cat([sample[:, :1], sample[:, 3:]], dim=1)   
@@ -56,9 +72,6 @@ class BasicDataset(Dataset):
             sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
         else:
             sample = sample[:self.max_path_nums]
-        
-        
-        
 
         if self.return_all_token_mask:
             padding_mask = ~(sample == self.pad_token_id)
@@ -166,20 +179,25 @@ class SvgDataModule(pl.LightningDataModule):
             self.valid_file = self.svg_files[-1000:]
 
             self.train_dataset = BasicDataset(
-                self.train_file, max_path_nums=self.cfg.max_path_nums, 
+                self.train_file, 
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
                 mode='train', pad_token_id=self.cfg.pad_token_id, 
                 return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col,
                 cluster_batch_length=self.cfg.cluster_batch_length
             )
             self.valid_dataset = BasicDataset(
-                self.valid_file, max_path_nums=self.cfg.max_path_nums, 
+                self.valid_file, 
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
                 mode='valid', pad_token_id=self.cfg.pad_token_id,
                 return_all_token_mask=self.cfg.return_all_token_mask,
                 remove_redundant_col=self.cfg.remove_redundant_col,
                 cluster_batch_length=self.cfg.cluster_batch_length
             )    
-        
+            print_c(f"train dataset length: {len(self.train_dataset)}", color='magenta')
+            print_c(f"train dataset length: {len(self.valid_dataset)}", color='magenta')
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(

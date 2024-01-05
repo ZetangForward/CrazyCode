@@ -12,6 +12,7 @@ hydra:
 dataset:
   train_data_path: "/zecheng2/svg/icon-shop/pkl_data/mesh_data_svg_convert_p.pkl"
   max_path_nums: 512
+  min_path_nums: 4
   pad_token_id: 0
   train_batch_size: 128
   val_batch_size: 32
