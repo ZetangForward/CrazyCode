@@ -39,14 +39,21 @@ class BasicDataset(Dataset):
         sample = torch.clamp(sample, min=0, max=self.vocab_size)
         if sample[:7].equal(EDGE):
             sample = sample[7:]
+        
+        if self.remove_redundant_col:  # remove 2nd and 3rd column
+            sample = torch.cat([sample[:, :1], sample[:, 3:]], dim=1)   
+        
+        sample = self.custom_command(sample)
+        
+        return sample.long()
+
         if len(sample) < self.max_path_nums:
             sample = torch.cat([sample, torch.empty(self.max_path_nums - len(sample), self.num_bins).fill_(self.pad_token_id)])
         else:
             sample = sample[:self.max_path_nums]
-        sample = self.custom_command(sample)
         
-        if self.remove_redundant_col:  # remove 2nd and 3rd column
-            sample = torch.cat([sample[:, :1], sample[:, 3:]], dim=1)
+        
+        
 
         if self.return_all_token_mask:
             padding_mask = ~(sample == self.pad_token_id)
@@ -86,7 +93,7 @@ class PadCollate:
     a batch of sequences
     """
 
-    def __init__(self, cluster_batch_length=False, max_seq_length=150, pad_token_id=0):
+    def __init__(self, cluster_batch_length=False, max_seq_length=150, pad_token_id=0, return_all_token_mask=False):
         """
         args:
             cluster_batch_length - if True, cluster batch by length
@@ -97,7 +104,7 @@ class PadCollate:
         self.cluster_batch_length = cluster_batch_length
         self.max_seq_length = max_seq_length
         self.pad_token_id = pad_token_id
-
+        self.return_all_token_mask = return_all_token_mask
     
 
     def pad_collate(self, batch):
@@ -171,14 +178,24 @@ class SvgDataModule(pl.LightningDataModule):
         return DataLoader(
             self.train_dataset, batch_size=self.cfg.train_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
-            collate_fn=PadCollate(cluster_batch_length=self.cfg.cluster_batch_length, max_seq_length=self.cfg.max_path_nums, pad_token_id=self.cfg.pad_token_id),
+            collate_fn=PadCollate(
+                cluster_batch_length=self.cfg.cluster_batch_length, 
+                max_seq_length=self.cfg.max_path_nums, 
+                pad_token_id=self.cfg.pad_token_id, 
+                return_all_token_mask=self.cfg.return_all_token_mask
+            ),
         )
     
     def val_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.valid_dataset, batch_size=self.cfg.val_batch_size, 
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
-            collate_fn=PadCollate(cluster_batch_length=self.cfg.cluster_batch_length, max_seq_length=self.cfg.max_path_nums, pad_token_id=self.cfg.pad_token_id),
+            collate_fn=PadCollate(
+                cluster_batch_length=self.cfg.cluster_batch_length, 
+                max_seq_length=self.cfg.max_path_nums, 
+                pad_token_id=self.cfg.pad_token_id, 
+                return_all_token_mask=self.cfg.return_all_token_mask
+            ),
         )
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
