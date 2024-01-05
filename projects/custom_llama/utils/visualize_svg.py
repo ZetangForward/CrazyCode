@@ -134,6 +134,7 @@ def main(cl: int = 0, rd: str = None):
             golden = results['golden'][i]
             p_predict = sanint_check_svg_tensor(p_predict.unsqueeze(0)).squeeze(0)
             p_svg, p_svg_str = convert_svg(p_predict, True)
+            import pdb; pdb.set_trace()
             golden = sanint_check_svg_tensor(golden.unsqueeze(0)).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
 
