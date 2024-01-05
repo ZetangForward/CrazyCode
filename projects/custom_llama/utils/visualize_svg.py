@@ -79,9 +79,7 @@ def merge_images(
     big_images = []
 
     for i, image in enumerate(image_list):
-        if i >= image_row * image_col:
-            i -= image_row * image_col
-
+        i = i % (image_row * image_col)
         row = i // image_row
         col = i % image_col
         big_image.paste(image, (col * image.size[0], row * image.size[1]))
