@@ -91,7 +91,6 @@ def merge_dicts(dict_list, device='cpu'):
     for key in merge_res.keys():
         print_c(f"begin to merge {key}", "magenta")
         items = [d[key] for d in dict_list if key in d]
-        import pdb; pdb.set_trace()
         # process items
         if items and isinstance(items[0], torch.Tensor):
             tmp_tensors = []
@@ -99,11 +98,11 @@ def merge_dicts(dict_list, device='cpu'):
             for sublist in items:
                 if isinstance(sublist, torch.Tensor):
                     flag = True
-                    tmp_tensors.append(sublist.cpu())
+                    tmp_tensors.append(sublist)
                 elif isinstance(sublist, list):
                     tmp_tensors.extend(sublist)
             if flag:
-                tmp_tensors = [torch.cat(t, dim=0).cpu() for t in tmp_tensors]
+                tmp_tensors = torch.cat(tmp_tensors, dim=0).to(device)
             else:
                 tmp_tensors = [tmp.cpu() for tmp in tmp_tensors]
             merge_res[key] = tmp_tensors  # each row is a tensor
