@@ -42,7 +42,7 @@ class BasicDataset(Dataset):
     def pre_process(self, dataset, min_length=0):   
         # just prevent too short path
         # length exceed max_seq_length will be cut off in __getitem__
-        print_c(f"begin to saint check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
+        print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
         new_dataset = []
         for item in dataset:
             sample = item['mesh_data']
