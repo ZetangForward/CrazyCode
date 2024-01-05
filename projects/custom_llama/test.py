@@ -21,6 +21,7 @@ def postprocess(x, padding_mask=None, path_interpolation=True):
     padding_mask: batch_size x seq_len
     path_interpolation: whether to interpolate the path
     """
+    dtype = x.dtype
     if path_interpolation:  
         # conduct path interpolation
         # return List[Tensor]
@@ -44,7 +45,7 @@ def postprocess(x, padding_mask=None, path_interpolation=True):
                     x1, y1, x2, y2 = 0, 0, 0, 0
                 current_path.append([cmd, x0, y0, x1, y1, x2, y2, x3, y3])
                 last_x3, last_y3 = x3, y3  # update the last end point
-            full_x.append(torch.tensor(current_path, dtype=x.dtype))
+            full_x.append(torch.tensor(current_path, dtype=dtype))
     
     else:  # no path interpolation
         if x.size(-1) == 9:
@@ -165,7 +166,7 @@ class Experiment(pl.LightningModule):
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
-        
+
         post_process_output = postprocess(
             output, batch['padding_mask'], 
             self.cfg.experiment.path_interpolation
