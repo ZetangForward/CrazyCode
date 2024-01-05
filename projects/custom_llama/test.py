@@ -97,8 +97,9 @@ def merge_dicts(dict_list):
         # process items
         if items and isinstance(items[0], torch.Tensor):
             tmp_tensors = []
-            for tensor in items:
-                tmp_tensors.append(tensor.cpu())
+            for sublist in items:
+                for tensor in sublist:
+                    tmp_tensors.append(tensor.cpu())
             merge_res[key] = tmp_tensors  # each row is a tensor
 
         elif items and isinstance(items[0], List):
@@ -195,7 +196,7 @@ def main(config):
         ckpt_path=config.experiment.ckeckpoint_path
     )
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    import pdb; pdb.set_trace()
+
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     auto_save_data(m_predictions, save_path)
