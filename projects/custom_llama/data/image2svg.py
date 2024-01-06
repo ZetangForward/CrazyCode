@@ -12,8 +12,11 @@ import os
 def process_image(args):
     image_path, output_dir = args
     output_path = f"{output_dir}/{os.path.splitext(os.path.basename(image_path))[0]}.svg"
-    convert_image_to_svg(image_path, output_path)
-    return image_path 
+    try:
+        convert_image_to_svg(image_path, output_path)
+        return True, image_path, None  # 返回成功标志、输入路径和空的错误信息
+    except Exception as e:
+        return False, image_path, str(e)  # 返回失败标志、输入路径和异常信息
 
 def mp_process_images(image_paths, output_dir, num_workers=None):
     if num_workers is None:
@@ -23,8 +26,12 @@ def mp_process_images(image_paths, output_dir, num_workers=None):
 
     with Pool(num_workers) as pool:
         arguments = [(image_path, output_dir) for image_path in image_paths]
-        for _ in pool.imap(process_image, arguments):
-            progress_bar.update(1)
+        for success, image_path, error_message in pool.imap_unordered(process_image, arguments):
+            # 在每个图像处理后更新进度条
+            if success:
+                progress_bar.update(1)
+            else:
+                print(f"An error occurred while processing {image_path}: {error_message}")
 
     progress_bar.close()
 
@@ -106,4 +113,4 @@ if __name__ == '__main__':
     output_dir = "/zecheng2/svg/mscoco/convert_svg_train"
     
     image_paths = [item['image_path'] for item in meta_data]
-    mp_process_images(image_paths, output_dir, num_workers=16)
+    mp_process_images(image_paths, output_dir, num_workers=20)
