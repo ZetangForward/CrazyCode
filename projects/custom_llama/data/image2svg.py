@@ -4,21 +4,37 @@ import subprocess
 import concurrent.futures
 import vtracer
 from tqdm import tqdm
+from threading import Lock
+from multiprocessing import Pool, cpu_count
+from tqdm import tqdm
+import os
+
+def process_image(args):
+    image_path, output_dir = args
+    output_path = f"{output_dir}/{os.path.splitext(os.path.basename(image_path))[0]}.svg"
+    convert_image_to_svg(image_path, output_path)
+    return image_path 
+
+def mp_process_images(image_paths, output_dir, num_workers=None):
+    if num_workers is None:
+        num_workers = cpu_count()
+
+    progress_bar = tqdm(total=len(image_paths), desc='Processing')
+
+    with Pool(num_workers) as pool:
+        arguments = [(image_path, output_dir) for image_path in image_paths]
+        for _ in pool.imap(process_image, arguments):
+            progress_bar.update(1)
+
+    progress_bar.close()
 
 
-# 这里代码定义了一个线程处理函数
-def mp_process_images(image_paths, output_dir):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_image = {executor.submit(process_images, image_path, f"{output_dir}/{os.path.basename(image_path).split('.')[0]}.svg"): image_path for image_path in image_paths}
-        for future in concurrent.futures.as_completed(future_to_image):
-            image = future_to_image[future]
-            try:
-                future.result()
-            except Exception as exc:
-                print(f"{image.name} generated an exception: {exc}")
+def process_images(image_paths, output_dir):
+    for image_path in tqdm(image_paths, desc='Processing'):
+        convert_image_to_svg(image_path, f"{output_dir}/{os.path.splitext(os.path.basename(image_path))[0]}.svg")
 
 
-def process_images(image_path, output_path):
+def convert_image_to_svg(image_path, output_path):
     vtracer.convert_image_to_svg_py(
         image_path,
         output_path,
@@ -42,7 +58,6 @@ def process_scienceqa(image_file_dir, meta_file, caption_file):
     image_folders, saved_res = [], []
     subdirectories = [name for name in os.listdir(image_file_dir) if os.path.isdir(os.path.join(image_file_dir, name))]
 
-    # 使用 tqdm 创建进度条
     for subdirectory in tqdm(subdirectories, desc='Processing'):
         subdir_path = os.path.join(image_file_dir, subdirectory)
         if 'image.png' in os.listdir(subdir_path):
@@ -86,7 +101,9 @@ if __name__ == '__main__':
 
 
     ## Test
-    META_FILE = "/data/G/dataset/mscoco/val_data.json"
+    META_FILE = "/zecheng2/svg/mscoco/mscoco_train.jsonl"
     meta_data = auto_read_data(META_FILE)
-    test_sample = meta_data[0]
-    process_images(test_sample['image_path'], f"/workspace/zecheng/modelzipper/projects/custom_llama/data/{test_sample['image_name'].split('.')[0]}.svg")
+    output_dir = "/zecheng2/svg/mscoco/convert_svg_train"
+    
+    image_paths = [item['image_path'] for item in meta_data]
+    mp_process_images(image_paths, output_dir, num_workers=16)
