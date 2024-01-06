@@ -58,14 +58,28 @@ def process_scienceqa(image_file_dir, meta_file, caption_file):
 
 
 def process_mscoco(image_dir, meta_file):
-    pass
+    saved_res = []
+    meta_data = auto_read_data(meta_file)
+    for item in tqdm(meta_data, desc='Processing'):
+        image_path = os.path.join(image_dir, item['image_name'])
+        saved_res.append({
+            'image_path': image_path,
+            'caption': item['captions']
+        })
+    auto_save_data(saved_res, '/zecheng2/svg/mscoco/mscoco_image.jsonl')
+    
 
 
 if __name__ == '__main__':
 
     ## ScienceQA Dataset
-    IMAGE_FILE_DIR = "/zecheng2/dataset/ScienceQA/tutorial/train"
-    META_FILE = "/zecheng2/dataset/ScienceQA/tutorial/problems.json"
-    CAPTION_FILE = "/zecheng2/dataset/ScienceQA/tutorial/captions.json"
-    SAVE_DIR = "/zecheng2/dataset/ScienceQA/"
-    process_scienceqa(IMAGE_FILE_DIR, META_FILE, CAPTION_FILE)
+    # IMAGE_FILE_DIR = "/zecheng2/dataset/ScienceQA/tutorial/train"
+    # META_FILE = "/zecheng2/dataset/ScienceQA/tutorial/problems.json"
+    # CAPTION_FILE = "/zecheng2/dataset/ScienceQA/tutorial/captions.json"
+    # SAVE_DIR = "/zecheng2/dataset/ScienceQA/"
+    # process_scienceqa(IMAGE_FILE_DIR, META_FILE, CAPTION_FILE)
+
+    ## MSCOCO Dataset
+    IMAGE_DIR = "/data/G/dataset/mscoco/train2017"
+    META_FILE = "/data/G/dataset/mscoco/train_data.json"
+    res = process_mscoco(IMAGE_DIR, META_FILE)
