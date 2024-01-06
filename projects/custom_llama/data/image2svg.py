@@ -66,7 +66,7 @@ def process_mscoco(image_dir, meta_file):
             'image_path': image_path,
             'caption': item['captions']
         })
-    auto_save_data(saved_res, '/zecheng2/svg/mscoco/mscoco_image.jsonl')
+    auto_save_data(saved_res, '/zecheng2/svg/mscoco/mscoco_val.jsonl')
     
 
 
@@ -80,6 +80,6 @@ if __name__ == '__main__':
     # process_scienceqa(IMAGE_FILE_DIR, META_FILE, CAPTION_FILE)
 
     ## MSCOCO Dataset
-    IMAGE_DIR = "/data/G/dataset/mscoco/train2017"
-    META_FILE = "/data/G/dataset/mscoco/train_data.json"
+    IMAGE_DIR = "/data/G/dataset/mscoco/val2017"
+    META_FILE = "/data/G/dataset/mscoco/val_data.json"
     res = process_mscoco(IMAGE_DIR, META_FILE)
