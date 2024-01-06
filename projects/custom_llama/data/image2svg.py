@@ -9,7 +9,7 @@ from tqdm import tqdm
 # 这里代码定义了一个线程处理函数
 def mp_process_images(image_paths, output_dir):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_image = {executor.submit(process_images, image_path, f"{output_dir}/{image_path.stem}.svg"): image_path for image_path in image_paths}
+        future_to_image = {executor.submit(process_images, image_path, f"{output_dir}/{os.path.basename(image_path).split('.')[0]}.svg"): image_path for image_path in image_paths}
         for future in concurrent.futures.as_completed(future_to_image):
             image = future_to_image[future]
             try:
@@ -80,6 +80,13 @@ if __name__ == '__main__':
     # process_scienceqa(IMAGE_FILE_DIR, META_FILE, CAPTION_FILE)
 
     ## MSCOCO Dataset
-    IMAGE_DIR = "/data/G/dataset/mscoco/val2017"
+    # IMAGE_DIR = "/data/G/dataset/mscoco/val2017"
+    # META_FILE = "/data/G/dataset/mscoco/val_data.json"
+    # res = process_mscoco(IMAGE_DIR, META_FILE)
+
+
+    ## Test
     META_FILE = "/data/G/dataset/mscoco/val_data.json"
-    res = process_mscoco(IMAGE_DIR, META_FILE)
+    meta_data = auto_read_data(META_FILE)
+    test_sample = meta_data[0]
+    process_images(test_sample['image_path'], f"/workspace/zecheng/modelzipper/projects/custom_llama/data/{test_sample['image_name'].split('.')[0]}.svg")
