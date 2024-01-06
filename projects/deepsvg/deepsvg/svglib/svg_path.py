@@ -349,6 +349,7 @@ class SVGPath:
 
     def numericalize(self, n=256):
         for command in self.all_commands():
+            # print(command)
             command.numericalize(n)
 
     def smooth(self):

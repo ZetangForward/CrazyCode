@@ -514,7 +514,11 @@ class SVGCommandArc(SVGCommand):
         return SVGCommandArc(self.end_pos, self.radius, self.x_axis_rotation, self.large_arc_flag, ~self.sweep_flag, self.start_pos)
 
     def numericalize(self, n=256):
-        raise NotImplementedError
+        # my implementation
+        self.start_pos.numericalize(n)
+        self.end_pos.numericalize(n)
+
+        # raise NotImplementedError
 
     def get_geoms(self):
         return [self.start_pos, self.radius, self.x_axis_rotation, self.large_arc_flag, self.sweep_flag, self.end_pos]
