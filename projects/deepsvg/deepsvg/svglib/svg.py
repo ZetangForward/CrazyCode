@@ -121,7 +121,14 @@ class SVG:
         svg_dom = expatbuilder.parseString(svg_str, False)
         svg_root = svg_dom.getElementsByTagName('svg')[0]
 
-        viewbox_list = list(map(float, svg_root.getAttribute("viewBox").split(" ")))
+        # viewbox_list = list(map(float, svg_root.getAttribute("viewBox").split(" ")))
+        viewbox_list = None
+        if svg_root.hasAttribute('viewBox'):
+            viewbox = list(map(float, svg_root.getAttribute("viewBox").split(" ")))
+        elif svg_root.hasAttribute('width') and svg_root.hasAttribute('height'):
+            viewbox_list = [0, 0, float(svg_root.getAttribute("width")), float(svg_root.getAttribute("height"))]
+        else:
+            raise Exception('<svg/> does not contain width, height attributes, nor viewBox. please double check the SVG')
         view_box = Bbox(*viewbox_list)
 
         primitives = {
