@@ -108,9 +108,10 @@ if __name__ == '__main__':
 
 
     ## Test
-    META_FILE = "/zecheng2/svg/mscoco/mscoco_train.jsonl"
+    META_FILE = "/zecheng2/svg/mscoco/mscoco_val.jsonl"
     meta_data = auto_read_data(META_FILE)
-    output_dir = "/zecheng2/svg/mscoco/convert_svg_train"
+    output_dir = "/zecheng2/svg/mscoco/convert_svg_valid"
     
     image_paths = [item['image_path'] for item in meta_data]
+
     mp_process_images(image_paths, output_dir, num_workers=20)
