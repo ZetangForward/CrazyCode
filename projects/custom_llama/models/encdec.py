@@ -25,9 +25,9 @@ class EncoderConvBlock(nn.Module):
                         padding = pad_t
                     ),
                     Resnet1D(
-                        n_in = width,
-                        n_depth=depth,
-                        m_conv = m_conv,
+                        n_in = width,  # 128 
+                        n_depth = depth,  # 3
+                        m_conv = m_conv,  # 1.0
                         dilation_growth_rate = dilation_growth_rate,
                         dilation_cycle = dilation_cycle,
                         zero_out = zero_out,
