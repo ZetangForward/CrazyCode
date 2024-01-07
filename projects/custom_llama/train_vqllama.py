@@ -17,6 +17,7 @@ DEFAULT_EOS_TOKEN = "<s>"
 DEFAULT_BOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_SVG_TOKEN = "<SVG>"
+
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
@@ -39,6 +40,7 @@ class TrainingArguments(transformers.TrainingArguments):
     is_augment: bool = field(default=False)
     text_width: int = field(default=64)
 
+
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
     """Collects the state dict and dump to disk."""
     state_dict = trainer.model.state_dict()
@@ -46,6 +48,7 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         cpu_state_dict = {key: value.cpu() for key, value in state_dict.items()}
         del state_dict
         trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
+
 
 @dataclass
 class DataCollatorForSupervisedDataset(object):

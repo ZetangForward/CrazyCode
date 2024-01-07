@@ -32,6 +32,10 @@ class BasicDataset(Dataset):
         keywords = self.content[index]["keywords"]
         prompts = self.PROMPT_TEMPLATE.format(keywords=keywords)
         
+        # truncate the svg_quantised
+        svg_quantised = svg_quantised[: self.max_svg_length]
+
+        # process the input keywords
         if self.svg_token is not None:
             prompts = prompts + " " + self.svg_token
 
@@ -66,8 +70,30 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self):
-        ...
+    def __init__(self, tokenizer, max_svg_length=1024):
+        self.tokenizer = tokenizer
+        self.max_svg_length = max_svg_length
+
+    def pad_collate(self, batch):
+        input_prompt_ids = list(map(lambda x: x['input_prompt_ids'], batch))
+        attention_mask = list(map(lambda x: x['attention_mask'], batch))
+        labels = list(map(lambda x: x['labels'], batch))
+        svg_quantised = list(map(lambda x: x['svg_quantised'], batch))
+
+        ## combine the text inputs
+        input_prompt_ids = torch.stack(input_prompt_ids, dim=0)
+        attention_mask = torch.stack(attention_mask, dim=0)
+        labels = torch.stack(labels, dim=0)
+
+        ## pad the vq svg quantised
+
+        
+
+
+    def __call__(self, batch):
+        return self.pad_collate(batch)
+
+
 
     
 
