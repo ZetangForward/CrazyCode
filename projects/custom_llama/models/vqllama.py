@@ -73,7 +73,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         text_logits = self.lm_head(hidden_states[:, :text_width-1, :]).float()
         # svg modality, first token is svg special token, last token should be svg end token
         svg_pred = self.output_adapter(hidden_states[:, text_width-1:, :]).float() 
-
+        
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
 
         if text_labels is not None:
