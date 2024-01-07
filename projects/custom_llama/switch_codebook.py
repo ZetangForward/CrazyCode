@@ -169,11 +169,11 @@ class ObtainSVGCode(pl.LightningModule):
         zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
 
         standard_results = {
-            "svg_tensors": svg_tensors,
-            "padding_mask": padding_mask,
-            "keys": batch['keywords'],
-            "xs_quantised": xs_quantised[0],  # just return the first compressed level
-            "zs": zs[0], # just return the first compressed level
+            "svg_tensors": svg_tensors.squeeze(),
+            "padding_mask": padding_mask.squeeze(),
+            "keys": batch['keywords'][0],
+            "xs_quantised": xs_quantised[0].squeeze(),  # just return the first compressed level
+            "zs": zs[0].squeeze(), # just return the first compressed level
         }
 
         return standard_results
@@ -208,15 +208,11 @@ def main(config):
     )
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
 
-    import pdb; pdb.set_trace()
+    # m_predictions = merge_dicts(predictions) # don't merge dicts
 
-    m_predictions = merge_dicts(predictions)
-
-    
-
-    save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
+    save_path = os.path.join(config.experiment.prediction_save_path, f"training_compress_level_{config.experiment.compress_level}_predictions.pkl")
     b_t = time.time()
-    auto_save_data(m_predictions, save_path)
+    auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total time: {time.time() - b_t}", "magenta")
 
 if __name__ == '__main__':
