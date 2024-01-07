@@ -6,7 +6,6 @@ CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/che
 SNAP_ID: &SNAP_ID 0
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/pkl_data/full_data_snaps/sub_full_data_${SNAP_ID}.pkl"
 
-
 hydra:
   job:
     id: ${JOB_ID}

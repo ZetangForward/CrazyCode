@@ -12,7 +12,7 @@ from modelzipper.tutils import *
 
 class VQLLaMADataset(Dataset):
     
-    def __init__(self, args, svg_file, tokenizer: PreTrainedTokenizer, numerical_token):  
+    def __init__(self, args, codebook_file, tokenizer: PreTrainedTokenizer, numerical_token):  
         self.tokenizer = tokenizer  
         self.max_seq_len = args.model_max_length
         self.numerical_token = numerical_token
