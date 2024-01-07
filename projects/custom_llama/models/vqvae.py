@@ -181,7 +181,7 @@ class VQVAE(nn.Module):
         return zs, xs_quantised
 
 
-    def sample(self, n_samples):
+    def sample(self, n_samples):  # random sample from prior
         zs = [t.randint(0, self.l_bins, size=(n_samples, *z_shape),
                         device='cuda') for z_shape in self.z_shapes]
         return self.decode(zs)

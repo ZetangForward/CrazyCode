@@ -63,7 +63,7 @@ experiment:
   version: ${JOB_ID}
   device_num: 1
   compress_level: 1
-  return_all_quantized_res: True
+  return_all_quantized_res: False
   path_interpolation: True
 
 
