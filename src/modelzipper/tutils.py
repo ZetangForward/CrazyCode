@@ -184,6 +184,20 @@ def convert_list_to_dict(lst: List[Dict], key: str):
 ###########################
 
 
+def pad_tensor(vec, pad_len, dim, pad_token_id):
+        """
+        args:
+            vec - tensor to pad
+            pad - the size to pad to
+            dim - dimension to pad
+            pad_token_id - padding token id
+        return:
+            a new tensor padded to 'pad' in dimension 'dim'
+        """
+        pad_size = list(vec.shape)
+        pad_size[dim] = pad_len - vec.size(dim)
+        return torch.cat([vec, torch.empty(*pad_size).fill_(pad_token_id)], dim=dim)
+
 
 def top_k_top_p_sampling(logits: torch.FloatTensor, top_k: int = 0, top_p: float = 1.0, temperature: float = 0.7, filter_value: float = -float("Inf"), min_tokens_to_keep: int = 1, num_samples = 1):
     next_token_scores = top_k_top_p_filtering(logits, top_k=top_k, top_p=top_p, temperature=temperature, filter_value=filter_value, min_tokens_to_keep=min_tokens_to_keep)

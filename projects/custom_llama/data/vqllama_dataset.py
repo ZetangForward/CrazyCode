@@ -10,6 +10,22 @@ from torch.utils.data import DataLoader, Dataset
 from modelzipper.tutils import *
 
 
+def pad_tensor(vec, pad_len, dim, pad_token_id):
+        """
+        args:
+            vec - tensor to pad
+            pad - the size to pad to
+            dim - dimension to pad
+            pad_token_id - padding token id
+        return:
+            a new tensor padded to 'pad' in dimension 'dim'
+        """
+        pad_size = list(vec.shape)
+        pad_size[dim] = pad - vec.size(dim)
+        return torch.cat([vec, torch.empty(*pad_size).fill_(pad_token_id)], dim=dim)
+
+
+
 class BasicDataset(Dataset):
 
     PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
@@ -70,9 +86,10 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, tokenizer, max_svg_length=1024):
-        self.tokenizer = tokenizer
+    def __init__(self, svg_pad_token_id=0, max_svg_length=1024, return_all_token_mask=False):
+        self.svg_pad_token_id = svg_pad_token_id
         self.max_svg_length = max_svg_length
+        self.return_all_token_mask = return_all_token_mask
 
     def pad_collate(self, batch):
         input_prompt_ids = list(map(lambda x: x['input_prompt_ids'], batch))
@@ -86,8 +103,23 @@ class VQDataCollator:
         labels = torch.stack(labels, dim=0)
 
         ## pad the vq svg quantised
+        svg_quantised = list(map(lambda x: pad_tensor(x, self.max_svg_length, 0, self.svg_pad_token_id), svg_quantised))
+        svg_quantised = torch.stack(svg_quantised, dim=0)
 
-        
+        ## obtain padding mask
+        # get padding mask
+        if self.return_all_token_mask:
+            svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id)
+        else:
+            svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id).all(dim=2, keepdim=True).squeeze()
+
+        return {
+            "input_prompt_ids": input_prompt_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+            "svg_quantised": svg_quantised,
+            "padding_mask": svg_padding_mask,
+        }
 
 
     def __call__(self, batch):
