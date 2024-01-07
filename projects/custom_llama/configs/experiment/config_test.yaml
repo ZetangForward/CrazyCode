@@ -17,7 +17,7 @@ dataset:
   test_data_path: ${TEST_DATA_PATH}
   max_path_nums: 512
   pad_token_id: 0
-  val_batch_size: 500
+  val_batch_size: 1
   nworkers: 16
   x_channels: 9
   num_bins: 9
@@ -25,7 +25,7 @@ dataset:
   pin_memory: False
   return_all_token_mask: False
   remove_redundant_col: False
-  cluster_batch: False
+  cluster_batch: True
 
 vqvae:
   levels: 2
