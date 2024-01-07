@@ -88,17 +88,21 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             shift_labels = shift_labels.to(shift_logits.device)
             text_loss = loss_fct(shift_logits, shift_labels)
 
-        if text_labels is not None and svg_quantised is not None:
-
-
         if svg_quantised is not None:
             svg_padding_mask = svg_padding_mask.unsqueeze(-1).expand_as(svg_quantised)
             svg_target = torch.where(svg_padding_mask, svg_quantised, torch.zeros_like(svg_quantised)).to(svg_pred.device)
             svg_pred = torch.where(svg_padding_mask, svg_pred, torch.zeros_like(svg_pred)).to(svg_pred.device)
             mask_sum = svg_padding_mask.sum()
+            # Shift so that tokens < n predict n
+            svg_pred = svg_pred[:, :-1, :]
+            svg_quantised = svg_quantised[:, 1:, :]
             svg_loss = torch.sum((svg_pred - svg_quantised) ** 2) / mask_sum
 
-        if text_loss is not None and svg_loss is not None:
+        if text_labels is not None and svg_quantised is not None:  # convert token loss is be significant!!
+            ...
+            ## TODO: add convert token loss
+
+        if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss
 
 
