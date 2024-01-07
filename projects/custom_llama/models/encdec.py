@@ -13,7 +13,8 @@ class EncoderConvBlock(nn.Module):
     def __init__(self, input_emb_width, output_emb_width, down_t, stride_t, width, depth, m_conv,dilation_growth_rate=1, dilation_cycle=None,zero_out=False, res_scale=False):
         super().__init__()
         blocks = []
-        filter_t, pad_t = stride_t * 2, stride_t // 2
+        # filter_t, pad_t = stride_t * 2, stride_t // 2
+        filter_t, pad_t = stride_t, stride_t
         if down_t > 0:
             for i in range(down_t):
                 block = nn.Sequential(
