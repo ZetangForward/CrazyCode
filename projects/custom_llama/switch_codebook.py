@@ -179,7 +179,6 @@ class ObtainSVGCode(pl.LightningModule):
         return standard_results
 
 
-
 @hydra.main(config_path='./configs/experiment', config_name='config_switch_codebook', version_base='1.1')
 def main(config):
     print_c(f"compress_level: {config.experiment.compress_level}", "magenta")

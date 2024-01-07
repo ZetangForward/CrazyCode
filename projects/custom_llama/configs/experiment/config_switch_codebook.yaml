@@ -1,4 +1,4 @@
-SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
+SAVE_DIR: &SAVE_DIR "/zecheng2/svg/icon-shop/pkl_data/inference_results"
 JOB_ID: &JOB_ID 8
 EPOCH: &EPOCH 70
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
