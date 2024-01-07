@@ -10,9 +10,7 @@ from torch.utils.data import Dataset
 from modelzipper.tutils import *
 
 
-
-
-class NumericalSVGDataset(Dataset):
+class VQLLaMADataset(Dataset):
     
     def __init__(self, args, svg_file, tokenizer: PreTrainedTokenizer, numerical_token):  
         self.tokenizer = tokenizer  

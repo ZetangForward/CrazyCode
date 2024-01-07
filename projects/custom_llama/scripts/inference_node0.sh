@@ -1,4 +1,6 @@
-LOG_OUTPUT="/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/Logs"
+LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs"
+
+mkdir -p ${LOG_OUTPUT}
 
 for i in {0..7}; do  
     device=$((i - 0))
