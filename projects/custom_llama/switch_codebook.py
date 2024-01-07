@@ -212,6 +212,7 @@ def main(config):
         return_predictions=True,
         ckpt_path=config.experiment.ckeckpoint_path
     )
+
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
 
     # m_predictions = merge_dicts(predictions) # don't merge dicts
