@@ -42,6 +42,7 @@ class EncoderConvBlock(nn.Module):
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
+        
         return self.model(x)
 
 
@@ -49,7 +50,7 @@ class ModifiedEncoderConvBlock(nn.Module):
     def __init__(self, input_emb_width, output_emb_width, down_t, stride_t, width, depth, m_conv,dilation_growth_rate=1, dilation_cycle=None,zero_out=False, res_scale=False):
         super().__init__()
         blocks = []
-        filter_t, pad_t = stride_t, stride_t // 2
+        filter_t, pad_t = stride_t, 0
         if down_t > 0:
             for i in range(down_t):
                 block = nn.Sequential(
@@ -59,7 +60,7 @@ class ModifiedEncoderConvBlock(nn.Module):
                         kernel_size = filter_t, 
                         stride = stride_t, 
                         padding = pad_t,
-                        dilation = 2,
+                        dilation = 1,
                     ),
                     Resnet1D(
                         n_in = width,  # 128 input embedding
@@ -87,8 +88,8 @@ class ModifiedDecoderConvBock(nn.Module):
         super().__init__()
         blocks = []
         if down_t > 0:
-            filter_t, pad_t = stride_t, stride_t // 2
-            block = nn.Conv1d(output_emb_width, width, 2, 1, 1, 2)
+            filter_t, pad_t = stride_t, 0
+            block = nn.Conv1d(output_emb_width, width, 3, 1, 1)
             blocks.append(block)
             for i in range(down_t):
                 block = nn.Sequential(
@@ -107,9 +108,7 @@ class ModifiedDecoderConvBock(nn.Module):
                         out_channels=input_emb_width if i == (down_t - 1) else width,
                         kernel_size=filter_t,
                         stride=stride_t,
-                        padding=pad_t,     
-                        dilation = 2,
-                        output_padding = pad_t
+                        padding=pad_t,
                     ),
                 )
                 blocks.append(block)
