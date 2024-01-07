@@ -19,15 +19,14 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vq_loss_weight=1.0, tokenizer=None, hidden_dims=None, numerical_token=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.0, tokenizer=None, numerical_token=None):  
         super(VQSVGLlama, self).__init__(config)
-        
         self.tokenizer = tokenizer
         self.numerical_token = numerical_token
         self.vq_loss_weight = vq_loss_weight
-
-        self.input_adapter = nn.Linear(config.svgcode_hidden_dims, config.hidden_dims)
-        self.output_adapter = nn.Linear(config.hidden_dims, config.svgcode_hidden_dims)
+        self.convert_token_weight = convert_token_weight
+        self.input_adapter = nn.Linear(config.svg_token_dims, config.hidden_dims)
+        self.output_adapter = nn.Linear(config.hidden_dims, config.svg_token_dims)
 
         self.post_init()
         
@@ -37,6 +36,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             self.input_adapter.requires_grad_ = True
             self.output_adapter.requires_grad_ = True
     
+
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
     
@@ -101,6 +101,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         if text_labels is not None and svg_quantised is not None:  # convert token loss is be significant!!
             ...
             ## TODO: add convert token loss
+            # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
 
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss
