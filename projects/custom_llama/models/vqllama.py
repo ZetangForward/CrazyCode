@@ -104,7 +104,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
 
         if text_loss is not None and svg_loss is not None:  
-            total_loss = text_loss + self.vq_loss_weight * svg_loss
+            total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
 
 
