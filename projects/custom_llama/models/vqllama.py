@@ -19,7 +19,7 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.0, tokenizer=None, numerical_token=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, numerical_token=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
         self.numerical_token = numerical_token
