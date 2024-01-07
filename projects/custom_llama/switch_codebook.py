@@ -216,7 +216,7 @@ def main(config):
 
     # m_predictions = merge_dicts(predictions) # don't merge dicts
 
-    save_path = os.path.join(config.experiment.prediction_save_path, f"training_compress_level_{config.experiment.compress_level}_predictions.pkl")
+    save_path = os.path.join(config.experiment.prediction_save_path, f"inference_full_data_compress_{config.experiment.compress_level}_snaps_{snap_id}.pkl")
     b_t = time.time()
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total time: {time.time() - b_t}", "magenta")
