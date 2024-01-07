@@ -79,6 +79,7 @@ class ModifiedEncoderConvBlock(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class ModifiedDecoderConvBock(nn.Module):
     def __init__(
         self, input_emb_width, output_emb_width, down_t, stride_t, width, depth, m_conv, dilation_growth_rate=1, dilation_cycle=None, zero_out=False, res_scale=False, reverse_decoder_dilation=False
@@ -87,7 +88,7 @@ class ModifiedDecoderConvBock(nn.Module):
         blocks = []
         if down_t > 0:
             filter_t, pad_t = stride_t, stride_t // 2
-            block = nn.Conv1d(width, output_emb_width, 2, 1, 1, 2)
+            block = nn.Conv1d(output_emb_width, width, 2, 1, 1, 2)
             blocks.append(block)
             for i in range(down_t):
                 block = nn.Sequential(
@@ -114,6 +115,7 @@ class ModifiedDecoderConvBock(nn.Module):
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
+        import pdb; pdb.set_trace()
         return self.model(x)
 
 
