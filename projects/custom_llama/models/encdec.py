@@ -17,18 +17,20 @@ class EncoderConvBlock(nn.Module):
         filter_t, pad_t = stride_t, stride_t
         if down_t > 0:
             for i in range(down_t):
+                import pdb; pdb.set_trace()
                 block = nn.Sequential(
                     nn.Conv1d(
                         in_channels= input_emb_width if i == 0 else width,
                         out_channels = width, 
                         kernel_size = filter_t, 
                         stride = stride_t, 
-                        padding = pad_t
+                        padding = pad_t,
+                        dilation = dilation_growth_rate,
                     ),
                     Resnet1D(
-                        n_in = width,  # 128 
-                        n_depth = depth,  # 3
-                        m_conv = m_conv,  # 1.0
+                        n_in = width,  # 128 input embedding
+                        n_depth = depth,  # 3 depth of resnet
+                        m_conv = m_conv,  # 1.0  kernel size multiplier
                         dilation_growth_rate = dilation_growth_rate,
                         dilation_cycle = dilation_cycle,
                         zero_out = zero_out,
