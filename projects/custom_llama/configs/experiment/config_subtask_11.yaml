@@ -14,7 +14,7 @@ dataset:
   max_path_nums: 512
   min_path_nums: 4
   pad_token_id: 0
-  train_batch_size: 64
+  train_batch_size: 88
   val_batch_size: 32
   nworkers: 16
   pin_memory: False
