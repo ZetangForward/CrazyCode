@@ -545,7 +545,6 @@ class ControlNetModel(nn.Module):
 
 ######## Huggingface diffuser code ########
 
-
 from diffusers.models.embeddings import (
     TimestepEmbedding, 
     Timesteps, 
@@ -553,7 +552,6 @@ from diffusers.models.embeddings import (
     TextTimeEmbedding,
     TextImageTimeEmbedding,
 )
-
 from diffusers.models.unet_2d_blocks import CrossAttnDownBlock2D, DownBlock2D, UNetMidBlock2D, UNetMidBlock2DCrossAttn, get_down_block
 from diffusers.models.unet_2d_condition import UNet2DConditionModel
 from diffusers.models.attention_processor import (
@@ -1253,3 +1251,8 @@ class HFControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
         return dict(
             down_block_res_samples=down_block_res_samples, mid_block_res_sample=mid_block_res_sample
         )
+
+
+if __name__ == "___main__":
+    url = "https://huggingface.co/lllyasviel/ControlNet-v1-1/blob/main/control_v11p_sd15_canny.pth"  # can also be a local path
+    controlnet = ControlNetModel.from_single_file(url)
