@@ -74,9 +74,9 @@ class BasicDataset(Dataset):
             text_labels = text_labels[:-1]
 
         return {
-            "input_prompt_ids": text_input_ids,
-            "attention_mask": text_attention_mask,
-            "labels": text_labels,
+            "text_input_ids": text_input_ids,
+            "text_attention_mask": text_attention_mask,
+            "text_labels": text_labels,
             "svg_quantised": svg_quantised,
         }
 
@@ -92,40 +92,36 @@ class VQDataCollator:
         self.return_all_token_mask = return_all_token_mask
 
     def pad_collate(self, batch):
-        input_prompt_ids = list(map(lambda x: x['input_prompt_ids'], batch))
-        attention_mask = list(map(lambda x: x['attention_mask'], batch))
-        labels = list(map(lambda x: x['labels'], batch))
+        text_input_ids = list(map(lambda x: x['text_input_ids'], batch))
+        text_attention_mask = list(map(lambda x: x['text_attention_mask'], batch))
+        text_labels = list(map(lambda x: x['text_labels'], batch))
         svg_quantised = list(map(lambda x: x['svg_quantised'], batch))
 
         ## combine the text inputs
-        input_prompt_ids = torch.stack(input_prompt_ids, dim=0)
-        attention_mask = torch.stack(attention_mask, dim=0)
-        labels = torch.stack(labels, dim=0)
+        text_input_ids = torch.stack(text_input_ids, dim=0)
+        text_attention_mask = torch.stack(text_attention_mask, dim=0)
+        text_labels = torch.stack(text_labels, dim=0)
 
         ## pad the vq svg quantised
         svg_quantised = list(map(lambda x: pad_tensor(x, self.max_svg_length, 0, self.svg_pad_token_id), svg_quantised))
         svg_quantised = torch.stack(svg_quantised, dim=0)
 
-        ## obtain padding mask
-        # get padding mask
+        ## obtain svg padding mask
         if self.return_all_token_mask:
             svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id)
         else:
             svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id).all(dim=2, keepdim=True).squeeze()
 
         return {
-            "input_prompt_ids": input_prompt_ids,
-            "attention_mask": attention_mask,
-            "labels": labels,
+            "text_input_ids": text_input_ids,
+            "text_attention_mask": text_attention_mask,
+            "text_labels": text_labels,
             "svg_quantised": svg_quantised,
-            "padding_mask": svg_padding_mask,
+            "svg_padding_mask": svg_padding_mask,
         }
-
 
     def __call__(self, batch):
         return self.pad_collate(batch)
-
-
 
     
 
@@ -150,90 +146,3 @@ class VQLLaMAData:
 
     def predict_dataloader(self) -> DataLoader:
         pass
-
-    
-    
-    def extract_numerical(self, path_data, numerical_token):  
-        ## match all numericals 
-        number_pattern = r"-?\d+\.?\d*"  
-        numbers = re.findall(number_pattern, path_data)  
-        numbers = [float(item) for item in numbers]
-        ## replace all matched numericals with numerical_token ("[NUM]")  
-        replaced_data = re.sub(number_pattern, numerical_token, path_data) 
-        replaced_data = re.sub(' +', ' ', replaced_data) 
-        return numbers, replaced_data 
-    
-    def extract_c_segments(self, path_data):  
-        ## find all the control path in svg paths
-        c_pattern = r"c[^A-Za-z]*?(?=[A-Za-z])"  
-        c_segments = re.findall(c_pattern, path_data)  
-        if len(c_segments) == 1:  # only one control path, usually complex
-            return [self.extract_consecutive_numbers(c_segments[0], 0.5)]
-        return c_segments 
-    
-    def __getitem__(self, index):
-        data = self.content[index]
-        # svg_path = data["compress_path"].split("#Begin:")[-1].strip()
-        svg_path_with_prompt = data["compress_path"]
-        
-        ## Step 1: extract numericals from svg paths 
-        ## and replace the numericals with numerical_token
-        extracted_numericals, replaced_paths = self.extract_numerical(
-            svg_path_with_prompt, self.numerical_token)
-        
-        ## Step 2: encode the replaced svg paths
-        if self.numerical_mode:
-            seq_inputs = self.tokenizer(
-                replaced_paths, 
-                padding="max_length", 
-                truncation=True, 
-                max_length=self.max_seq_len,
-                return_tensors="pt",
-            )
-            text_input_ids = seq_inputs.input_ids[0]
-            text_attention_mask = seq_inputs.attention_mask[0]
-            text_labels = torch.where(
-                text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
-            )
-        
-        return {
-            "input_ids": text_input_ids,
-            "attention_mask": text_attention_mask,
-            "labels": text_labels,
-            "numerical_values": extracted_numericals,
-        }
-        
-    @classmethod
-    def custom_datacollator(cls, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-        """Collate examples for supervised fine-tuning."""
-        
-        batch_input_ids, batch_attn_mask, batch_label = [], [], []
-        batch_numerical_input_ids = []
-        max_numerical_nums = max([len(item["numerical_values"]) for item in instances])
-        
-        for ins in instances:
-            batch_input_ids.append(ins["input_ids"])
-            batch_attn_mask.append(ins["attention_mask"])
-            batch_label.append(ins["labels"])
-            
-            ## process numerical values
-            ### Step 1: convert to float tensor
-            numerical_values = torch.FloatTensor(ins["numerical_values"])
-            ### Step 2: pad to the same length
-            numerical_values = torch.cat(  
-                [numerical_values, torch.full((max_numerical_nums - len(numerical_values),), 300)]  
-            )  
-
-            batch_numerical_input_ids.append(numerical_values)
-            
-        batch_input_ids = torch.stack(batch_input_ids, dim=0)
-        batch_attn_mask = torch.stack(batch_attn_mask, dim=0)
-        batch_label = torch.stack(batch_label, dim=0)
-        batch_numerical_input_ids = torch.stack(batch_numerical_input_ids, dim=0)
-        
-        return {
-            "batch_input_ids": batch_input_ids,
-            "batch_numerical_input_ids": batch_numerical_input_ids,
-            "batch_attention_mask": batch_attn_mask,
-            "batch_labels": batch_label,
-        }

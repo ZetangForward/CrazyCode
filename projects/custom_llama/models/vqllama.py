@@ -244,9 +244,9 @@ class VanillaVAE(nn.Module):
         return self.forward(x)[0]
     
     
-class SvgLlama(LlamaForCausalLM, GenerationMixin):  
+class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
     def __init__(self, config, vae_loss_weight=1.0, tokenizer=None, hidden_dims=None, numerical_token=None):  
-        super(SvgLlama, self).__init__(config)
+        super(VQSVGLlama, self).__init__(config)
         
         self.vae = VanillaVAE(
             in_channels=4,  # 4 as default 

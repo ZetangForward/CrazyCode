@@ -1,15 +1,12 @@
-import sys
-sys.path.append("/workspace/zecheng/layout-generation/custom_llama_x")
-import copy
 import random
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Sequence
 import os
-from hybird_llama import SvgLlama, SvgTokenizer, SvghybirdDataset
-import torch
-import torch.distributed
 import transformers
+from dataclasses import dataclass, field
 from transformers import Trainer
+from modelzipper.tutils import *
+from models.vqllama import VQSVGLlama
+from data.vqllama_dataset import VQDataCollator, VQLLaMAData
+
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -49,49 +46,6 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         del state_dict
         trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
 
-
-@dataclass
-class DataCollatorForSupervisedDataset(object):
-    """Collate examples for supervised fine-tuning."""
-
-    tokenizer: transformers.PreTrainedTokenizer
-
-    def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-        
-        batch_text_input_ids, batch_text_attn_mask, batch_text_label = [], [], []
-        batch_svg_input_ids, batch_svg_attn_mask, batch_svg_label = [], [], []
-        
-        for ins in instances:
-            batch_text_input_ids.append(ins["input_ids"]["text_inputs"])
-            batch_svg_input_ids.append(ins["input_ids"]["svg_inputs"])
-            batch_text_attn_mask.append(ins["attention_mask"]["text_attention_mask"])
-            batch_svg_attn_mask.append(ins["attention_mask"]["svg_path_attention_mask"])
-            batch_text_label.append(ins["labels"]["text_labels"])
-            batch_svg_label.append(ins["labels"]["svg_labels"])
-            
-        batch_text_input_ids = torch.stack(batch_text_input_ids, dim=0)
-        batch_svg_input_ids = torch.stack(batch_svg_input_ids, dim=0)
-        batch_text_attn_mask = torch.stack(batch_text_attn_mask, dim=0)
-        batch_svg_attn_mask = torch.stack(batch_svg_attn_mask, dim=0)
-        batch_text_label = torch.stack(batch_text_label, dim=0)
-        batch_svg_label = torch.stack(batch_svg_label, dim=0)
-
-        sample = {
-            "batch_input_ids": {
-                "batch_text_input_ids": batch_text_input_ids,
-                "batch_svg_input_ids": batch_svg_input_ids,
-            },
-            "batch_attention_mask": {
-                "batch_text_attn_mask": batch_text_attn_mask,
-                "batch_svg_attn_mask": batch_svg_attn_mask,
-            },
-            "batch_labels": {
-                "batch_text_label": batch_text_label,
-                "batch_svg_label": batch_svg_label,
-            }
-        }
-        
-        return sample
         
 
 class CustomTrainier(Trainer):
@@ -107,14 +61,12 @@ class CustomTrainier(Trainer):
         self.svg_tokenizer = svg_tokenizer
         
     def compute_loss(self, model, inputs, return_outputs=False):
-        input_ids = inputs.get("batch_input_ids")
-        batch_attention_mask = inputs.get("batch_attention_mask")
-        batch_labels = inputs.get("batch_labels")
-        
         outputs = model(
-            input_ids=input_ids,
-            attention_masks=batch_attention_mask,
-            labels=batch_labels,
+            text_input_ids=inputs['text_input_ids'],
+            text_attention_mask=inputs['text_attention_mask'],
+            text_labels=inputs['text_labels'],
+            svg_quantised=inputs['svg_quantised'],
+            padding_mask=inputs['svg_padding_mask'],
         )
 
         loss = outputs.loss
