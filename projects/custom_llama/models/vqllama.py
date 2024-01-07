@@ -49,30 +49,18 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             svg_quantised: B x L x D,
             svg_padding_mask: B x L 
         """
-        
+
+        text_width, svg_width = input_embeddings.size(1), svg_quantised.size(1)
+
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
         
         svg_token_embeddings = self.input_adapter(svg_quantised) # Encode svg tokens
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
-        
-        # FIXME: check the dtype of two tensors 
-        attention_mask = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
 
-        
-        #### Step 3.3: Replace all the numerical positions in text embeddings 
-        #### with numerical embeddings 
-        for i in range(batch_size):
-            numerical_index = 0
-            for j in range(seq_len):
-                if text_inputs[i, j] == self.numerical_token_id:
-                    input_embeddings[i, j, :] = zs[i][numerical_index, :]
-                    numerical_index += 1
-                if text_inputs[i, j] == self.tokenizer.eos_token_id:
-                    assert zs[i].size(0) == numerical_index, "Numerical index not match"
-                    break
-                
-        ### Step 4: pass the text embeddings to the base model        
+        # FIXME: check the dtype of two tensors 
+        attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
+                 
         outputs = self.model(
             input_ids=None, 
             attention_mask=attention_masks,
@@ -80,6 +68,41 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             **kwargs
         )
         hidden_states = outputs[0]
+
+        
+        text_logits = self.lm_head(hidden_states[:, :text_width, :]).float() # text modality
+        svg_pred = self.output_adapter(hidden_states[:, text_width:, :]).float() # svg modality
+
+        total_loss, text_loss, svg_loss = None, None, None
+
+        if text_labels is not None:
+            # Shift so that tokens < n predict n
+            shift_logits = text_logits[..., :-1, :].contiguous()
+            shift_labels = text_labels[..., 1:].contiguous()
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
+            shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            shift_labels = shift_labels.view(-1)
+            # Enable model parallelism
+            shift_labels = shift_labels.to(shift_logits.device)
+            text_loss = loss_fct(shift_logits, shift_labels)
+
+        if svg_quantised is not None:
+            svg_padding_mask = svg_padding_mask.unsqueeze(-1).expand_as(svg_quantised)
+            svg_target = torch.where(svg_padding_mask, svg_quantised, torch.zeros_like(svg_quantised)).to(svg_pred.device)
+            svg_pred = torch.where(svg_padding_mask, svg_pred, torch.zeros_like(svg_pred)).to(svg_pred.device)
+            mask_sum = svg_padding_mask.sum()
+            svg_loss = torch.sum((svg_pred - svg_quantised) ** 2) / mask_sum
+
+        if 
+
+
+
+
+
+
+
+
 
         ## Decode numerical information
         ### Step 1: extract all the numerical embeddings
@@ -105,23 +128,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             assert golden_numerical.size() == decode_result.size(), "Numerical input size not match"
             recon_loss += F.mse_loss(decode_result, golden_numerical, reduction="mean") / batch_size
         
-        ## Decode textual information
-        ### Step 1: extract all the textual embeddings
-        text_logits = self.lm_head(hidden_states).float()
-
-        ### Step 2: calculate the LM Loss
-        loss = None
-        if labels is not None:
-            # Shift so that tokens < n predict n
-            shift_logits = text_logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            shift_logits = shift_logits.view(-1, self.config.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            # Enable model parallelism
-            shift_labels = shift_labels.to(shift_logits.device)
-            loss = loss_fct(shift_logits, shift_labels)
+        
         
         total_loss = loss + self.vae_loss_weight * (kl_loss + recon_loss)
         # import pdb; pdb.set_trace()
