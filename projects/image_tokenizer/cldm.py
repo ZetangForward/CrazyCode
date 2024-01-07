@@ -542,6 +542,31 @@ class ControlNetModel(nn.Module):
         return outs
 
 
+
+######## Huggingface diffuser code ########
+
+
+from diffusers.models.embeddings import (
+    TimestepEmbedding, 
+    Timesteps, 
+    TextImageProjection,
+    TextTimeEmbedding,
+    TextImageTimeEmbedding,
+)
+
+from diffusers.models.unet_2d_blocks import CrossAttnDownBlock2D, DownBlock2D, UNetMidBlock2D, UNetMidBlock2DCrossAttn, get_down_block
+from diffusers.models.unet_2d_condition import UNet2DConditionModel
+from diffusers.models.attention_processor import (
+    ADDED_KV_ATTENTION_PROCESSORS,
+    CROSS_ATTENTION_PROCESSORS,
+    AttentionProcessor,
+    AttnAddedKVProcessor,
+    AttnProcessor,
+)
+from diffusers.configuration_utils import ConfigMixin, register_to_config
+from diffusers.models.modeling_utils import ModelMixin
+from diffusers.loaders import FromOriginalControlnetMixin
+
 class HFControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
 
     def __init__(
@@ -633,7 +658,7 @@ class HFControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
         if encoder_hid_dim_type is None and encoder_hid_dim is not None:
             encoder_hid_dim_type = "text_proj"
             self.register_to_config(encoder_hid_dim_type=encoder_hid_dim_type)
-            logger.info("encoder_hid_dim_type defaults to 'text_proj' as `encoder_hid_dim` is defined.")
+
 
         if encoder_hid_dim is None and encoder_hid_dim_type is not None:
             raise ValueError(
@@ -804,31 +829,229 @@ class HFControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
             )
         else:
             raise ValueError(f"unknown mid_block_type : {mid_block_type}")
-
+    
+    
     @classmethod
     def from_unet(
+        cls,
+        unet: UNet2DConditionModel,
+        controlnet_conditioning_channel_order: str = "rgb",
+        conditioning_embedding_out_channels: Optional[Tuple[int, ...]] = (16, 32, 96, 256),
+        load_weights_from_unet: bool = True,
+        conditioning_channels: int = 3,
+    ):
+        r"""
+        Instantiate a [`ControlNetModel`] from [`UNet2DConditionModel`].
+
+        Parameters:
+            unet (`UNet2DConditionModel`):
+                The UNet model weights to copy to the [`ControlNetModel`]. All configuration options are also copied
+                where applicable.
+        """
+        transformer_layers_per_block = (
+            unet.config.transformer_layers_per_block if "transformer_layers_per_block" in unet.config else 1
+        )
+        encoder_hid_dim = unet.config.encoder_hid_dim if "encoder_hid_dim" in unet.config else None
+        encoder_hid_dim_type = unet.config.encoder_hid_dim_type if "encoder_hid_dim_type" in unet.config else None
+        addition_embed_type = unet.config.addition_embed_type if "addition_embed_type" in unet.config else None
+        addition_time_embed_dim = (
+            unet.config.addition_time_embed_dim if "addition_time_embed_dim" in unet.config else None
+        )
+
+        controlnet = cls(
+            encoder_hid_dim=encoder_hid_dim,
+            encoder_hid_dim_type=encoder_hid_dim_type,
+            addition_embed_type=addition_embed_type,
+            addition_time_embed_dim=addition_time_embed_dim,
+            transformer_layers_per_block=transformer_layers_per_block,
+            in_channels=unet.config.in_channels,
+            flip_sin_to_cos=unet.config.flip_sin_to_cos,
+            freq_shift=unet.config.freq_shift,
+            down_block_types=unet.config.down_block_types,
+            only_cross_attention=unet.config.only_cross_attention,
+            block_out_channels=unet.config.block_out_channels,
+            layers_per_block=unet.config.layers_per_block,
+            downsample_padding=unet.config.downsample_padding,
+            mid_block_scale_factor=unet.config.mid_block_scale_factor,
+            act_fn=unet.config.act_fn,
+            norm_num_groups=unet.config.norm_num_groups,
+            norm_eps=unet.config.norm_eps,
+            cross_attention_dim=unet.config.cross_attention_dim,
+            attention_head_dim=unet.config.attention_head_dim,
+            num_attention_heads=unet.config.num_attention_heads,
+            use_linear_projection=unet.config.use_linear_projection,
+            class_embed_type=unet.config.class_embed_type,
+            num_class_embeds=unet.config.num_class_embeds,
+            upcast_attention=unet.config.upcast_attention,
+            resnet_time_scale_shift=unet.config.resnet_time_scale_shift,
+            projection_class_embeddings_input_dim=unet.config.projection_class_embeddings_input_dim,
+            mid_block_type=unet.config.mid_block_type,
+            controlnet_conditioning_channel_order=controlnet_conditioning_channel_order,
+            conditioning_embedding_out_channels=conditioning_embedding_out_channels,
+            conditioning_channels=conditioning_channels,
+        )
+
+        if load_weights_from_unet:
+            controlnet.conv_in.load_state_dict(unet.conv_in.state_dict())
+            controlnet.time_proj.load_state_dict(unet.time_proj.state_dict())
+            controlnet.time_embedding.load_state_dict(unet.time_embedding.state_dict())
+
+            if controlnet.class_embedding:
+                controlnet.class_embedding.load_state_dict(unet.class_embedding.state_dict())
+
+            controlnet.down_blocks.load_state_dict(unet.down_blocks.state_dict())
+            controlnet.mid_block.load_state_dict(unet.mid_block.state_dict())
+
         return controlnet
 
     @property
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.attn_processors
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
+        r"""
+        Returns:
+            `dict` of attention processors: A dictionary containing all attention processors used in the model with
+            indexed by its weight name.
+        """
+        # set recursively
+        processors = {}
+
+        def fn_recursive_add_processors(name: str, module: torch.nn.Module, processors: Dict[str, AttentionProcessor]):
+            if hasattr(module, "get_processor"):
+                processors[f"{name}.processor"] = module.get_processor(return_deprecated_lora=True)
+
+            for sub_name, child in module.named_children():
+                fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
+
+            return processors
+
+        for name, module in self.named_children():
+            fn_recursive_add_processors(name, module, processors)
+
         return processors
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.set_attn_processor
     def set_attn_processor(
+        self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]], _remove_lora=False
+    ):
+        r"""
+        Sets the attention processor to use to compute attention.
+
+        Parameters:
+            processor (`dict` of `AttentionProcessor` or only `AttentionProcessor`):
+                The instantiated processor class or a dictionary of processor classes that will be set as the processor
+                for **all** `Attention` layers.
+
+                If `processor` is a dict, the key needs to define the path to the corresponding cross attention
+                processor. This is strongly recommended when setting trainable attention processors.
+
+        """
+        count = len(self.attn_processors.keys())
+
+        if isinstance(processor, dict) and len(processor) != count:
+            raise ValueError(
+                f"A dict of processors was passed, but the number of processors {len(processor)} does not match the"
+                f" number of attention layers: {count}. Please make sure to pass {count} processor classes."
+            )
+
+        def fn_recursive_attn_processor(name: str, module: torch.nn.Module, processor):
+            if hasattr(module, "set_processor"):
+                if not isinstance(processor, dict):
+                    module.set_processor(processor, _remove_lora=_remove_lora)
+                else:
+                    module.set_processor(processor.pop(f"{name}.processor"), _remove_lora=_remove_lora)
+
+            for sub_name, child in module.named_children():
+                fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
+
+        for name, module in self.named_children():
             fn_recursive_attn_processor(name, module, processor)
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
     def set_default_attn_processor(self):
+        """
+        Disables custom attention processors and sets the default attention implementation.
+        """
+        if all(proc.__class__ in ADDED_KV_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+            processor = AttnAddedKVProcessor()
+        elif all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+            processor = AttnProcessor()
+        else:
+            raise ValueError(
+                f"Cannot call `set_default_attn_processor` when attention processors are of type {next(iter(self.attn_processors.values()))}"
+            )
+
         self.set_attn_processor(processor, _remove_lora=True)
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.set_attention_slice
     def set_attention_slice(self, slice_size: Union[str, int, List[int]]) -> None:
+        r"""
+        Enable sliced attention computation.
+
+        When this option is enabled, the attention module splits the input tensor in slices to compute attention in
+        several steps. This is useful for saving some memory in exchange for a small decrease in speed.
+
+        Args:
+            slice_size (`str` or `int` or `list(int)`, *optional*, defaults to `"auto"`):
+                When `"auto"`, input to the attention heads is halved, so attention is computed in two steps. If
+                `"max"`, maximum amount of memory is saved by running only one slice at a time. If a number is
+                provided, uses as many slices as `attention_head_dim // slice_size`. In this case, `attention_head_dim`
+                must be a multiple of `slice_size`.
+        """
+        sliceable_head_dims = []
+
+        def fn_recursive_retrieve_sliceable_dims(module: torch.nn.Module):
+            if hasattr(module, "set_attention_slice"):
+                sliceable_head_dims.append(module.sliceable_head_dim)
+
+            for child in module.children():
+                fn_recursive_retrieve_sliceable_dims(child)
+
+        # retrieve number of attention layers
+        for module in self.children():
+            fn_recursive_retrieve_sliceable_dims(module)
+
+        num_sliceable_layers = len(sliceable_head_dims)
+
+        if slice_size == "auto":
+            # half the attention head size is usually a good trade-off between
+            # speed and memory
+            slice_size = [dim // 2 for dim in sliceable_head_dims]
+        elif slice_size == "max":
+            # make smallest slice possible
+            slice_size = num_sliceable_layers * [1]
+
+        slice_size = num_sliceable_layers * [slice_size] if not isinstance(slice_size, list) else slice_size
+
+        if len(slice_size) != len(sliceable_head_dims):
+            raise ValueError(
+                f"You have provided {len(slice_size)}, but {self.config} has {len(sliceable_head_dims)} different"
+                f" attention layers. Make sure to match `len(slice_size)` to be {len(sliceable_head_dims)}."
+            )
+
+        for i in range(len(slice_size)):
+            size = slice_size[i]
+            dim = sliceable_head_dims[i]
+            if size is not None and size > dim:
+                raise ValueError(f"size {size} has to be smaller or equal to {dim}.")
+
+        # Recursively walk through all the children.
+        # Any children which exposes the set_attention_slice method
+        # gets the message
+        def fn_recursive_set_attention_slice(module: torch.nn.Module, slice_size: List[int]):
+            if hasattr(module, "set_attention_slice"):
+                module.set_attention_slice(slice_size.pop())
+
+            for child in module.children():
+                fn_recursive_set_attention_slice(child, slice_size)
+
+        reversed_slice_size = list(reversed(slice_size))
+        for module in self.children():
             fn_recursive_set_attention_slice(module, reversed_slice_size)
 
     def _set_gradient_checkpointing(self, module, value: bool = False) -> None:
         if isinstance(module, (CrossAttnDownBlock2D, DownBlock2D)):
             module.gradient_checkpointing = value
+
 
     def forward(
         self,
@@ -844,7 +1067,7 @@ class HFControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         guess_mode: bool = False,
         return_dict: bool = True,
-    ) -> Union[ControlNetOutput, Tuple[Tuple[torch.FloatTensor, ...], torch.FloatTensor]]:
+    ):
         """
         The [`ControlNetModel`] forward method.
 
@@ -1027,12 +1250,6 @@ class HFControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
         if not return_dict:
             return (down_block_res_samples, mid_block_res_sample)
 
-        return ControlNetOutput(
+        return dict(
             down_block_res_samples=down_block_res_samples, mid_block_res_sample=mid_block_res_sample
         )
-
-
-def zero_module(module):
-    for p in module.parameters():
-        nn.init.zeros_(p)
-    return module
