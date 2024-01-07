@@ -35,7 +35,7 @@ vqvae:
   l_mu: 0.99
   spectral: 0.0
   multispectral: 1.0
-  hvqvae_multipliers: [2, 2, 2]
+  hvqvae_multipliers: [2, 1, 1]
   loss_fn: 'l2'
   use_nonrelative_specloss: True
   use_bottleneck: True
