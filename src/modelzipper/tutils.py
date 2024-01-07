@@ -26,7 +26,7 @@ import torch.nn as nn
 import matplotlib.pyplot as plt  
 from tqdm import tqdm
 from termcolor import colored  
-from typing import List, Dict, Optional, Any, Union
+from typing import Any, Mapping, Tuple, List, Optional, Dict, Sequence, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList, Trainer 
 
 
@@ -156,6 +156,32 @@ def auto_mkdir(dir_path):
         os.makedirs(dir_path)
         print_c(f"{dir_path} not exist! --> Create dir {dir_path}")
     return dir_path
+
+
+def auto_read_dir(dir_path):
+    """
+    automatically read all files from a directory
+    
+    return a list contains all file names
+    """
+    file_names = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
+    print_c(f"number of files: {len(file_names)}")
+    return file_names
+
+
+def convert_list_to_dict(lst: List[Dict], key: str):
+    """
+    Convert a list of dictionaries to a dictionary of dictionaries.
+    """
+    res = {}
+    for item in lst:
+        res[item[key]] = item
+    return res
+
+
+###########################
+###### model  utils #######
+###########################
 
 
 
@@ -351,22 +377,3 @@ def filter_jsonl_lst(lst: List[Dict], kws: List[str]=None):
     return res
 
 
-def auto_read_dir(dir_path):
-    """
-    automatically read all files from a directory
-    
-    return a list contains all file names
-    """
-    file_names = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
-    print_c(f"number of files: {len(file_names)}")
-    return file_names
-
-
-def convert_list_to_dict(lst: List[Dict], key: str):
-    """
-    Convert a list of dictionaries to a dictionary of dictionaries.
-    """
-    res = {}
-    for item in lst:
-        res[item[key]] = item
-    return res

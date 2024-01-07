@@ -3,850 +3,259 @@
 import sys
 import json
 import re 
-import transformers
 import random
 import torch  
 import torch.nn as nn 
-from beartype import beartype
-from beartype.typing import Union, Tuple, Callable, Optional, List, Dict, Any
 from tqdm import tqdm  
 import torch.nn.functional as F
-from typing import Any, Mapping, Tuple, List
+
 from transformers import PreTrainedTokenizer, LlamaConfig, LlamaForCausalLM  
 from torch import Tensor 
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import Dataset
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
-from typing import Optional, Dict, Sequence
-from vector_quantize_pytorch import ResidualVQ
-from einops import rearrange, repeat, reduce, pack, unpack
-from einops.layers.torch import Rearrange
-from torch_geometric.nn.conv import SAGEConv
-from torchtyping import TensorType
-from x_transformers.x_transformers import RMSNorm, FeedForward, LayerIntermediates
-from local_attention import LocalMHA
-from vector_quantize_pytorch import ResidualVQ, ResidualLFQ
-from torch.cuda.amp import autocast
-
-
-def exists(v):
-    return v is not None
-
-def default(v, d):
-    return v if exists(v) else d
-
-
-def pad_at_dim(t, padding, dim = -1, value = 0):
-    ndim = t.ndim
-    right_dims = (ndim - dim - 1) if dim >= 0 else (-dim - 1)
-    zeros = (0, 0) * right_dims
-    return F.pad(t, (*zeros, *padding), value = value)
-
-def pad_to_length(t, length, dim = -1, value = 0, right = True):
-    curr_length = t.shape[dim]
-    remainder = length - curr_length
-
-    if remainder <= 0:
-        return t
-
-    padding = (0, remainder) if right else (remainder, 0)
-    return pad_at_dim(t, padding, dim = dim, value = value)
-
-def scatter_mean(
-    tgt: Tensor,
-    indices: Tensor,
-    src = Tensor,
-    *,
-    dim: int = -1,
-    eps: float = 1e-5
-):
-    """
-    todo: update to pytorch 2.1 and try https://pytorch.org/docs/stable/generated/torch.Tensor.scatter_reduce_.html#torch.Tensor.scatter_reduce_
-    """
-    num = tgt.scatter_add(dim, indices, src)
-    den = torch.zeros_like(tgt).scatter_add(dim, indices, torch.ones_like(src))
-    return num / den.clamp(min = eps)
-
-
-def top_p(scores, p, temperature):
-    scores = scores / temperature
-    sorted_logits, sorted_indices = torch.sort(scores, descending=False)
-    cumulative_probs = sorted_logits.softmax(dim=-1).cumsum(dim=-1)
-    # pdb.set_trace()
-    # Remove tokens with cumulative top_p above the threshold (token with 0 are kept)
-    sorted_indices_to_remove = cumulative_probs <= (1 - p)
-    # Keep at least min_tokens_to_keep
-    sorted_indices_to_remove[..., -1 :] = 0
-
-    # scatter sorted tensors to original indexing
-    indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
-    scores = scores.masked_fill(indices_to_remove, -float("Inf"))
-    return scores
-
-
-# tensor helper functions
-
-@beartype
-def discretize(
-    t: Tensor,
-    *,
-    continuous_range: Tuple[float, float],
-    num_discrete: int = 128
-) -> Tensor:
-    lo, hi = continuous_range
-    assert hi > lo
-
-    t = (t - lo) / (hi - lo)
-    t *= num_discrete
-    t -= 0.5
-
-    return t.round().long().clamp(min = 0, max = num_discrete - 1)
-
-@beartype
-def undiscretize(
-    t: Tensor,
-    *,
-    continuous_range = Tuple[float, float],
-    num_discrete: int = 128
-) -> Tensor:
-    lo, hi = continuous_range
-    assert hi > lo
-
-    t = t.float()
-
-    t += 0.5
-    t /= num_discrete
-    return t * (hi - lo) + lo
-
-
-def extract_edge_ids_from_svg(svg_path, num_sub_command = 3, pad_id=-1):
-    device = svg_path.device
-    edge_id_pairs, batch_edge_id_pairs = [], []
-    current_command_id = 0
-    if len(svg_path) < num_sub_command * 2:
-        return edge_id_pairs
-    for batch_data in svg_path:
-        for i in range(0, len(batch_data)):
-            if batch_data[i][0] != -1:
-                if i + num_sub_command < len(batch_data):
-                    if batch_data[i + num_sub_command][0] != -1:
-                        edge_id_pairs.append((current_command_id, current_command_id + 1))
-                        current_command_id += 1
-            else:
-                batch_edge_id_pairs.append(edge_id_pairs)
-                break
-
-    ## add padding to edge_id_pairs
-    max_len = max([len(item) for item in batch_edge_id_pairs])
-    for item in batch_edge_id_pairs:
-        item.extend([(pad_id, pad_id)] * (max_len - len(item)))
-
-    return torch.tensor(batch_edge_id_pairs, dtype=torch.long, device=device)
-
-
-class SqueezeExcite(nn.Module):
-    def __init__(
-        self,
-        dim,
-        reduction_factor = 4,
-        min_dim = 16
-    ):
-        super().__init__()
-        dim_inner = max(dim // reduction_factor, min_dim)
-
-        self.net = nn.Sequential(
-            nn.Linear(dim, dim_inner),
-            nn.SiLU(),
-            nn.Linear(dim_inner, dim),
-            nn.Sigmoid(),
-            Rearrange('b c -> b c 1')
-        )
-
-    def forward(self, x, mask = None):
-        if exists(mask):
-            x = x.masked_fill(~mask, 0.)
-
-            num = reduce(x, 'b c n -> b c', 'sum')
-            den = reduce(mask.float(), 'b 1 n -> b 1', 'sum')
-            avg = num / den.clamp(min = 1e-5)
-        else:
-            avg = reduce(x, 'b c n -> b c', 'mean')
-
-        return x * self.net(avg)
-
-
-class Block(nn.Module):
-    def __init__(
-        self,
-        dim,
-        groups = 8,
-        dropout = 0.
-    ):
-        super().__init__()
-        self.proj = nn.Conv1d(dim, dim, 3, padding = 1)
-        self.norm = nn.GroupNorm(groups, dim)
-        self.dropout = nn.Dropout(dropout)
-        self.act = nn.SiLU()
-
-    def forward(self, x, mask = None):
-        if exists(mask):
-            x = x.masked_fill(~mask, 0.)
-
-        x = self.proj(x)
-
-        if exists(mask):
-            x = x.masked_fill(~mask, 0.)
-
-        x = self.norm(x)
-        x = self.act(x)
-        x = self.dropout(x)
-
-        return x
-
-
-class ResnetBlock(nn.Module):
-    def __init__(
-        self,
-        dim,
-        *,
-        groups = 8,
-        dropout = 0.
-    ):
-        super().__init__()
-        self.block1 = Block(dim, groups = groups, dropout = dropout)
-        self.block2 = Block(dim, groups = groups, dropout = dropout)
-        self.excite = SqueezeExcite(dim)
-    def forward(
-        self,
-        x,
-        mask = None
-    ):
-        h = self.block1(x, mask = mask)
-        h = self.block2(h, mask = mask)
-        h = self.excite(h, mask = mask)
-        return h + x
-
-
-class SVGAutoencoder(nn.Module):
-
-    def __init__(
-            self, 
-            conv_dim = 512, 
-            sageconv_kwargs: dict = dict(
-                normalize = True,
-                project = True
-            ),
-            num_discrete_coors = 200, 
-            num_commands = 3, 
-            encoder_depth = 2,
-            decoder_depth = 2,
-            dim_coor_embed = 4096, 
-            backbone_dim = 4096,
-            final_encoder_norm = True,
-            sageconv_dropout = 0.,
-            attn_dropout = 0.,
-            ff_dropout = 0.,
-            resnet_dropout = 0.,
-            local_attn_window_size = 128,
-            local_attn_encoder_depth = 0,
-            local_attn_decoder_depth = 0,
-            local_attn_kwargs: dict = dict(
-                dim_head = 32,
-                heads = 8
-            ),
-            pad_id = -1,
-            dim_codebook = 192,
-            num_quantizers = 2,           # or 'D' in the paper
-            codebook_size = 16384,        # they use 16k, shared codebook between layers
-            rq_kwargs: dict = dict(
-                quantize_dropout = True,
-                quantize_dropout_cutoff_index = 1,
-                quantize_dropout_multiple_of = 1,
-            ),
-            rvq_kwargs: dict = dict(
-                kmeans_init = True,
-                threshold_ema_dead_code = 2,
-            ),
-            rlfq_kwargs: dict = dict(),
-            commit_loss_weight = 0.1,
-            bin_smooth_blur_sigma = 0.4,  # they blur the one hot discretized coordinate positions
-        ):
-        super().__init__()
-        self.num_discrete_coors = num_discrete_coors
-        self.type_embed = nn.Embedding(num_commands, dim_coor_embed)
-        self.coor_embed = nn.Embedding(num_discrete_coors, dim_coor_embed)
-        self.pad_id = pad_id
-
-        # project into model dimension
-        self.project_in = nn.Linear(dim_coor_embed, backbone_dim)
-
-        # encoder
-        self.encoder = nn.ModuleList([])
-
-        for _ in range(encoder_depth):
-            # sage_conv = SAGEConv(
-            #     conv_dim,
-            #     conv_dim,
-            #     sageconv_dropout = sageconv_dropout,
-            #     **sageconv_kwargs
-            # )
-
-            linear = nn.Linear(conv_dim, conv_dim)
-            self.encoders.append(linear)
-        self.final_encoder_norm = nn.LayerNorm(backbone_dim) if final_encoder_norm else nn.Identity()
-
-
-        # local attention related
-        self.encoder_local_attn_blocks = torch.nn.ModuleList([])
-        self.decoder_local_attn_blocks = torch.nn.ModuleList([])
-        attn_kwargs = dict(
-            dim = backbone_dim,
-            causal = False,
-            prenorm = True,
-            dropout = attn_dropout,
-            window_size = local_attn_window_size,
-        )
-
-        for _ in range(local_attn_encoder_depth):
-            self.encoder_local_attn_blocks.append(nn.ModuleList([
-                LocalMHA(**attn_kwargs, **local_attn_kwargs),
-                nn.Sequential(RMSNorm(backbone_dim), FeedForward(backbone_dim, glu = True, dropout = ff_dropout))
-            ]))
-
-        for _ in range(local_attn_decoder_depth):
-            self.decoder_local_attn_blocks.append(nn.ModuleList([
-                LocalMHA(**attn_kwargs, **local_attn_kwargs),
-                nn.Sequential(RMSNorm(backbone_dim), FeedForward(backbone_dim, glu = True, dropout = ff_dropout))
-            ]))
-
-
-        ## codebook
-        self.codebook_size = codebook_size
-        self.num_quantizers = num_quantizers
-
-        self.project_dim_codebook = nn.Linear(backbone_dim, dim_codebook * 3)
-
-        self.quantizer = ResidualLFQ(
-                dim = dim_codebook,
-                num_quantizers = num_quantizers,
-                codebook_size = codebook_size,
-                commitment_loss_weight = 1.,
-                **rlfq_kwargs,
-                **rq_kwargs
-            )
-
-
-        ## decoder
-        self.project_codebook_out = nn.Linear(dim_codebook * 3, backbone_dim)
-        self.decoders = nn.ModuleList([])
-        for _ in range(decoder_depth):
-            resnet_block = ResnetBlock(backbone_dim, dropout = resnet_dropout)
-            self.decoders.append(resnet_block)
-        self.to_coor_logits = nn.Sequential(
-            nn.Linear(backbone_dim, num_discrete_coors * 9),
-            Rearrange('... (v c) -> ... v c', v = 9)
-        )
-
-        # loss related
-        self.commit_loss_weight = commit_loss_weight
-        self.bin_smooth_blur_sigma = bin_smooth_blur_sigma
-
-
-
-    @beartype
-    def quantize(
-        self,
-        *,
-        faces: TensorType['b', 'nf', 3, int],
-        face_mask: TensorType['b', 'n', bool],
-        face_embed: TensorType['b', 'nf', 'd', float],
-        pad_id = None,
-        rvq_sample_codebook_temp = 1.
-    ):
-        pad_id = default(pad_id, self.pad_id)
-        batch, num_faces, device = *faces.shape[:2], faces.device
-
-        max_vertex_index = faces.amax()
-        num_vertices = int(max_vertex_index.item() + 1)
-
-        face_embed = self.project_dim_codebook(face_embed)
-        face_embed = rearrange(face_embed, 'b nf (nv d) -> b nf nv d', nv = 3)
-
-        vertex_dim = face_embed.shape[-1]
-        vertices = torch.zeros((batch, num_vertices, vertex_dim), device = device)
-
-        # create pad vertex, due to variable lengthed faces
-
-        pad_vertex_id = num_vertices
-        vertices = pad_at_dim(vertices, (0, 1), dim = -2, value = 0.)
-
-        faces = faces.masked_fill(~rearrange(face_mask, 'b n -> b n 1'), pad_vertex_id)
-
-        # prepare for scatter mean
-
-        faces_with_dim = repeat(faces, 'b nf nv -> b (nf nv) d', d = vertex_dim)
-
-        face_embed = rearrange(face_embed, 'b ... d -> b (...) d')
-
-        # scatter mean
-
-        averaged_vertices = scatter_mean(vertices, faces_with_dim, face_embed, dim = -2)
-
-        # mask out null vertex token
-
-        mask = torch.ones((batch, num_vertices + 1), device = device, dtype = torch.bool)
-        mask[:, -1] = False
-
-        # rvq specific kwargs
-
-        quantize_kwargs = dict()
-
-        if isinstance(self.quantizer, ResidualVQ):
-            quantize_kwargs.update(sample_codebook_temp = rvq_sample_codebook_temp)
-
-        # residual VQ
-
-        quantized, codes, commit_loss = self.quantizer(averaged_vertices, mask = mask, **quantize_kwargs)
-
-        # gather quantized vertexes back to faces for decoding
-        # now the faces have quantized vertices
-
-        face_embed_output = quantized.gather(-2, faces_with_dim)
-        face_embed_output = rearrange(face_embed_output, 'b (nf nv) d -> b nf (nv d)', nv = 3)
-
-        face_embed_output = self.project_codebook_out(face_embed_output)
-
-        # vertex codes also need to be gathered to be organized by face sequence
-        # for autoregressive learning
-
-        faces_with_quantized_dim = repeat(faces, 'b nf nv -> b (nf nv) q', q = self.num_quantizers)
-        codes_output = codes.gather(-2, faces_with_quantized_dim)
-
-        # make sure codes being outputted have this padding
-
-        face_mask = repeat(face_mask, 'b nf -> b (nf nv) 1', nv = 3)
-        codes_output = codes_output.masked_fill(~face_mask, self.pad_id)
-
-        # output quantized, codes, as well as commitment loss
-
-        return face_embed_output, codes_output, commit_loss
-
-
-    def encode(
-            self, 
-            svg_commands: TensorType['b', 'nc', 9, float],
-            svg_paths:    TensorType['b', 'np', 3, int],
-            svg_mask:     TensorType['b', 'np', bool] = None,
-            svg_edges:    TensorType['b', 'e', 50, int] = None,
-            svg_edge_mask:TensorType['b', 'e', bool] = None,
-        ):
-        """
-            einops:
-            b - batch
-            ns - number of svg paths
-            nc - number of commands (9)
-            c - commands (9)
-            d - embed dim
-        """
-
-        _, num_paths, num_commands = svg_paths.size()
-        # _, num_paths, _ = svg_edges.shape
-
-        path_without_pad = svg_paths.masked_fill(~rearrange(svg_mask, 'b np -> b np 1'), 0)
-
-        path_ = repeat(path_without_pad, 'b np c -> b np c d', d = num_commands)
-        svg_commands = repeat(svg_commands, 'b nc c -> b np nc c', np = num_paths)
-
-        path_commands = svg_commands.gather(-2, path_) # get all path commands
-
-        type_embed = self.type_embed(path_commands[..., 0])
-        coord_embed = self.coor_embed(path_commands[..., 1:])
-
-        path_embed = torch.cat((type_embed, coord_embed), dim = -1)
-        path_embed = rearrange(path_embed, 'b np nc d -> b np (nc d)')
-
-        # project into model dimension
-        path_embed = self.project_in(path_embed)
-        orig_path_embed_shape = path_embed.shape
-
-        # svg_edges = svg_edges[svg_edge_mask]
-        # svg_edges = rearrange(svg_edges, 'be ij -> ij be')
-
-        # for conv in self.encoders:
-        #     path_embed = conv(path_embed, svg_edges)
-
-        path_embed = path_embed.new_zeros(orig_path_embed_shape).masked_scatter(rearrange(svg_mask, '... -> ... 1'), path_embed)
-
-        for attn, ff in self.encoder_local_attn_blocks:
-            path_embed = attn(path_embed, mask = svg_mask) + path_embed
-            path_embed = ff(path_embed) + path_embed
-
-        path_embed = self.final_encoder_norm(path_embed)
-        return path_embed
-
-
-    @beartype
-    def decode(
-        self,
-        quantized: TensorType['b', 'n', 'd', float],
-        face_mask:  TensorType['b', 'n', bool]
-    ):
-        conv_face_mask = rearrange(face_mask, 'b n -> b 1 n')
-
-        x = quantized
-
-        for attn, ff in self.encoder_local_attn_blocks:
-            x = attn(x, mask = face_mask) + x
-            x = ff(x) + x
-
-        x = rearrange(x, 'b n d -> b d n')
-
-        for resnet_block in self.decoders:
-            x = resnet_block(x, mask = conv_face_mask)
-
-        return rearrange(x, 'b d n -> b n d')
-
-
-    def forward(
-        self,
-        svg_commands: TensorType['b', 'nc', 9, float],
-        svg_paths:    TensorType['b', 'np', 3, int],
-        svg_edges:    TensorType['b', 'e', 50, int] = None,
-        rvq_sample_codebook_temp = 1,
-        return_codes = False,
-        return_loss_breakdown = False,
-        return_recon_faces = False,
-        only_return_recon_faces = False,
-    ):
-
-        if svg_edges is None:
-            svg_edges = extract_edge_ids_from_svg(svg_paths, pad_id=-1)  # get edges from commands directly
-        
-        svg_mask = reduce(svg_paths != self.pad_id, 'b nf c -> b nf', 'all')
-        svg_edges_mask = reduce(svg_edges != self.pad_id, 'b e ij -> b e', 'all')
-
-        encoded, svg_coord = self.encode(svg_commands, svg_paths, svg_mask)
-
-        quantized, codes, commit_loss = self.quantize(
-            face_embed = encoded,
-            faces = svg_paths,
-            face_mask = svg_mask,
-            rvq_sample_codebook_temp = rvq_sample_codebook_temp
-        )
-
-        if return_codes:
-            assert not return_recon_faces, 'cannot return reconstructed faces when just returning raw codes'
-
-            codes = codes.masked_fill(~repeat(svg_mask, 'b nf -> b (nf 3) 1'), self.pad_id)
-            return codes
-
-        decode = self.decode(
-            quantized,
-            face_mask = svg_mask
-        )
-
-        pred_face_coords = self.to_coor_logits(decode)
-
-        # compute reconstructed faces if needed
-
-        if return_recon_faces or only_return_recon_faces:
-
-            recon_faces = undiscretize(
-                pred_face_coords.argmax(dim = -1),
-                num_discrete = self.num_discrete_coors,
-                continuous_range = self.coor_continuous_range,
-            )
-
-            recon_faces = rearrange(recon_faces, 'b nf (nv c) -> b nf nv c', nv = 3)
-            face_mask = rearrange(face_mask, 'b nf -> b nf 1 1')
-            recon_faces = recon_faces.masked_fill(~face_mask, float('nan'))
-
-        if only_return_recon_faces:
-            return recon_faces
-
-        # prepare for recon loss
-
-        pred_face_coords = rearrange(pred_face_coords, 'b ... c -> b c (...)')
-        face_coordinates = rearrange(face_coordinates, 'b ... -> b 1 (...)')
-
-        # reconstruction loss on discretized coordinates on each face
-        # they also smooth (blur) the one hot positions, localized label smoothing basically
-
-        with autocast(enabled = False):
-            pred_log_prob = pred_face_coords.log_softmax(dim = 1)
-
-            target_one_hot = torch.zeros_like(pred_log_prob).scatter(1, face_coordinates, 1.)
-
-            if self.bin_smooth_blur_sigma >= 0.:
-                target_one_hot = gaussian_blur_1d(target_one_hot, sigma = self.bin_smooth_blur_sigma)
-
-            # cross entropy with localized smoothing
-
-            recon_losses = (-target_one_hot * pred_log_prob).sum(dim = 1)
-
-            face_mask = repeat(face_mask, 'b nf -> b (nf r)', r = 9)
-            recon_loss = recon_losses[face_mask].mean()
-
-        # calculate total loss
-
-        total_loss = recon_loss + \
-                     commit_loss.sum() * self.commit_loss_weight
-
-        # calculate loss breakdown if needed
-
-        loss_breakdown = (recon_loss, commit_loss)
-
-        # some return logic
-
-        if not return_loss_breakdown:
-            if not return_recon_faces:
-                return total_loss
-
-            return recon_faces, total_loss
-
-        if not return_recon_faces:
-            return total_loss, loss_breakdown
-
-        return recon_faces, total_loss, loss_breakdown
-
-@beartype
-def gaussian_blur_1d(
-    t: Tensor,
-    *,
-    sigma: float = 1.
-) -> Tensor:
-
-    _, channels, _, device = *t.shape, t.device
-
-    width = int(ceil(sigma * 5))
-    width += (width + 1) % 2
-    half_width = width // 2
-
-    distance = torch.arange(-half_width, half_width + 1, dtype = torch.float, device = device)
-
-    gaussian = torch.exp(-(distance ** 2) / (2 * sigma ** 2))
-    gaussian = l1norm(gaussian)
-
-    kernel = repeat(gaussian, 'n -> c 1 n', c = channels)
-    return F.conv1d(t, kernel, padding = half_width, groups = channels)
-
-
-class NumericalSVGDataset(Dataset):
-    
-    def __init__(self, args, svg_file, tokenizer: PreTrainedTokenizer, numerical_token):  
-        self.tokenizer = tokenizer  
-        self.max_seq_len = args.model_max_length
-        self.numerical_token = numerical_token
-        self.numerical_token_id = self.tokenizer.convert_tokens_to_ids(self.numerical_token)
-        
-        ## Load SVG data
-        with open(svg_file, "r") as f2:
-            self.content = [json.loads(line) for line in f2]
-        
-        ## whether to process numerical values in svg paths
-        self.numerical_mode = True
-        if args.numerical_mode is not None:
-            self.numerical_mode = args.numerical_mode
-        
-    def __len__(self):
-        return len(self.content)
-    
-    def extract_numerical(self, path_data, numerical_token):  
-        ## match all numericals 
-        number_pattern = r"-?\d+\.?\d*"  
-        numbers = re.findall(number_pattern, path_data)  
-        numbers = [float(item) for item in numbers]
-        ## replace all matched numericals with numerical_token ("[NUM]")  
-        replaced_data = re.sub(number_pattern, numerical_token, path_data)
-        replaced_data = re.sub(' +', ' ', replaced_data)
-        replaced_data = re.sub(r'([MLC]) ', r'\1', replaced_data) 
-        replaced_data = re.sub(r'(\[NUM\]) ', r'\1', replaced_data) 
-        # import pdb; pdb.set_trace()
-         
-        # pattern = re.compile(r'(?<=\[NUM\])\s+(?=\[NUM\])')  
-        # replaced_data = pattern.sub('', replaced_data)
-        # pattern2 = re.compile(r'(?<=\b[LCM])\s+(?=\[NUM\])')
-        # replaced_data = pattern2.sub('', replaced_data)
-        # replaced_data = re.sub(r'(?<=[CML])\s+|\s+(?=\[NUM\])', '', replaced_data)
-        return numbers, replaced_data 
-    
-    def extract_c_segments(self, path_data):  
-        ## find all the control path in svg paths
-        c_pattern = r"c[^A-Za-z]*?(?=[A-Za-z])"  
-        c_segments = re.findall(c_pattern, path_data)  
-        if len(c_segments) == 1:  # only one control path, usually complex
-            return [self.extract_consecutive_numbers(c_segments[0], 0.5)]
-        return c_segments 
-    
-    def __getitem__(self, index):
-        data = self.content[index]
-        # svg_path = data["compress_path"].split("#Begin:")[-1].strip()
-        svg_path_with_prompt = data["compress_path"]
-        
-        ## Step 1: extract numericals from svg paths 
-        ## and replace the numericals with numerical_token
-        extracted_numericals, replaced_paths = self.extract_numerical(
-            svg_path_with_prompt, self.numerical_token)
-        
-        ## Step 2: encode the replaced svg paths
-        if self.numerical_mode:
-            seq_inputs = self.tokenizer(
-                replaced_paths, 
-                padding="max_length", 
-                truncation=True, 
-                max_length=self.max_seq_len,
-                return_tensors="pt",
-            )
-            text_input_ids = seq_inputs.input_ids[0]
-            text_attention_mask = seq_inputs.attention_mask[0]
-            text_labels = torch.where(
-                text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
-            )
-
-        return {
-            "input_ids": text_input_ids,
-            "attention_mask": text_attention_mask,
-            "labels": text_labels,
-            "numerical_values": extracted_numericals,
-        }
-        
-    @classmethod
-    def custom_datacollator(cls, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-        """Collate examples for supervised fine-tuning."""
-        
-        batch_input_ids, batch_attn_mask, batch_label = [], [], []
-        batch_numerical_input_ids = []
-        max_numerical_nums = max([len(item["numerical_values"]) for item in instances])
-        
-        for ins in instances:
-            batch_input_ids.append(ins["input_ids"])
-            batch_attn_mask.append(ins["attention_mask"])
-            batch_label.append(ins["labels"])
-            
-            ## process numerical values
-            ### Step 1: convert to float tensor
-            numerical_values = torch.FloatTensor(ins["numerical_values"])
-            ### Step 2: pad to the same length
-            numerical_values = torch.cat(  
-                [numerical_values, torch.full((max_numerical_nums - len(numerical_values),), 255)]  # use 255 for padding
-            )  
-
-            batch_numerical_input_ids.append(numerical_values)
-            
-        batch_input_ids = torch.stack(batch_input_ids, dim=0)
-        batch_attn_mask = torch.stack(batch_attn_mask, dim=0)
-        batch_label = torch.stack(batch_label, dim=0)
-        batch_numerical_input_ids = torch.stack(batch_numerical_input_ids, dim=0)
-        
-        return {
-            "batch_input_ids": batch_input_ids,
-            "batch_numerical_input_ids": batch_numerical_input_ids,
-            "batch_attention_mask": batch_attn_mask,
-            "batch_labels": batch_label,
-        }
-
-
-class NumericalProcessor(nn.Module):
-    def __init__(self, backbone_dim=4096, num_bins=8, hidden_dims=None, encoding_method="binary") -> None:
-        super(NumericalProcessor, self).__init__()
-        
+from modelzipper.tutils import *
+
+class CustomNonlinearity(nn.Module):  
+    def forward(self, x):  
+        return x * torch.sigmoid(x)
+
+class VanillaVAE(nn.Module):
+    # https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
+    def __init__(self,
+                 in_channels: int,
+                 latent_dim: int,
+                 hidden_dims: List = None,
+                 **kwargs) -> None:
+        super(VanillaVAE, self).__init__()
+
+        self.latent_dim = latent_dim
+
+        modules = []
         if hidden_dims is None:
-            hidden_dims = [num_bins, 64, 512, backbone_dim]
-            
-        self.encoding_method = encoding_method
-        self.num_bins = num_bins
+            hidden_dims = [16, 64, 256, 1024, 2048, 4096]
+
+        # Build Encoder
+        # for h_dim in hidden_dims:
+        #     modules.append(
+        #         nn.Sequential(
+        #             nn.Conv1d(
+        #                 in_channels, out_channels=h_dim,
+        #                 kernel_size=1, stride=1, padding=0
+        #             ),
+        #             nn.BatchNorm1d(h_dim),
+        #             nn.ReLU()
+        #         )
+        #     )
+        #     in_channels = h_dim
         
-        modules = [] # build up-projector
-        in_dim = num_bins
         for h_dim in hidden_dims:    
             modules.append(    
                 nn.Sequential(    
                     nn.Linear(    
-                        in_features=in_dim, out_features=h_dim    
+                        in_features=in_channels, out_features=h_dim    
                     ),    
                     nn.LayerNorm(h_dim),    
-                    nn.Sigmoid()    ## FIXME: use PekReLU or Tanh? follow llama model
+                    nn.Tanh()    
                 )    
             )    
-            in_dim = h_dim    
+            in_channels = h_dim    
+
+        
         self.encoder = nn.Sequential(*modules)
+        self.fc_mu = nn.Linear(hidden_dims[-1], latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1], latent_dim)
+        # self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
+        # self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
+
+        # Build Decoder
+        modules = []
+        # self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1])
+        hidden_dims.reverse()
+        # for i in range(len(hidden_dims) - 1):
+        #     modules.append(
+        #         nn.Sequential(  
+        #             nn.Conv1d(  
+        #                 hidden_dims[i],  
+        #                 hidden_dims[i + 1],  
+        #                 kernel_size=1,  
+        #                 stride=1,  
+        #                 padding=0,  
+        #             ),  
+        #             nn.BatchNorm1d(hidden_dims[i + 1]),  
+        #             nn.ReLU()  
+        #         )  
+        #     )
         
+        for i in range(len(hidden_dims) - 1):  
+            modules.append(  
+                nn.Sequential(  
+                    nn.Linear(  
+                        hidden_dims[i],  
+                        hidden_dims[i + 1]  
+                    ),  
+                    nn.LayerNorm(hidden_dims[i + 1]),  
+                    nn.ReLU()  
+                )  
+            )
+            
+        self.decoder = nn.Sequential(*modules)
         
-        assert backbone_dim % num_bins == 0, "backbone_dim must be divisible by num_bins"
-        downProject_dim = backbone_dim // num_bins
-        
-        self.decode_projector = nn.Linear(backbone_dim, backbone_dim)
-        self.classifier = nn.Linear(downProject_dim, 2)
-       
-    def int_to_binary_list(self, num):  
-        binary_str = bin(num)[2:]  
-        return list(map(int, binary_str))  
+        self.final_layer = nn.Sequential(  
+            nn.Linear(hidden_dims[-1], hidden_dims[-1]),  
+            nn.LayerNorm(hidden_dims[-1]),  
+            CustomNonlinearity(),  
+            nn.Linear(hidden_dims[-1], 4),  
+            nn.ReLU(),  
+        )  
+
+        # self.final_layer = nn.Sequential(  
+        #                         nn.Conv1d(  
+        #                             hidden_dims[-1],  
+        #                             hidden_dims[-1],  
+        #                             kernel_size=1,  
+        #                             stride=1,  
+        #                             padding=0,   
+        #                         ),  
+        #                         nn.BatchNorm1d(hidden_dims[-1]),  
+        #                         nn.ReLU(),  
+        #                         nn.Conv1d(  
+        #                             hidden_dims[-1], out_channels=4,  
+        #                             kernel_size=1, padding=0,  
+        #                         ),  
+        #                         nn.ReLU(),  
+        #                     )  
 
     
-    def long_to_binary_tensor(self, tensor, num_bits):  
-        binary_tensor = torch.zeros(tensor.size() + (num_bits,), dtype=torch.long, device=tensor.device)  
-        for i in range(num_bits):  
-            binary_tensor[..., i] = torch.bitwise_and(tensor >> i, 1)  
-        return binary_tensor  
+    def nonlinearity(self, x):
+        return x * torch.sigmoid(x)
     
-    def binary_to_long(self, binary_tensor, num_bits):  
-        long_tensor = torch.zeros(binary_tensor.shape[:-1], dtype=torch.long, device=binary_tensor.device)  
-        for i in range(num_bits):   
-            # Shift the bit i places to the left and combine it with the current long tensor  
-            long_tensor += (binary_tensor[..., i] << i).type(torch.long)  
-        return long_tensor
     
-    def encode(self, seq: torch.LongTensor) -> torch.FloatTensor:
+    def encode(self, input: Tensor) -> List[Tensor]:
         """
-        seq: b x l
+        Encodes the input by passing through the encoder network
+        and returns the latent codes.
+        :param input: (Tensor) Input tensor to encoder [B X L]
+        :return: (Tensor) List of latent codes
         """
-        if self.encoding_method == "binary":
-            original_tensor_type = seq.dtype
-            seq = seq.long()
-            encoded_seq = self.long_to_binary_tensor(seq, self.num_bins)  # b x l x num_bins
-            encoded_seq = encoded_seq.to(original_tensor_type)
-            encoded_hidden_states = self.encoder(encoded_seq)  # b x l x backbone_dim
-        
-        elif self.encoding_method == "log":
-            pass
-        
-        return encoded_seq, encoded_hidden_states
+        result = self.encoder(input)
+        # result = torch.flatten(result, start_dim=1)
+        # result = result.transpose(1, 2)
 
-
-    def decode(self, hidden_states: torch.FloatTensor) -> torch.LongTensor:
-        """
-        hidden_states: b x l x backbone_dim
-        """
-        if self.encoding_method == "binary":
-            decoded_res = self.decoder(hidden_states)  # b x l x num_bins
-        elif self.encoding_method == "log":
-            pass
+        # Split the result into mu and var components
+        # of the latent Gaussian distribution
+        mu = self.fc_mu(result)
+        log_var = self.fc_var(result)
         
-        return decoded_res
+
+        return [mu, log_var]
+
+    def decode(self, z: Tensor) -> Tensor:
+        """
+        Maps the given latent codes
+        onto the numerical space.
+        :param z: (Tensor) [B x l x D]
+        :return: (Tensor) [B x l]
+        """
+        result = self.decoder_input(z)
+        # result = result.transpose(1, 2)
+        result = self.decoder(result)
+        result = self.final_layer(result)
+        return result
+
+    def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
+        """
+        Reparameterization trick to sample from N(mu, var) from
+        N(0,1).
+        :param mu: (Tensor) Mean of the latent Gaussian [B x D]
+        :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
+        :return: (Tensor) [B x D]
+        """
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu
     
+    
+    def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
+        mu, log_var = self.encode(input)
+        z = self.reparameterize(mu, log_var)
+        return [self.decode(z), input, mu, log_var]
+
+    
+    def cal_kl_loss(self, mu, log_var, kld_weight):
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+        return kld_weight * kld_loss
+    
+    
+    def loss_function(self,
+                      kld_weight=1.0,
+                      *args,
+                      **kwargs) -> dict:
+        """
+        Computes the VAE loss function.
+        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        recons = args[0]
+        input = args[1]
+        mu = args[2]
+        log_var = args[3]
+
+        # kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
+        # kld_weight = kld_weight
+        recons_loss = F.mse_loss(recons, input)
+
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+
+        loss = recons_loss + kld_weight * kld_loss
+        return {'loss': loss, 'Reconstruction_Loss':recons_loss.detach(), 'KLD':-kld_loss.detach()}
 
 
-def _init_quantizier(vq_name, vq_config):
-    if vq_name == "residualVQ":
-        return ResidualVQ(
-            dim = vq_config['dim'],
-            num_quantizers = vq_config['num_quantizers'],
-            codebook_size = vq_config['codebook_size'],
+    def sample(self,
+               num_samples:int,
+               current_device: int, **kwargs) -> Tensor:
+        """
+        Samples from the latent space and return the corresponding
+        image space map.
+        :param num_samples: (Int) Number of samples
+        :param current_device: (Int) Device to run the model
+        :return: (Tensor)
+        """
+        z = torch.randn(num_samples,
+                        self.latent_dim)
+
+        z = z.to(current_device)
+
+        samples = self.decode(z)
+        return samples
+
+
+    def generate(self, x: Tensor, **kwargs) -> Tensor:
+        """
+        Given an input image x, returns the reconstructed image
+        :param x: (Tensor) [B x C x H x W]
+        :return: (Tensor) [B x C x H x W]
+        """
+
+        return self.forward(x)[0]
+    
+    
+class SvgLlama(LlamaForCausalLM, GenerationMixin):  
+    def __init__(self, config, vae_loss_weight=1.0, tokenizer=None, hidden_dims=None, numerical_token=None):  
+        super(SvgLlama, self).__init__(config)
+        
+        self.vae = VanillaVAE(
+            in_channels=4,  # 4 as default 
+            latent_dim=config.hidden_size,
+            hidden_dims=hidden_dims
         )
-
-    else:
-        raise NotImplementedError(f"VQ {vq_name} not implemented")
-
-
-class VQLLaMA(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, quantizer_loss_weight=2.0, tokenizer=None, hidden_dim=None, encoding_method="residualVQ", vq_config=None, num_bins=9):  
-        super(VQLLaMA, self).__init__(config)
-        self.up_projector = nn.Linear(num_bins, hidden_dim)
-        self.down_projector = nn.Linear(hidden_dim, num_bins)
-        self.quantizer = _init_quantizier(encoding_method, vq_config)
-        self.quantizer_loss_weight = quantizer_loss_weight
+        self.vae_loss_weight = vae_loss_weight
         self.tokenizer = tokenizer
+        self.numerical_token = numerical_token
         self.post_init()
         
         if config.frozen_llm: 
@@ -855,163 +264,8 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
             self.svg_embedding.requires_grad_ = True
             self.svg_lm_head.requires_grad_ = True
     
-
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
-    
-    @torch.no_grad()
-    def nucle_sampling_generate(self, input_ids=None, past_key_values=None, max_length=None, min_length=None, **kwargs):
-        
-        outputs = self.model(
-            input_ids=input_ids,
-            past_key_values=past_key_values,
-            use_cache=True,
-        )
-        last_hidden_state = outputs.last_hidden_state
-        past_key_values = outputs.past_key_values
-        text_logits = self.lm_head(last_hidden_state).float()
-        next_token_scores = top_p(text_logits[:, -1, :], 0.9, 0.6)
-        probs = nn.functional.softmax(next_token_scores, dim=-1)
-        pred_token_idx = torch.multinomial(probs, num_samples=1)
-        generated_ids = [pred_token_idx.item()]
-        pos = 0
-        
-        for _ in range(max_length - 1):
-            outputs = self.model(
-                input_ids=pred_token_idx,
-                past_key_values=past_key_values,
-                use_cache=True,
-            )
-            last_hidden_state = outputs.last_hidden_state
-            past_key_values = outputs.past_key_values
-            text_logits = self.lm_head(last_hidden_state).float()
-            next_token_scores = top_p(text_logits[:, -1, :], 0.9, 0.6)
-            probs = nn.functional.softmax(next_token_scores, dim=-1)
-            pred_token_idx = torch.multinomial(probs, num_samples=1)
-            generated_ids.append(pred_token_idx.item())
-
-            if pred_token_idx == self.tokenizer.eos_token_id:
-                break
-
-        return generated_ids
-    
-    
-    @torch.no_grad()
-    def greedy_generate(self, input_ids=None, past_key_values=None, max_length=None, min_length=None, **kwargs):
-        
-        outputs = self.model(
-            input_ids=input_ids,
-            past_key_values=past_key_values,
-            use_cache=True,
-        )
-        last_hidden_state = outputs.last_hidden_state
-        past_key_values = outputs.past_key_values
-        text_logits = self.lm_head(last_hidden_state).float()
-        
-        pred_token_idx = text_logits[:, -1, :].argmax(dim=-1).unsqueeze(1) # 1x1
-        generated_ids = [pred_token_idx.item()]
-        pos = 0
-        
-        for _ in range(max_length - 1):
-            outputs = self.model(
-                input_ids=pred_token_idx,
-                past_key_values=past_key_values,
-                use_cache=True,
-            )
-            last_hidden_state = outputs.last_hidden_state
-            past_key_values = outputs.past_key_values
-            text_logits = self.lm_head(last_hidden_state).float()
-            pred_token_idx = text_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
-            generated_ids.append(pred_token_idx.item())
-            
-            if pred_token_idx == self.tokenizer.eos_token_id:
-                break
-            
-        return generated_ids
-    
-    
-    @torch.no_grad()
-    def adaptive_generate(self, input_ids=None, past_key_values=None, max_length=None, min_length=None, **kwargs):
-        
-        m_token_id = 29924
-        l_token_id = 29931
-        c_token_id = 29907
-        num_token_id = self.tokenizer.encode(self.numerical_token)[1]
-        
-        def inner_loop(input_ids, past_key_values):
-            outputs = self.model(
-                input_ids=input_ids,
-                past_key_values=past_key_values,
-                use_cache=True,
-            )
-            last_hidden_state = outputs.last_hidden_state
-            past_key_values = outputs.past_key_values
-            text_logits = self.lm_head(last_hidden_state).float()
-            return text_logits, past_key_values
-        
-        text_logits, past_key_values = inner_loop(input_ids, past_key_values)
-        pred_token_idx = text_logits[:, -1, :].argmax(dim=-1).unsqueeze(1) # 1x1
-        generated_ids = [pred_token_idx.item()]
-        generated_nums = []
-        num_cnt = 0
-        numerical_embeddings = None
-        predict_next_tag = False
-        boost_value = 5 
-        
-        for _ in range(max_length - 1):
-            if numerical_embeddings is not None:
-                outputs = self.model(
-                    inputs_embeds=numerical_embeddings,
-                    past_key_values=past_key_values,
-                    use_cache=True,
-                )
-            else:
-                outputs = self.model(
-                    input_ids=pred_token_idx,
-                    past_key_values=past_key_values,
-                    use_cache=True,
-                )
-            last_hidden_state = outputs.last_hidden_state
-            past_key_values = outputs.past_key_values
-            decoded_num = None
-            if num_cnt != 0:
-                projection_res = self.numerical_processer.decode_projector(last_hidden_state)
-                shaped_res = projection_res.view(last_hidden_state.size(0), 1, self.num_bins, -1)
-                cls_results = self.numerical_processer.classifier(shaped_res)
-                binary_res = cls_results.argmax(-1).squeeze()
-                decoded_num = self.numerical_processer.binary_to_long(binary_res, 8)
-                num_cnt -= 1            
-            
-            text_logits = self.lm_head(last_hidden_state).float()
-            
-            if predict_next_tag:
-                text_logits[0, 0, m_token_id] += boost_value  
-                text_logits[0, 0, l_token_id] += boost_value  
-                text_logits[0, 0, c_token_id] += boost_value 
-                softmax_logits = torch.nn.functional.softmax(text_logits[0, 0], dim=-1)  
-                pred_token_idx = torch.argmax(softmax_logits).unsqueeze(0).unsqueeze(0) 
-            else:
-                pred_token_idx = text_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
-            
-            # import pdb; pdb.set_trace()
-            
-            if num_cnt == 0 and pred_token_idx in (m_token_id, c_token_id, l_token_id):
-                if pred_token_idx == m_token_id or pred_token_idx == l_token_id:
-                    num_cnt = 2
-                elif pred_token_idx == c_token_id:
-                    num_cnt = 6
-                predict_next_tag = True
-                
-            if decoded_num is not None:
-                generated_ids.append(num_token_id)
-                generated_nums.append(decoded_num)
-            else:
-                generated_ids.append(pred_token_idx.item())
-            
-            if pred_token_idx == self.tokenizer.eos_token_id:
-                break
-            
-        return generated_ids, generated_nums
     
     
     def forward(self, text_inputs=None, numerical_inputs=None, labels=None, attention_masks=None, **kwargs): 
@@ -1029,27 +283,50 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
         input_embeddings = text_embedding_module(text_inputs)
         
         ## Encode numerical information
-        processed_num, numerical_embeddings = self.numerical_processer.encode(numerical_inputs)
+        ### Step 1: compress numerical inputs with torch.log
+        numerical_inputs = torch.log(numerical_inputs + 1).to(next(self.parameters()).dtype) # prevent from log(0)
+        numerical_inputs = numerical_inputs.unsqueeze(-1).repeat(1, 1, 4)  # construct 4 channels
+
+        ### Step 2: compress numerical inputs with VAE
+        numerical_inputs = numerical_inputs.permute(0, 2, 1)  # b x 4 x l
+        numerical_embeddings = self.vae.encoder(numerical_inputs)  # b x 4 x l -> b x d_model x l
+        numerical_embeddings = numerical_embeddings.permute(0, 2, 1)  # b x d_model x l -> b x l x d_model
+        
+        
+        ### Step 3: calculate mu, sigma, and z with VAE 
+        #### Step 3.1: extract all real encoded numerical embedding
         batch_size, seq_len = text_inputs.size()
         numerical_mask = text_inputs == self.numerical_token_id
         numerical_counts = numerical_mask.sum(dim=1).tolist() 
         encoded_numerical_h = [item[:count] for item, count in zip(numerical_embeddings, numerical_counts)]  # List[Tensor]
-
-        ## construct the golden numerical
-        golden_numericals = [item[:count, :] for item, count in zip(processed_num, numerical_counts)]
+        mus = [self.vae.fc_mu(item) for item in encoded_numerical_h]
+        log_vars = [self.vae.fc_var(item) for item in encoded_numerical_h]
+        log_vars = [torch.clamp(item, -30.0, 20.0) for item in log_vars]
+        mu_vars = [(mu, log_var) for mu, log_var in zip(mus, log_vars)]  # [List[Tuple[Tensor, Tensor]]]
+        zs = [self.vae.reparameterize(mu, log_var) for mu, log_var in mu_vars]  # List[Tensor]
         
-        ## Replace all the numerical positions in text embeddings with numerical embeddings 
+        #### Step 3.2: calculate the KL loss
+        kl_loss = 0.
+        kld_weight = 1e-2 # Account for the minibatch samples from the dataset
+        for i in range(batch_size):
+            kl_loss += self.vae.cal_kl_loss(mus[i], log_vars[i], kld_weight) / batch_size
+            
+        #### Step 3.3: construct the golden numerical inputs
+        golden_numerical_inputs = [item[:, :count].transpose(0, 1) for item, count in zip(numerical_inputs, numerical_counts)]
+        
+        #### Step 3.3: Replace all the numerical positions in text embeddings 
+        #### with numerical embeddings 
         for i in range(batch_size):
             numerical_index = 0
             for j in range(seq_len):
                 if text_inputs[i, j] == self.numerical_token_id:
-                    input_embeddings[i, j, :] = encoded_numerical_h[i][numerical_index, :]
+                    input_embeddings[i, j, :] = zs[i][numerical_index, :]
                     numerical_index += 1
                 if text_inputs[i, j] == self.tokenizer.eos_token_id:
-                    assert encoded_numerical_h[i].size(0) == numerical_index, "Numerical index not match"
+                    assert zs[i].size(0) == numerical_index, "Numerical index not match"
                     break
                 
-        ## pass the embeddings to backbone model        
+        ### Step 4: pass the text embeddings to the base model        
         outputs = self.model(
             input_ids=None, 
             attention_mask=attention_masks,
@@ -1057,9 +334,9 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
             **kwargs
         )
         hidden_states = outputs[0]
-        
-        # Decode numerical information
-        ## extract all the numerical embeddings
+
+        ## Decode numerical information
+        ### Step 1: extract all the numerical embeddings
         numerical_res = []
         for i in range(batch_size):
             minibatch_numerical = []
@@ -1070,27 +347,20 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
                     break
             numerical_res.append(torch.cat(minibatch_numerical, dim=0)) # List[List[Tensor]]
 
-        ## decode numerical embeddings with down projector
-        decoded_results = [self.numerical_processer.decode_projector(z.unsqueeze(0)) for z in numerical_res]  # List[Tensor]
-        shaped_results = [item.view(item.size(0), item.size(1), self.num_bins, -1) for item in decoded_results]  # List[Tensor]
-        cls_results = [self.numerical_processer.classifier(item) for item in shaped_results]  # List[Tensor]
+        ### Step 2: decode numerical embeddings with VAE
+        decode_results = [self.vae.decode(z.unsqueeze(0)) for z in numerical_res]  # List[Tensor]
         
-        loss_fct = CrossEntropyLoss()
-        
-        ## calculate the cls Loss
+        ### Step 3: calculate the reconstruction Loss
         recon_loss = 0
         for i in range(batch_size):
-            golden_numerical = golden_numericals[i].squeeze(0).long()  # 1 x seq_len x num_bins
-            decode_result = cls_results[i] # 1 x seq_len x num_bins
-            
-            loss = loss_fct(decode_result.view(-1, 2), golden_numerical.view(-1))
-            recon_loss += loss
-            # assert golden_numerical.size() == decode_result.size(), "Numerical input size not match"
-            # recon_loss += torch.sum(F.mse_loss(decode_result, golden_numerical, reduction="none"), dim=1).mean() 
-        
-        recon_loss = recon_loss / batch_size
+            # golden_numerical_inputs[i] 1 x 4 x l
+            golden_numerical = golden_numerical_inputs[i].squeeze(0)
+            decode_result = decode_results[i].squeeze(0).transpose(0, 1)
+            assert golden_numerical.size() == decode_result.size(), "Numerical input size not match"
+            recon_loss += F.mse_loss(decode_result, golden_numerical, reduction="mean") / batch_size
         
         ## Decode textual information
+        ### Step 1: extract all the textual embeddings
         text_logits = self.lm_head(hidden_states).float()
 
         ### Step 2: calculate the LM Loss
@@ -1100,19 +370,18 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
             shift_logits = text_logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
-            # EMU Loss
-            emu_shift_labels = torch.where(shift_labels == self.numerical_token_id, 
-                           torch.tensor(-100, device=shift_logits.device), 
-                           shift_labels)
-
-            loss = loss_fct(shift_logits, emu_shift_labels)
-
-        total_loss = loss + self.numerical_loss_weight * recon_loss
+            # Enable model parallelism
+            shift_labels = shift_labels.to(shift_logits.device)
+            loss = loss_fct(shift_logits, shift_labels)
         
+        total_loss = loss + self.vae_loss_weight * (kl_loss + recon_loss)
+        # import pdb; pdb.set_trace()
         return {
             "loss": total_loss,
+            "kl_loss": kl_loss,
             "reconstruction_loss": recon_loss,
             "textual_loss": loss,
             "logits": text_logits,
@@ -1133,57 +402,11 @@ class VQLLaMA(LlamaForCausalLM, GenerationMixin):
     @property
     def model_device(self):
         return next(self.parameters()).device
-
-   
+    
 if __name__ == "__main__":
-
-    ## fake data for testing VQVAE
-    fake_data = torch.randint(0, 200, (64, 9))
-    fake_data[:, 0] = torch.randint(0, 3, (64,))
-    mask = (fake_data[:, 0] == 0) | (fake_data[:, 0] == 1)
-    fake_data[mask, 3:7] = 0
-
-    autoencoder = SVGAutoencoder()
-
-    res = autoencoder(fake_data)
-
-    exit()
-    
-    model_name_or_path = "/zecheng/svg_model_hub/NLLaMA-V3-emu-nospace/checkpoint-700"
-    DEFAULT_PAD_TOKEN = "[PAD]"
-    NUMERICAL_TOKEN = "[NUM]"
-    
-    # Step 1: Load Model Config 
-    llamaconfig = transformers.LlamaConfig.from_pretrained(model_name_or_path)
-    llamaconfig.frozen_llm = False
-    
-    # Step 2: Load Tokenizer
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_name_or_path,
-        model_max_length=1024,
-        padding_side="left"
-    )
-    tokenizer.pad_token_id = tokenizer.unk_token_id
-    
-    # Step 2: Load Model (without tokenizer)
-    model = NumericalLlama.from_pretrained(
-        model_name_or_path, 
-        config=llamaconfig, 
-        numerical_token=NUMERICAL_TOKEN,
-        hidden_dim=llamaconfig.hidden_size,
-        num_bins=8,
-        device_map={"":0},
-        tokenizer=tokenizer,
-    )
-    model.config.pad_token_id = 0
-    
-    prompt = "Keywords: speaker #Begin:"
-    inputs = tokenizer(prompt, return_tensors="pt")
-    input_ids = inputs["input_ids"].to('cuda:0')
-    
-    generated_ids, generated_nums = model.adaptive_generate(input_ids=input_ids, max_length=1024)
-    # res = model.greedy_generate(input_ids=input_ids, max_length=1024)
-    generated_text = tokenizer.decode(generated_ids)
-    import pdb; pdb.set_trace()
-    print(generated_text)
-    print(generated_nums)
+    pretrained_model = LlamaForCausalLM.from_pretrained("/zecheng/model_hub/Llama-2-7b-hf", device_map="auto")
+    llamaconfig = LlamaConfig.from_pretrained("/zecheng/model_hub/Llama-2-7b-hf")
+    llamaconfig.svg_vocab_size = 1000
+    llamaconfig.text_width = 64
+    svgllama = SvgLlama(llamaconfig)
+    svgllama.load_state_dict(pretrained_model.state_dict(), strict=False)
