@@ -46,45 +46,19 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
-            svg_quantised: b x l,
+            svg_quantised: B x L x D,
             svg_padding_mask: B x L 
         """
         
-        ## Encode textual information
         text_embedding_module = self.base_model.get_input_embeddings()
-        input_embeddings = text_embedding_module(text_inputs)
+        input_embeddings = text_embedding_module(text_input_ids)
         
-        ## Encode numerical information
-        ### Step 1: compress numerical inputs with torch.log
-        numerical_inputs = torch.log(numerical_inputs + 1).to(next(self.parameters()).dtype) # prevent from log(0)
-        numerical_inputs = numerical_inputs.unsqueeze(-1).repeat(1, 1, 4)  # construct 4 channels
+        svg_token_embeddings = self.input_adapter(svg_quantised) # Encode svg tokens
+        input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
+        
+        # FIXME: check the dtype of two tensors 
+        attention_mask = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
 
-        ### Step 2: compress numerical inputs with VAE
-        numerical_inputs = numerical_inputs.permute(0, 2, 1)  # b x 4 x l
-        numerical_embeddings = self.vae.encoder(numerical_inputs)  # b x 4 x l -> b x d_model x l
-        numerical_embeddings = numerical_embeddings.permute(0, 2, 1)  # b x d_model x l -> b x l x d_model
-        
-        
-        ### Step 3: calculate mu, sigma, and z with VAE 
-        #### Step 3.1: extract all real encoded numerical embedding
-        batch_size, seq_len = text_inputs.size()
-        numerical_mask = text_inputs == self.numerical_token_id
-        numerical_counts = numerical_mask.sum(dim=1).tolist() 
-        encoded_numerical_h = [item[:count] for item, count in zip(numerical_embeddings, numerical_counts)]  # List[Tensor]
-        mus = [self.vae.fc_mu(item) for item in encoded_numerical_h]
-        log_vars = [self.vae.fc_var(item) for item in encoded_numerical_h]
-        log_vars = [torch.clamp(item, -30.0, 20.0) for item in log_vars]
-        mu_vars = [(mu, log_var) for mu, log_var in zip(mus, log_vars)]  # [List[Tuple[Tensor, Tensor]]]
-        zs = [self.vae.reparameterize(mu, log_var) for mu, log_var in mu_vars]  # List[Tensor]
-        
-        #### Step 3.2: calculate the KL loss
-        kl_loss = 0.
-        kld_weight = 1e-2 # Account for the minibatch samples from the dataset
-        for i in range(batch_size):
-            kl_loss += self.vae.cal_kl_loss(mus[i], log_vars[i], kld_weight) / batch_size
-            
-        #### Step 3.3: construct the golden numerical inputs
-        golden_numerical_inputs = [item[:, :count].transpose(0, 1) for item, count in zip(numerical_inputs, numerical_counts)]
         
         #### Step 3.3: Replace all the numerical positions in text embeddings 
         #### with numerical embeddings 
