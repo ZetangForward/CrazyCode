@@ -109,13 +109,13 @@ class ModifiedDecoderConvBock(nn.Module):
                         stride=stride_t,
                         padding=pad_t,     
                         dilation = 2,
+                        output_padding = pad_t
                     ),
                 )
                 blocks.append(block)
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
-        import pdb; pdb.set_trace()
         return self.model(x)
 
 
