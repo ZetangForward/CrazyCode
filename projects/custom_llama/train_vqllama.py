@@ -66,7 +66,7 @@ class CustomTrainier(Trainer):
             text_attention_mask=inputs['text_attention_mask'],
             text_labels=inputs['text_labels'],
             svg_quantised=inputs['svg_quantised'],
-            padding_mask=inputs['svg_padding_mask'],
+            svg_padding_mask=inputs['svg_padding_mask'],
         )
 
         loss = outputs.loss
@@ -116,6 +116,7 @@ def train():
     llamaconfig.svg_vocab_size = svg_tokenizer.vocab_size
     llamaconfig.text_width = 64
     llamaconfig.frozen_llm = False
+    llamaconfig.svgcode_hidden_dims = 4096
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,

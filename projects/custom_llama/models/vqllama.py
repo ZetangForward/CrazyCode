@@ -1,5 +1,6 @@
-# custom numerical llama
-
+"""
+Code for VQ-SVG-LLAMA
+"""
 import sys
 import json
 import re 
@@ -8,7 +9,6 @@ import torch
 import torch.nn as nn 
 from tqdm import tqdm  
 import torch.nn.functional as F
-
 from transformers import PreTrainedTokenizer, LlamaConfig, LlamaForCausalLM  
 from torch import Tensor 
 from torch.nn import CrossEntropyLoss
@@ -17,265 +17,37 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 
-class CustomNonlinearity(nn.Module):  
-    def forward(self, x):  
-        return x * torch.sigmoid(x)
 
-class VanillaVAE(nn.Module):
-    # https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
-    def __init__(self,
-                 in_channels: int,
-                 latent_dim: int,
-                 hidden_dims: List = None,
-                 **kwargs) -> None:
-        super(VanillaVAE, self).__init__()
-
-        self.latent_dim = latent_dim
-
-        modules = []
-        if hidden_dims is None:
-            hidden_dims = [16, 64, 256, 1024, 2048, 4096]
-
-        # Build Encoder
-        # for h_dim in hidden_dims:
-        #     modules.append(
-        #         nn.Sequential(
-        #             nn.Conv1d(
-        #                 in_channels, out_channels=h_dim,
-        #                 kernel_size=1, stride=1, padding=0
-        #             ),
-        #             nn.BatchNorm1d(h_dim),
-        #             nn.ReLU()
-        #         )
-        #     )
-        #     in_channels = h_dim
-        
-        for h_dim in hidden_dims:    
-            modules.append(    
-                nn.Sequential(    
-                    nn.Linear(    
-                        in_features=in_channels, out_features=h_dim    
-                    ),    
-                    nn.LayerNorm(h_dim),    
-                    nn.Tanh()    
-                )    
-            )    
-            in_channels = h_dim    
-
-        
-        self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1], latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1], latent_dim)
-        # self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        # self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
-
-        # Build Decoder
-        modules = []
-        # self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1])
-        hidden_dims.reverse()
-        # for i in range(len(hidden_dims) - 1):
-        #     modules.append(
-        #         nn.Sequential(  
-        #             nn.Conv1d(  
-        #                 hidden_dims[i],  
-        #                 hidden_dims[i + 1],  
-        #                 kernel_size=1,  
-        #                 stride=1,  
-        #                 padding=0,  
-        #             ),  
-        #             nn.BatchNorm1d(hidden_dims[i + 1]),  
-        #             nn.ReLU()  
-        #         )  
-        #     )
-        
-        for i in range(len(hidden_dims) - 1):  
-            modules.append(  
-                nn.Sequential(  
-                    nn.Linear(  
-                        hidden_dims[i],  
-                        hidden_dims[i + 1]  
-                    ),  
-                    nn.LayerNorm(hidden_dims[i + 1]),  
-                    nn.ReLU()  
-                )  
-            )
-            
-        self.decoder = nn.Sequential(*modules)
-        
-        self.final_layer = nn.Sequential(  
-            nn.Linear(hidden_dims[-1], hidden_dims[-1]),  
-            nn.LayerNorm(hidden_dims[-1]),  
-            CustomNonlinearity(),  
-            nn.Linear(hidden_dims[-1], 4),  
-            nn.ReLU(),  
-        )  
-
-        # self.final_layer = nn.Sequential(  
-        #                         nn.Conv1d(  
-        #                             hidden_dims[-1],  
-        #                             hidden_dims[-1],  
-        #                             kernel_size=1,  
-        #                             stride=1,  
-        #                             padding=0,   
-        #                         ),  
-        #                         nn.BatchNorm1d(hidden_dims[-1]),  
-        #                         nn.ReLU(),  
-        #                         nn.Conv1d(  
-        #                             hidden_dims[-1], out_channels=4,  
-        #                             kernel_size=1, padding=0,  
-        #                         ),  
-        #                         nn.ReLU(),  
-        #                     )  
-
-    
-    def nonlinearity(self, x):
-        return x * torch.sigmoid(x)
-    
-    
-    def encode(self, input: Tensor) -> List[Tensor]:
-        """
-        Encodes the input by passing through the encoder network
-        and returns the latent codes.
-        :param input: (Tensor) Input tensor to encoder [B X L]
-        :return: (Tensor) List of latent codes
-        """
-        result = self.encoder(input)
-        # result = torch.flatten(result, start_dim=1)
-        # result = result.transpose(1, 2)
-
-        # Split the result into mu and var components
-        # of the latent Gaussian distribution
-        mu = self.fc_mu(result)
-        log_var = self.fc_var(result)
-        
-
-        return [mu, log_var]
-
-    def decode(self, z: Tensor) -> Tensor:
-        """
-        Maps the given latent codes
-        onto the numerical space.
-        :param z: (Tensor) [B x l x D]
-        :return: (Tensor) [B x l]
-        """
-        result = self.decoder_input(z)
-        # result = result.transpose(1, 2)
-        result = self.decoder(result)
-        result = self.final_layer(result)
-        return result
-
-    def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
-        """
-        Reparameterization trick to sample from N(mu, var) from
-        N(0,1).
-        :param mu: (Tensor) Mean of the latent Gaussian [B x D]
-        :param logvar: (Tensor) Standard deviation of the latent Gaussian [B x D]
-        :return: (Tensor) [B x D]
-        """
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
-    
-    
-    def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
-        mu, log_var = self.encode(input)
-        z = self.reparameterize(mu, log_var)
-        return [self.decode(z), input, mu, log_var]
-
-    
-    def cal_kl_loss(self, mu, log_var, kld_weight):
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-        return kld_weight * kld_loss
-    
-    
-    def loss_function(self,
-                      kld_weight=1.0,
-                      *args,
-                      **kwargs) -> dict:
-        """
-        Computes the VAE loss function.
-        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        recons = args[0]
-        input = args[1]
-        mu = args[2]
-        log_var = args[3]
-
-        # kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
-        # kld_weight = kld_weight
-        recons_loss = F.mse_loss(recons, input)
-
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-
-        loss = recons_loss + kld_weight * kld_loss
-        return {'loss': loss, 'Reconstruction_Loss':recons_loss.detach(), 'KLD':-kld_loss.detach()}
-
-
-    def sample(self,
-               num_samples:int,
-               current_device: int, **kwargs) -> Tensor:
-        """
-        Samples from the latent space and return the corresponding
-        image space map.
-        :param num_samples: (Int) Number of samples
-        :param current_device: (Int) Device to run the model
-        :return: (Tensor)
-        """
-        z = torch.randn(num_samples,
-                        self.latent_dim)
-
-        z = z.to(current_device)
-
-        samples = self.decode(z)
-        return samples
-
-
-    def generate(self, x: Tensor, **kwargs) -> Tensor:
-        """
-        Given an input image x, returns the reconstructed image
-        :param x: (Tensor) [B x C x H x W]
-        :return: (Tensor) [B x C x H x W]
-        """
-
-        return self.forward(x)[0]
-    
-    
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vae_loss_weight=1.0, tokenizer=None, hidden_dims=None, numerical_token=None):  
+    def __init__(self, config, vq_loss_weight=1.0, tokenizer=None, hidden_dims=None, numerical_token=None):  
         super(VQSVGLlama, self).__init__(config)
         
-        self.vae = VanillaVAE(
-            in_channels=4,  # 4 as default 
-            latent_dim=config.hidden_size,
-            hidden_dims=hidden_dims
-        )
-        self.vae_loss_weight = vae_loss_weight
         self.tokenizer = tokenizer
         self.numerical_token = numerical_token
+        self.vq_loss_weight = vq_loss_weight
+
+        self.input_adapter = nn.Linear(config.svgcode_hidden_dims, config.hidden_dims)
+        self.output_adapter = nn.Linear(config.hidden_dims, config.svgcode_hidden_dims)
+
         self.post_init()
         
         if config.frozen_llm: 
-            print("Attention! Part of the parameters are freezed!")
+            print_c("Attention! Part of the parameters are freezed!")
             self.requires_grad_ = False 
-            self.svg_embedding.requires_grad_ = True
-            self.svg_lm_head.requires_grad_ = True
+            self.input_adapter.requires_grad_ = True
+            self.output_adapter.requires_grad_ = True
     
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
     
-    
-    def forward(self, text_inputs=None, numerical_inputs=None, labels=None, attention_masks=None, **kwargs): 
+
+    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_quantised=None, svg_padding_mask=None, **kwargs): 
         """
-        input_ids: {
-            "text_inputs": b x l, 
-            "numerical_inputs": b x l,
-            "batch_attn_mask": b x l,
-            "batch_labels": b x l,
-        }
+            text_input_ids: B x L 
+            text_attention_mask: B x L,
+            text_labels: B x L,
+            svg_quantised: b x l,
+            svg_padding_mask: B x L 
         """
         
         ## Encode textual information
