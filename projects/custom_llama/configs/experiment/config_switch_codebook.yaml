@@ -58,7 +58,7 @@ vqvae_conv_block:
 experiment:
   snap_id: ${SNAP_ID}
   ckeckpoint_path: ${CKPT_PATH}
-  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/epoch_${EPOCH}
+  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/epoch_${EPOCH}
   exp_name: ${EXP_NAME}
   version: ${JOB_ID}
   device_num: 1
