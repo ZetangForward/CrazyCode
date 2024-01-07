@@ -1,0 +1,79 @@
+ModelZipper is ready for launch🚀 | Current Version🦄 >>> 0.2.6 <<< | AOE Time🕒 2024-01-08 04:05:03
+/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/hydra/_internal/hydra.py:119: UserWarning: Future Hydra versions will no longer change working directory at job runtime by default.
+See https://hydra.cc/docs/1.2/upgrades/1.1_to_1.2/changes_to_job_working_dir/ for more information.
+  ret = run_job(
+compress_level: 1
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+begin to sanity check the dataset and conduct pre_process, num of samples: 181439, it will take some time...
+Restoring states from the checkpoint path at /zecheng2/vqllama/vqllama_quantizer/version_8/checkpoints/vq-epoch=70.ckpt
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [4]
+Loaded model weights from the checkpoint at /zecheng2/vqllama/vqllama_quantizer/version_8/checkpoints/vq-epoch=70.ckpt
+Predicting: |          | 0/? [00:00<?, ?it/s]Predicting:   0%|          | 0/181209 [00:00<?, ?it/s]Predicting DataLoader 0:   0%|          | 0/181209 [00:00<?, ?it/s]Error executing job with overrides: ['SNAP_ID=4']
+Traceback (most recent call last):
+  File "/workspace/zecheng/modelzipper/projects/custom_llama/switch_codebook.py", line 209, in main
+    predictions = tester.predict(
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 864, in predict
+    return call._call_and_handle_interrupt(
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 44, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 903, in _predict_impl
+    results = self._run(model, ckpt_path=ckpt_path)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 989, in _run
+    results = self._run_stage()
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1030, in _run_stage
+    return self.predict_loop.run()
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 182, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/loops/prediction_loop.py", line 122, in run
+    self._predict_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/loops/prediction_loop.py", line 250, in _predict_step
+    predictions = call._call_strategy_hook(trainer, "predict_step", *step_args)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 309, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 429, in predict_step
+    return self.lightning_module.predict_step(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "/workspace/zecheng/modelzipper/projects/custom_llama/switch_codebook.py", line 169, in predict_step
+    zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
+  File "/workspace/zecheng/modelzipper/projects/custom_llama/models/vqvae.py", line 176, in encode
+    x_out = encoder(x_in)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/zecheng/modelzipper/projects/custom_llama/models/encdec.py", line 201, in forward
+    x = level_block(x)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/workspace/zecheng/modelzipper/projects/custom_llama/models/encdec.py", line 46, in forward
+    return self.model(x)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/container.py", line 215, in forward
+    input = module(input)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/container.py", line 215, in forward
+    input = module(input)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1518, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1527, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 310, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/v-zetang/.conda/envs/llama/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 306, in _conv_forward
+    return F.conv1d(input, weight, bias, self.stride,
+RuntimeError: cuDNN error: CUDNN_STATUS_INTERNAL_ERROR
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+Predicting DataLoader 0:   0%|          | 0/181209 [00:02<?, ?it/s]
