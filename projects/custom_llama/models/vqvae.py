@@ -94,13 +94,19 @@ class VQVAE(nn.Module):
                 levels=level + 1,
                 downs_t=self.cfg.downs_t[:level+1],
                 strides_t=self.cfg.strides_t[:level+1],
+                use_modified_block=self.cfg.use_modified_block,
                 **_block_kwargs(level)
             )
         
         def decoder(level): 
             return Decoder(
-                self.x_channels, self.cfg.emb_width, level + 1,
-                self.cfg.downs_t[:level+1], self.cfg.strides_t[:level+1], **_block_kwargs(level)
+                input_emb_width = self.x_channels, 
+                output_emb_width = self.cfg.emb_width, 
+                levels = level + 1,
+                downs_t = self.cfg.downs_t[:level+1], 
+                strides_t = self.cfg.strides_t[:level+1], 
+                use_modified_block=self.cfg.use_modified_block,
+                **_block_kwargs(level)
             )
 
         for level in range(self.cfg.levels):
@@ -109,7 +115,12 @@ class VQVAE(nn.Module):
 
         # define bottleneck
         if self.cfg.use_bottleneck:
-            self.bottleneck = Bottleneck(self.cfg.l_bins, self.cfg.emb_width, self.cfg.l_mu, self.cfg.levels)
+            self.bottleneck = Bottleneck(
+                l_bins = self.cfg.l_bins, 
+                emb_width = self.cfg.emb_width, 
+                mu = self.cfg.l_mu, 
+                levels = self.cfg.levels
+            )
         else:
             self.bottleneck = NoBottleneck(self.cfg.levels)    
 

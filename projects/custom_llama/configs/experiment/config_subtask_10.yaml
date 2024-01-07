@@ -24,7 +24,7 @@ dataset:
   return_all_token_mask: False
   num_bins: 9
   remove_redundant_col: False  # remove the 2nd and 3rd coloumns
-  cluster_batch: True
+  cluster_batch: False
 
 vqvae:
   levels: 1
@@ -42,14 +42,16 @@ vqvae:
   commit: 1.0
   recon: 1.0
   linf_k: 2048
+  use_modified_block: True
 
 vqvae_conv_block:
   depth: 6
   width: 1024
   m_conv: 1.0
-  dilation_growth_rate: 2
+  dilation_growth_rate: 1
   dilation_cycle: null
   vqvae_reverse_decoder_dilation: True
+  
 
 experiment:
   model_save_dir: ${SAVE_DIR}
