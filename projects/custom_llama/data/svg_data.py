@@ -72,7 +72,10 @@ class BasicDataset(Dataset):
         sample = sample[:self.max_path_nums]  # prevent too long num path
         sample = self.custom_command(sample)
         
-        return sample.long()
+        return {
+            "keywords": keywords,
+            "svg_path": sample.long(),
+        }
 
     def custom_command(self, svg_tensor):
         col1 = svg_tensor[:, 0]
@@ -121,24 +124,32 @@ class PadCollate:
         args:
             batch - list of (tensor, label)
         """
+
+        keywords = list(map(lambda x: x['keywords'], batch))
+        svg_tensors = list(map(lambda x: x['svg_path'], batch))
+
         if self.cluster_batch:
             # find longest sequence
-            max_len = max(map(lambda x: x.shape[0], batch))
+            max_len = max(map(lambda x: x.shape[0], svg_tensors))
             max_len = min(max_len, self.max_seq_length)
         else:
             max_len = self.max_seq_length
 
         # pad according to max_len
-        batch = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), batch))
-        batch = torch.stack(batch, dim=0)
+        svg_tensors = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), svg_tensors))
+        svg_tensors = torch.stack(svg_tensors, dim=0)
 
         # get padding mask
         if self.return_all_token_mask:
-            padding_mask = ~(batch == self.pad_token_id)
+            padding_mask = ~(svg_tensors == self.pad_token_id)
         else:
-            padding_mask = ~(batch == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
+            padding_mask = ~(svg_tensors == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
 
-        return {"svg_path": batch, "padding_mask": padding_mask}
+        return {
+            "svg_path": svg_tensors, 
+            "padding_mask": padding_mask,
+            "keywords": keywords,
+        }
 
     def __call__(self, batch):
         return self.pad_collate(batch)

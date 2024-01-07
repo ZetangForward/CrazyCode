@@ -1,0 +1,67 @@
+SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
+JOB_ID: &JOB_ID 8
+EPOCH: &EPOCH 70
+EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
+CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
+TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
+
+
+hydra:
+  job:
+    id: ${JOB_ID}
+    name: hydra_${EXP_NAME}
+  run:
+    dir: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/${hydra.job.name} 
+
+dataset:
+  test_data_path: ${TEST_DATA_PATH}
+  max_path_nums: 512
+  pad_token_id: 0
+  val_batch_size: 1  # must set bsz as 1 to avoid the extra padding
+  nworkers: 0
+  x_channels: 9
+  num_bins: 9
+  inference_mode: True
+  pin_memory: False
+  return_all_token_mask: False
+  remove_redundant_col: False
+  cluster_batch: False
+
+vqvae:
+  levels: 2
+  downs_t: [1, 1, 1]
+  strides_t: [2, 2, 2]
+  emb_width: 4096
+  l_bins: 8192
+  l_mu: 0.99
+  spectral: 0.0
+  multispectral: 1.0
+  hvqvae_multipliers: [2, 1, 1]
+  loss_fn: 'l2'
+  dilation_growth_rate: 1
+  use_nonrelative_specloss: True
+  use_bottleneck: True
+  commit: 1.0
+  recon: 1.0
+  linf_k: 2048
+
+vqvae_conv_block:
+  depth: 4
+  width: 512
+  m_conv: 1.0
+  dilation_growth_rate: 1
+  dilation_cycle: null
+  vqvae_reverse_decoder_dilation: True
+
+experiment:
+  ckeckpoint_path: ${CKPT_PATH}
+  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/epoch_${EPOCH}
+  exp_name: ${EXP_NAME}
+  version: ${JOB_ID}
+  device_num: 1
+  compress_level: 1
+  return_all_quantized_res: False
+  path_interpolation: True
+
+
+  
