@@ -124,7 +124,6 @@ class PadCollate:
         args:
             batch - list of (tensor, label)
         """
-        import pdb; pdb.set_trace()
         keywords = list(map(lambda x: x['keywords'], batch))
         svg_tensors = list(map(lambda x: x['svg_path'], batch))
 

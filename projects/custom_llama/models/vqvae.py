@@ -178,6 +178,8 @@ class VQVAE(nn.Module):
 
         zs, xs_quantised = self.bottleneck(xs[start_level:end_level], just_return_zs=True)
 
+        xs_quantised = [tmp.permute(0, 2, 1).float() for tmp in xs_quantised]
+
         return zs, xs_quantised
 
 

@@ -165,7 +165,6 @@ class ObtainSVGCode(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        import pdb; pdb.set_trace()
         svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
         zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
 
@@ -179,7 +178,7 @@ class ObtainSVGCode(pl.LightningModule):
 
         return standard_results
 
-    
+
 
 @hydra.main(config_path='./configs/experiment', config_name='config_switch_codebook', version_base='1.1')
 def main(config):

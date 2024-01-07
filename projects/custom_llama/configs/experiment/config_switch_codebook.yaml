@@ -25,7 +25,7 @@ dataset:
   pin_memory: False
   return_all_token_mask: False
   remove_redundant_col: False
-  cluster_batch: False
+  cluster_batch: True
 
 vqvae:
   levels: 2
