@@ -69,16 +69,17 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         )
         hidden_states = outputs[0]
 
-        
-        text_logits = self.lm_head(hidden_states[:, :text_width, :]).float() # text modality
-        svg_pred = self.output_adapter(hidden_states[:, text_width:, :]).float() # svg modality
+        # text modality, last token is svg special token
+        text_logits = self.lm_head(hidden_states[:, :text_width-1, :]).float()
+        # svg modality, first token is svg special token, last token should be svg end token
+        svg_pred = self.output_adapter(hidden_states[:, text_width-1:, :]).float() 
 
-        total_loss, text_loss, svg_loss = None, None, None
+        total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
 
         if text_labels is not None:
             # Shift so that tokens < n predict n
-            shift_logits = text_logits[..., :-1, :].contiguous()
-            shift_labels = text_labels[..., 1:].contiguous()
+            shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
+            shift_labels = text_labels[..., 1:-1].contiguous() # last token is convert_token
             # Flatten the tokens
             loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
@@ -87,6 +88,9 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             shift_labels = shift_labels.to(shift_logits.device)
             text_loss = loss_fct(shift_logits, shift_labels)
 
+        if text_labels is not None and svg_quantised is not None:
+
+
         if svg_quantised is not None:
             svg_padding_mask = svg_padding_mask.unsqueeze(-1).expand_as(svg_quantised)
             svg_target = torch.where(svg_padding_mask, svg_quantised, torch.zeros_like(svg_quantised)).to(svg_pred.device)
@@ -94,7 +98,8 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             mask_sum = svg_padding_mask.sum()
             svg_loss = torch.sum((svg_pred - svg_quantised) ** 2) / mask_sum
 
-        if 
+        if text_loss is not None and svg_loss is not None:
+            total_loss = text_loss + self.vq_loss_weight * svg_loss
 
 
 

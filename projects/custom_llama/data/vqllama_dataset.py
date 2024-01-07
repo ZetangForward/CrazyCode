@@ -21,7 +21,7 @@ def pad_tensor(vec, pad_len, dim, pad_token_id):
             a new tensor padded to 'pad' in dimension 'dim'
         """
         pad_size = list(vec.shape)
-        pad_size[dim] = pad - vec.size(dim)
+        pad_size[dim] = pad_len - vec.size(dim)
         return torch.cat([vec, torch.empty(*pad_size).fill_(pad_token_id)], dim=dim)
 
 
@@ -68,10 +68,11 @@ class BasicDataset(Dataset):
             text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
         )
 
+        # FIXME: check the dtype 和实际的修改是否正确(这里就是单纯删除</s> token，让文本部分结尾是svg_token)
         if self.svg_token is not None:  # utilize svg_token as the end of the text
-            text_input_ids = text_input_ids[:-1]
-            text_attention_mask = text_attention_mask[:-1]
-            text_labels = text_labels[:-1]
+            text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
+            text_labels[text_attention_mask.sum() - 1] = -100
+            text_attention_mask[text_attention_mask.sum() - 1] = 0
 
         return {
             "text_input_ids": text_input_ids,
