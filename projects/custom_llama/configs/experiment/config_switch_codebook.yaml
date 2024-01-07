@@ -3,7 +3,8 @@ JOB_ID: &JOB_ID 8
 EPOCH: &EPOCH 70
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
-TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/full_data.pkl"
+SNAP_ID: &SNAP_ID 0
+TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/sub_full_data_${SNAP_ID}.pkl"
 
 
 hydra:
@@ -11,14 +12,14 @@ hydra:
     id: ${JOB_ID}
     name: hydra_${EXP_NAME}
   run:
-    dir: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/${hydra.job.name} 
+    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
   test_data_path: ${TEST_DATA_PATH}
   max_path_nums: 512
   pad_token_id: 0
   val_batch_size: 1  # must set bsz as 1 to avoid the extra padding
-  nworkers: 0
+  nworkers: 2
   x_channels: 9
   num_bins: 9
   inference_mode: True
@@ -55,6 +56,7 @@ vqvae_conv_block:
   vqvae_reverse_decoder_dilation: True
 
 experiment:
+  snap_id: ${SNAP_ID}
   ckeckpoint_path: ${CKPT_PATH}
   prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/epoch_${EPOCH}
   exp_name: ${EXP_NAME}
