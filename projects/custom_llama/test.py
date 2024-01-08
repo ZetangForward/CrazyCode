@@ -22,6 +22,11 @@ def postprocess(x, padding_mask=None, path_interpolation=True):
     path_interpolation: whether to interpolate the path
     """
     dtype = x.dtype
+    if x.ndim == 2:
+        x = x.unsqueeze(0)
+    if padding_mask.ndim == 1:
+        padding_mask = padding_mask.unsqueeze(0)
+
     if path_interpolation:  
         # conduct path interpolation
         # return List[Tensor]
@@ -119,14 +124,10 @@ def merge_dicts(dict_list, device='cpu'):
             flag = False
             for sublist in items:
                 if isinstance(sublist, torch.Tensor):
-                    flag = True
                     tmp_tensors.append(sublist)
                 elif isinstance(sublist, list):
                     tmp_tensors.extend(sublist)
-            if flag:
-                tmp_tensors = torch.cat(tmp_tensors, dim=0).to(device)
-            else:
-                tmp_tensors = [tmp.cpu() for tmp in tmp_tensors]
+            tmp_tensors = [tmp.cpu() for tmp in tmp_tensors]
             merge_res[key] = tmp_tensors  # each row is a tensor
 
         elif items and isinstance(items[0], List):
@@ -166,11 +167,7 @@ class Experiment(pl.LightningModule):
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
         output = self.denormalize_func(output)
-
-        post_process_output = postprocess(
-            output, batch['padding_mask'], 
-            self.cfg.experiment.path_interpolation
-        )  # path interpolation
+        post_process_output = postprocess(output, batch['padding_mask'], self.cfg.experiment.path_interpolation)  # path interpolation
         golden = sanint_check_golden(batch['svg_path'])
         
         standard_test_reconstruct = {

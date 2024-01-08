@@ -43,7 +43,9 @@ vqvae:
   commit: 1.0
   recon: 1.0
   linf_k: 2048
+  use_modified_block: False
 
+  
 vqvae_conv_block:
   depth: 4
   width: 512
@@ -51,6 +53,7 @@ vqvae_conv_block:
   dilation_growth_rate: 1
   dilation_cycle: null
   vqvae_reverse_decoder_dilation: True
+  
 
 experiment:
   model_save_dir: ${SAVE_DIR}

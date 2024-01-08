@@ -20,6 +20,8 @@ def sanint_check_svg_tensor(x):
     """
     x: batch_size x seq_len x (7, 9)
     """
+    if x.ndim == 2:
+        x = x.unsqueeze(0)
     if x.size(-1) == 9:
         x[:, :, 0][x[:, :, 0] == 100] = 1
         x[:, :, 0][x[:, :, 0] == 200] = 2
@@ -130,9 +132,10 @@ def main(cl: int = 0, rd: str = None):
             raw_predict = results['raw_predict'][i]
             p_predict = results['p_predict'][i]
             golden = results['golden'][i]
-            p_predict = sanint_check_svg_tensor(p_predict.unsqueeze(0)).squeeze(0)
+
+            p_predict = sanint_check_svg_tensor(p_predict).squeeze(0)
             p_svg, p_svg_str = convert_svg(p_predict, True)
-            golden = sanint_check_svg_tensor(golden.unsqueeze(0)).squeeze(0)
+            golden = sanint_check_svg_tensor(golden).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
 
             str_paths.append({
@@ -147,16 +150,6 @@ def main(cl: int = 0, rd: str = None):
 
         auto_save_data(str_paths, PATH_SAVED_PATH)
 
-    if DIRECT_ADD_BACKGROUND:
-        if len(all_image_paths) == 0:
-            print_c(f"no image path, read all image paths from {SINGLE_IMAGE_SAVED_DIR}", "magenta")
-            all_image_paths = glob.glob(os.path.join(SINGLE_IMAGE_SAVED_DIR, "*.png"))
-        for i in trange(len(all_image_paths)):
-            image_path = all_image_paths[i]
-            if "_b.png" in image_path:
-                continue
-            add_background(image_path=image_path)
-
     if DIRECT_GENERATE_BIG_MAP:
         p_svg_images = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
@@ -170,6 +163,16 @@ def main(cl: int = 0, rd: str = None):
             num_images=1000, 
             save_dir=BIG_MAP_SAVED_DIR
         )
+
+    if DIRECT_ADD_BACKGROUND:
+        if len(all_image_paths) == 0:
+            print_c(f"no image path, read all image paths from {SINGLE_IMAGE_SAVED_DIR}", "magenta")
+            all_image_paths = glob.glob(os.path.join(SINGLE_IMAGE_SAVED_DIR, "*.png"))
+        for i in trange(len(all_image_paths)):
+            image_path = all_image_paths[i]
+            if "_b.png" in image_path:
+                continue
+            add_background(image_path=image_path)
 
     
 if __name__ == "__main__":
