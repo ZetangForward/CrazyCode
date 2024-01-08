@@ -133,15 +133,17 @@ def train():
             "eos_token": DEFAULT_EOS_TOKEN,
             "bos_token": DEFAULT_BOS_TOKEN,
             "pad_token": DEFAULT_PAD_TOKEN,
-            "additional_special_tokens": [DEFAULT_SVG_TOKEN],
+            "additional_special_tokens": [DEFAULT_SVG_BEGIN_TOKEN, DEFAULT_SVG_END_TOKEN],
         }
-
         smart_tokenizer_and_embedding_resize(
             added_tokens, llama_tokenizer, svgllama
         )
         
-        # llama_tokenizer.pad_token_id = llama_tokenizer.unk_token_id
-    
+    svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
+    svg_end_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_END_TOKEN)
+    svgllama.add_svg_begin_token_id(svg_begin_token_id)
+    svgllama.add_svg_end_token_id(svg_end_token_id)
+
     train_file = os.path.join(data_args.data_path, "offline_500_train.jsonl")
     val_file = os.path.join(data_args.data_path, "offline_500_valid.jsonl")
     
