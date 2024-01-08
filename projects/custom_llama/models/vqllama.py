@@ -24,8 +24,8 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         self.svg_begin_token_id = svg_begin_token_id
         self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
-        self.input_adapter = nn.Linear(config.svg_token_dims, config.hidden_dims)
-        self.output_adapter = nn.Linear(config.hidden_dims, config.svg_token_dims)
+        self.input_adapter = nn.Linear(config.svg_token_dims, config.hidden_size)
+        self.output_adapter = nn.Linear(config.hidden_size, config.svg_token_dims)
 
         self.post_init()
         
@@ -42,6 +42,9 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
     def add_svg_begin_token_id(self, svg_begin_token_id):
         self.svg_begin_token_id = svg_begin_token_id
 
+    def set_tokenizer(self, tokenizer):
+        self.tokenizer = tokenizer
+
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
     
@@ -54,7 +57,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             svg_quantised: B x L x D,
             svg_padding_mask: B x L
         """
-
+        import pdb; pdb.set_trace()
         text_width = input_embeddings.size(1)
 
         text_embedding_module = self.base_model.get_input_embeddings()

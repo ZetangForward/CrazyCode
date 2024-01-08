@@ -119,11 +119,9 @@ def train():
         use_fast=True,
     )
 
-    # svgllama = SvgLlama(llamaconfig)
     svgllama = VQSVGLlama.from_pretrained(
         model_args.model_name_or_path, 
         config=llamaconfig, 
-        tokenizer=llama_tokenizer,
         cache_dir=training_args.cache_dir
     )
     
@@ -138,12 +136,16 @@ def train():
         smart_tokenizer_and_embedding_resize(
             added_tokens, llama_tokenizer, svgllama
         )
-        
+
+
     svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
     svg_end_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_END_TOKEN)
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.add_svg_end_token_id(svg_end_token_id)
+    svgllama.set_tokenizer(llama_tokenizer)
     
+    import pdb; pdb.set_trace()
+
     svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
 
     data_collator = VQDataCollator(
