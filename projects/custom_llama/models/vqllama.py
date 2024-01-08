@@ -17,7 +17,7 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
         self.svg_end_token_id = svg_end_token_id
@@ -34,7 +34,12 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             self.requires_grad_ = False 
             self.input_adapter.requires_grad_ = True
             self.output_adapter.requires_grad_ = True
-    
+
+        self.vqvae = vqvae
+
+    def init_vqvae(self, vqvae):
+        self.vqvae = vqvae
+        self.vqvae.requires_grad_ = False
 
     def add_svg_end_token_id(self, svg_end_token_id):
         self.svg_end_token_id = svg_end_token_id
