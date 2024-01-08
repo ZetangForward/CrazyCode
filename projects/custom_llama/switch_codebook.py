@@ -202,6 +202,11 @@ def main(config):
     )
 
     vqvae = VQVAE(config, multipliers=None, **block_kwargs)
+
+    print_c(f"======= interactive version =======", "magenta")
+
+    PAD_TOKEN_PATH = "/zecheng2/svg/icon-shop/test_data_snaps/pad_fake_data.pkl" 
+
     experiment = ObtainSVGCode(vqvae, config)
 
     tester = pl.Trainer(devices=config.experiment.device_num)
