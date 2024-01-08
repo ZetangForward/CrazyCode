@@ -7,13 +7,13 @@ from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 
-
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
 DEFAULT_EOS_TOKEN = "<s>"
 DEFAULT_BOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
-DEFAULT_SVG_TOKEN = "<SVG>"
+DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
+DEFAULT_SVG_END_TOKEN = "</SVG>"
 
 @dataclass
 class ModelArguments:
@@ -104,16 +104,8 @@ def train():
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
         
     # config 
-    llamaconfig = transformers.LlamaConfig.from_pretrained(
-        model_args.model_name_or_path
-    )
+    llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     
-    svg_tokenizer = SvgTokenizer.from_pretrained(  
-        "/zecheng/svg_model_hub/custom_config",  
-        vocab_file="/zecheng/svg_model_hub/custom_config/vocab_v2.txt"  
-    )  
-    
-    llamaconfig.svg_vocab_size = svg_tokenizer.vocab_size
     llamaconfig.frozen_llm = False
     llamaconfig.text_width = 64
     llamaconfig.max_svg_length = 1024
@@ -128,10 +120,10 @@ def train():
     )
 
     # svgllama = SvgLlama(llamaconfig)
-    svgllama = SvgLlama.from_pretrained(
+    svgllama = VQSVGLlama.from_pretrained(
         model_args.model_name_or_path, 
         config=llamaconfig, 
-        text_tokenizer=llama_tokenizer,
+        tokenizer=llama_tokenizer,
         cache_dir=training_args.cache_dir
     )
     

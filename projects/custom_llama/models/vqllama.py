@@ -9,20 +9,19 @@ import torch
 import torch.nn as nn 
 from tqdm import tqdm  
 import torch.nn.functional as F
-from transformers import PreTrainedTokenizer, LlamaConfig, LlamaForCausalLM  
-from torch import Tensor 
+from transformers import LlamaConfig, LlamaForCausalLM  
 from torch.nn import CrossEntropyLoss
-from torch.utils.data import Dataset
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, numerical_token=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
-        self.numerical_token = numerical_token
+        self.svg_end_token_id = svg_end_token_id
+        self.svg_begin_token_id = svg_begin_token_id
         self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
         self.input_adapter = nn.Linear(config.svg_token_dims, config.hidden_dims)
@@ -37,11 +36,17 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             self.output_adapter.requires_grad_ = True
     
 
+    def add_svg_end_token_id(self, svg_end_token_id):
+        self.svg_end_token_id = svg_end_token_id
+
+    def add_svg_begin_token_id(self, svg_begin_token_id):
+        self.svg_begin_token_id = svg_begin_token_id
+
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
     
 
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_quantised=None, svg_padding_mask=None, svg_end_token_id=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_quantised=None, svg_padding_mask=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
@@ -127,65 +132,31 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             # calculate CE Loss for last svg token -> golden text token
             svg2text_loss = F.cross_entropy(last_svg_token_logits, svg_end_token_id, reduction="mean")
 
+            convert_token_loss = text2svg_loss + svg2text_loss
 
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
 
+        if self.training:
+            return {
+                "total_loss": total_loss,
+                "text_loss": text_loss,
+                "svg_loss": svg_loss,
+                "convert_token_loss": convert_token_loss,
+            }
 
-
-
-
-
-
-
-        ## Decode numerical information
-        ### Step 1: extract all the numerical embeddings
-        numerical_res = []
-        for i in range(batch_size):
-            minibatch_numerical = []
-            for j in range(seq_len):
-                if text_inputs[i, j] == self.numerical_token_id:
-                    minibatch_numerical.append(hidden_states[i, j-1, :].unsqueeze(0))
-                if text_inputs[i, j] == self.tokenizer.eos_token_id:
-                    break
-            numerical_res.append(torch.cat(minibatch_numerical, dim=0)) # List[List[Tensor]]
-
-        ### Step 2: decode numerical embeddings with VAE
-        decode_results = [self.vae.decode(z.unsqueeze(0)) for z in numerical_res]  # List[Tensor]
-        
-        ### Step 3: calculate the reconstruction Loss
-        recon_loss = 0
-        for i in range(batch_size):
-            # golden_numerical_inputs[i] 1 x 4 x l
-            golden_numerical = golden_numerical_inputs[i].squeeze(0)
-            decode_result = decode_results[i].squeeze(0).transpose(0, 1)
-            assert golden_numerical.size() == decode_result.size(), "Numerical input size not match"
-            recon_loss += F.mse_loss(decode_result, golden_numerical, reduction="mean") / batch_size
-        
-        
-        
-        total_loss = loss + self.vae_loss_weight * (kl_loss + recon_loss)
-        # import pdb; pdb.set_trace()
         return {
-            "loss": total_loss,
-            "kl_loss": kl_loss,
-            "reconstruction_loss": recon_loss,
-            "textual_loss": loss,
             "logits": text_logits,
             "hidden_states": outputs.hidden_states,
             "attentions": outputs.attentions,
         }
-    
+
+
     @torch.no_grad()
     def generate(self, input_ids=None, attention_mask=None, max_length=None, min_length=None, **kwargs):
-        
         return super().generate(input_ids, attention_mask, max_length, min_length, **kwargs)
     
-    
-    @property
-    def numerical_token_id(self):
-        return self.tokenizer.convert_tokens_to_ids(self.numerical_token)
     
     @property
     def model_device(self):
