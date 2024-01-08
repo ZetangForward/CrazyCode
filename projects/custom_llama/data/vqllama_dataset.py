@@ -133,7 +133,6 @@ class VQLLaMAData:
 
         self.tokenizer = tokenizer  
         self.split = split
-        self.max_seq_len = args.model_max_length
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
         self.valid_data = content[:2000]
         self.train_data = content[2000:]

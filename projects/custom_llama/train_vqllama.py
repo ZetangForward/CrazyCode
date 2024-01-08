@@ -37,7 +37,6 @@ class TrainingArguments(transformers.TrainingArguments):
     n_mask: int = field(default=4)
     hybrid: str = field(default="keywords")  # description, hybrid
     is_augment: bool = field(default=False)
-    text_width: int = field(default=64)
 
 
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
@@ -107,8 +106,8 @@ def train():
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     
     llamaconfig.frozen_llm = False
-    llamaconfig.text_width = 64
     llamaconfig.max_svg_length = 1024
+    llamaconfig.max_text_length = 64
     llamaconfig.svg_token_dims = 4096
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -144,8 +143,6 @@ def train():
     svgllama.add_svg_end_token_id(svg_end_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
     
-    import pdb; pdb.set_trace()
-
     svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
 
     data_collator = VQDataCollator(
