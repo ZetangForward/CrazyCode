@@ -41,19 +41,21 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         return super().load_state_dict(state_dict, strict)
     
 
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_quantised=None, svg_padding_mask=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_quantised=None, svg_padding_mask=None, svg_end_token_id=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
             svg_quantised: B x L x D,
-            svg_padding_mask: B x L 
+            svg_padding_mask: B x L
+            svg_end_token_id: B x 1 x 1 
         """
 
         text_width, svg_width = input_embeddings.size(1), svg_quantised.size(1)
 
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
+        svg_end_token_embedding = text_embedding_module(svg_end_token_id)
         
         svg_token_embeddings = self.input_adapter(svg_quantised) # Encode svg tokens
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
@@ -102,6 +104,9 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             ...
             ## TODO: add convert token loss
             # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
+
+            golden_svg_token_h = svg_quantised[;, 0, :]
+            golden_text_token_h = 
 
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    

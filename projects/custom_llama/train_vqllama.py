@@ -114,8 +114,9 @@ def train():
     )  
     
     llamaconfig.svg_vocab_size = svg_tokenizer.vocab_size
-    llamaconfig.text_width = 64
     llamaconfig.frozen_llm = False
+    llamaconfig.text_width = 64
+    llamaconfig.max_svg_length = 1024
     llamaconfig.svg_token_dims = 4096
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(

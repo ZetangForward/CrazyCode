@@ -10,33 +10,31 @@ from torch.utils.data import DataLoader, Dataset
 from modelzipper.tutils import *
 
 
-def pad_tensor(vec, pad_len, dim, pad_token_id):
+def pad_tensor(vec, pad_len, dim, pad_token_h):
         """
         args:
             vec - tensor to pad
             pad - the size to pad to
             dim - dimension to pad
-            pad_token_id - padding token id
+            pad_token_h - represent of pad token
         return:
             a new tensor padded to 'pad' in dimension 'dim'
         """
-        pad_size = list(vec.shape)
-        pad_size[dim] = pad_len - vec.size(dim)
-        return torch.cat([vec, torch.empty(*pad_size).fill_(pad_token_id)], dim=dim)
-
+        return torch.cat([vec, pad_token_h.repeat(pad_len - vec.size(dim), 1)], dim=dim)
 
 
 class BasicDataset(Dataset):
 
     PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
 
-    def __init__(self, content, tokenizer, mode="train", svg_token=None, max_text_length=64, max_svg_length=1024) -> None:
+    def __init__(self, content, tokenizer, svg_begin_token=None, svg_end_token=None, mode="train", svg_token=None, max_text_length=64, max_svg_length=1024) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
         self.content = content
         self.mode = mode
-        self.svg_token = svg_token
+        self.svg_begin_token = svg_begin_token
+        self.svg_end_token = svg_end_token
         self.max_text_length = max_text_length
         self.max_svg_length = max_svg_length
 
@@ -52,8 +50,8 @@ class BasicDataset(Dataset):
         svg_quantised = svg_quantised[: self.max_svg_length]
 
         # process the input keywords
-        if self.svg_token is not None:
-            prompts = prompts + " " + self.svg_token
+        if self.svg_begin_token is not None:
+            prompts = prompts + " " + self.svg_begin_token
 
         seq_inputs = self.tokenizer(
             prompts, 
@@ -69,16 +67,20 @@ class BasicDataset(Dataset):
         )
 
         # FIXME: check the dtype 和实际的修改是否正确(这里就是单纯删除</s> token，让文本部分结尾是svg_token)
-        if self.svg_token is not None:  # utilize svg_token as the end of the text
+        if self.svg_begin_token is not None:  # utilize svg_token as the end of the text
             text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
             text_labels[text_attention_mask.sum() - 1] = -100
             text_attention_mask[text_attention_mask.sum() - 1] = 0
+
+        if self.svg_end_token is not None:
+            svg_end_token_id = self.tokenizer.convert_tokens_to_ids(self.svg_end_token)
 
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
             "svg_quantised": svg_quantised,
+            "svg_end_token_id": svg_end_token_id, 
         }
 
 
@@ -87,9 +89,9 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, svg_pad_token_id=0, max_svg_length=1024, return_all_token_mask=False):
-        self.svg_pad_token_id = svg_pad_token_id
+    def __init__(self, svg_pad_token_h, max_svg_length=1024, return_all_token_mask=False):
         self.max_svg_length = max_svg_length
+        self.svg_pad_token_h = svg_pad_token_h
         self.return_all_token_mask = return_all_token_mask
 
     def pad_collate(self, batch):
@@ -104,7 +106,7 @@ class VQDataCollator:
         text_labels = torch.stack(text_labels, dim=0)
 
         ## pad the vq svg quantised
-        svg_quantised = list(map(lambda x: pad_tensor(x, self.max_svg_length, 0, self.svg_pad_token_id), svg_quantised))
+        svg_quantised = list(map(lambda x: pad_tensor(x, self.max_svg_length, 0, self.svg_pad_token_h), svg_quantised))
         svg_quantised = torch.stack(svg_quantised, dim=0)
 
         ## obtain svg padding mask
@@ -127,7 +129,7 @@ class VQDataCollator:
     
 
 class VQLLaMAData:
-    def __init__(self, args, vq_svg_file, tokenizer: PreTrainedTokenizer, split="train"):  
+    def __init__(self, args, vq_svg_file, svg_begin_token, svg_end_token, tokenizer: PreTrainedTokenizer, vq_svg_pad_file=None, split="train"):  
 
         self.tokenizer = tokenizer  
         self.split = split
@@ -135,14 +137,35 @@ class VQLLaMAData:
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
         self.valid_data = content[:2000]
         self.train_data = content[2000:]
+        
+        assert vq_svg_pad_file is not None, "vq_svg_pad_file should not be None"
+        self.svg_pad_token = auto_read_data(vq_svg_pad_file)
+        self.svg_begin_token = svg_begin_token
+        self.svg_end_token = svg_end_token
 
 
-    def train_dataloader(self) -> DataLoader:
-        pass
+    def train_dataset(self) -> Dataset:
+        return BasicDataset(
+            content=self.train_data,
+            tokenizer=self.tokenizer,
+            svg_pad_token=self.svg_pad_token,
+            mode="train",
+            svg_token=self.svg_token,
+            max_text_length=self.args.max_text_length,
+            max_svg_length=self.args.max_svg_length,
+        )
 
 
-    def valid_dataloader(self) -> DataLoader:
-        pass
+    def valid_dataset(self) -> Dataset:
+        return BasicDataset(
+            content=self.valid_data,
+            tokenizer=self.tokenizer,
+            svg_pad_token=self.svg_pad_token,
+            mode="valid",
+            svg_token=self.svg_token,
+            max_text_length=self.args.max_text_length,
+            max_svg_length=self.args.max_svg_length,
+        )
 
 
     def predict_dataloader(self) -> DataLoader:
