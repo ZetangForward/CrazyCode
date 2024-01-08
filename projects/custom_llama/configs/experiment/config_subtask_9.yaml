@@ -46,6 +46,7 @@ vqvae:
   commit: 1.0
   recon: 1.0
   linf_k: 2048
+  use_modified_block: False
 
 vqvae_conv_block:
   depth: 4
