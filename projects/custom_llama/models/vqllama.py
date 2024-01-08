@@ -53,7 +53,6 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             text_labels: B x L,
             svg_quantised: B x L x D,
             svg_padding_mask: B x L
-            svg_end_token_id: B x 1 x 1 
         """
 
         text_width = input_embeddings.size(1)
@@ -143,15 +142,13 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
+        metrics = dict(
+            total_loss=total_loss, text_loss=text_loss, svg_loss=svg_loss, convert_token_loss=convert_token_loss
+        )
 
         if self.training:
-            return {
-                "total_loss": total_loss,
-                "text_loss": text_loss,
-                "svg_loss": svg_loss,
-                "convert_token_loss": convert_token_loss,
-            }
-
+            return metrics
+        
         return {
             "logits": text_logits,
             "hidden_states": outputs.hidden_states,

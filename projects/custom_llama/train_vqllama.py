@@ -70,10 +70,8 @@ class CustomTrainier(Trainer):
             svg_quantised=inputs['svg_quantised'],
             svg_padding_mask=inputs['svg_padding_mask'],
         )
-
-        loss = outputs.loss
-        total_loss = loss["text loss"] + 2 * loss["svg loss"]
-
+        total_loss = outputs.pop("total_loss")
+        self.log(outputs)  # log other metrics
         return (total_loss, outputs) if return_outputs else total_loss 
 
 
@@ -153,7 +151,11 @@ def train():
         max_svg_length=llamaconfig.max_svg_length
     )
     
-    data_module = dict(train_dataset=svg_data_module.train_dataset, eval_dataset=svg_data_module.valid_dataset, data_collator=data_collator)
+    data_module = dict(
+        train_dataset=svg_data_module.train_dataset, 
+        eval_dataset=svg_data_module.valid_dataset, 
+        data_collator=data_collator
+    )
 
     #Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
