@@ -22,6 +22,8 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     data_path: str = field(default=None, metadata={"help": "Path to the training data."})
+    vq_svg_pad_file: str = field(default=None, metadata={"help": "Path to the vq svg pad file."})
+
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
@@ -143,21 +145,15 @@ def train():
     svg_end_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_END_TOKEN)
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.add_svg_end_token_id(svg_end_token_id)
-
-    train_file = os.path.join(data_args.data_path, "offline_500_train.jsonl")
-    val_file = os.path.join(data_args.data_path, "offline_500_valid.jsonl")
     
-    train_dataset = SvghybirdDataset(training_args, train_file, svg_tokenizer=svg_tokenizer, model_tokenizer=llama_tokenizer)
-    val_dataset = SvghybirdDataset(training_args, val_file, svg_tokenizer=svg_tokenizer, model_tokenizer=llama_tokenizer)
+    svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
 
-
-    if training_args.local_rank == 0:
-        print(len(train_dataset))
-        for index in random.sample(range(len(train_dataset)), 3):
-            print(f"Sample {index} of the training set: {train_dataset[index]}.")
+    data_collator = VQDataCollator(
+        svg_pad_token_h=llamaconfig.svg_token_dims, 
+        max_svg_length=llamaconfig.max_svg_length
+    )
     
-    data_collator = DataCollatorForSupervisedDataset(tokenizer=llama_tokenizer)
-    data_module = dict(train_dataset=train_dataset, eval_dataset=val_dataset, data_collator=data_collator)
+    data_module = dict(train_dataset=svg_data_module.train_dataset, eval_dataset=svg_data_module.valid_dataset, data_collator=data_collator)
 
     #Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True

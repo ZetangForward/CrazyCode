@@ -92,7 +92,6 @@ class VQDataCollator:
     def __init__(self, svg_pad_token_h, max_svg_length=1024, return_all_token_mask=False):
         self.max_svg_length = max_svg_length
         self.svg_pad_token_h = svg_pad_token_h
-        self.return_all_token_mask = return_all_token_mask
 
     def pad_collate(self, batch):
         text_input_ids = list(map(lambda x: x['text_input_ids'], batch))

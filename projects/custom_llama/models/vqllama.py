@@ -121,7 +121,6 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             for i in range(bsz):
                 last_text_token_logits[i] = self.output_adapter(hidden_states[i, real_text_lengths[i] - 1])
 
-
             # obtain the last svg token logits
             real_svg_lengths = svg_padding_mask.sum(dim=1)  
             last_svg_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
