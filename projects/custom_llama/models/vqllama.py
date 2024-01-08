@@ -51,11 +51,10 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             svg_end_token_id: B x 1 x 1 
         """
 
-        text_width, svg_width = input_embeddings.size(1), svg_quantised.size(1)
+        text_width = input_embeddings.size(1)
 
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
-        svg_end_token_embedding = text_embedding_module(svg_end_token_id)
         
         svg_token_embeddings = self.input_adapter(svg_quantised) # Encode svg tokens
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
@@ -72,16 +71,16 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         hidden_states = outputs[0]
 
         # text modality, last token is svg special token
-        text_logits = self.lm_head(hidden_states[:, :text_width-1, :]).float()
+        text_logits = self.lm_head(hidden_states[:, :text_width, :]).float()
         # svg modality, first token is svg special token, last token should be svg end token
-        svg_pred = self.output_adapter(hidden_states[:, text_width-1:, :]).float() 
+        svg_pred = self.output_adapter(hidden_states[:, text_width:, :]).float() 
         
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
 
         if text_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
-            shift_labels = text_labels[..., 1:-1].contiguous() # last token is convert_token
+            shift_labels = text_labels[..., 1:].contiguous() # last token is convert_token
             # Flatten the tokens
             loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
@@ -104,9 +103,30 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             ...
             ## TODO: add convert token loss
             # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
+            bsz, _, dim_ = text_logits.size()
 
-            golden_svg_token_h = svg_quantised[;, 0, :]
-            golden_text_token_h = 
+            golden_svg_token_h = svg_quantised[:, 0, :]
+
+            # obtain the last real token logits
+            real_text_lengths = text_attention_mask.sum(dim=1)  
+            last_text_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
+
+            for i in range(bsz):
+                last_text_token_logits[i] = self.output_adapter(hidden_states[i, real_text_lengths[i] - 1])
+
+
+            # obtain the last svg token logits
+            real_svg_lengths = svg_padding_mask.sum(dim=1)  
+            last_svg_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
+
+            for i in range(bsz):
+                last_svg_token_logits[i] = self.lm_head(hidden_states[i, text_width + real_svg_lengths[i] - 1])
+
+            # calculate MSE Loss for last text token -> golden svg token
+            text2svg_loss = F.mse_loss(last_text_token_logits, golden_svg_token_h, reduction="mean")
+            # calculate CE Loss for last svg token -> golden text token
+            svg2text_loss = F.cross_entropy(last_svg_token_logits, svg_end_token_id, reduction="mean")
+
 
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    

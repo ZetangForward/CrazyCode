@@ -106,14 +106,15 @@ class VQDataCollator:
         text_labels = torch.stack(text_labels, dim=0)
 
         ## pad the vq svg quantised
+        svg_seq_lens = list(map(lambda x: x.size(0), svg_quantised))
         svg_quantised = list(map(lambda x: pad_tensor(x, self.max_svg_length, 0, self.svg_pad_token_h), svg_quantised))
         svg_quantised = torch.stack(svg_quantised, dim=0)
 
-        ## obtain svg padding mask
-        if self.return_all_token_mask:
-            svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id)
-        else:
-            svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id).all(dim=2, keepdim=True).squeeze()
+        svg_padding_mask = torch.zeros(len(svg_seq_lens), self.max_svg_length, dtype=torch.int)  
+        for i, seq_len in enumerate(svg_seq_lens):  
+            svg_padding_mask[i, :seq_len] = 1  
+        svg_padding_mask = svg_padding_mask.bool()
+        # svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id).all(dim=2, keepdim=True).squeeze()
 
         return {
             "text_input_ids": text_input_ids,
