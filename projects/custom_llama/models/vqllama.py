@@ -58,13 +58,12 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         return super().load_state_dict(state_dict, strict)
     
 
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
             svg_tensors: B x L x B,
-            svg_padding_mask: B x L
         """
         # handle text
         text_width = text_input_ids.size(1)
@@ -76,16 +75,9 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"
-        
-        padding_mask = svg_token_ids == pad_token_id
-        
-        
+        svg_padding_mask = svg_token_ids == self.svg_pad_token_id
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
-        
-        
-        
-        # FIXME: check the dtype of two tensors 
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
                  
         outputs = self.model(
@@ -99,7 +91,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         # text modality, last token is svg special token
         text_logits = self.lm_head(hidden_states[:, :text_width, :]).float()
         # svg modality, first token is svg special token, last token should be svg end token
-        svg_pred = self.output_adapter(hidden_states[:, text_width:, :]).float() 
+        svg_pred = self.vqvae_head(hidden_states[:, text_width:, :]).float() 
         
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
 
