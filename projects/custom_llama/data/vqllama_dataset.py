@@ -53,15 +53,12 @@ class BasicDataset(Dataset):
         self.max_path_nums = max_path_nums
 
         content = self.pre_process(content)
-
         if cluster_batch:
             # first sort the dataset by length
             print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
             content = sorted(content, key=lambda x: x['mesh_data'].shape[0])
             print_c("sort done !", color='magenta')
-
         self.content = content
-
 
     def pre_process(self, dataset, min_length=0):   
         # just prevent too short path
@@ -198,7 +195,7 @@ class VQLLaMAData:
         self.svg_begin_token = svg_begin_token
         self.svg_end_token = svg_end_token
 
-
+    @property
     def train_dataset(self) -> Dataset:
         return BasicDataset(
             content=self.train_data,
@@ -210,7 +207,7 @@ class VQLLaMAData:
             max_text_length=self.args.max_text_length,
         )
 
-
+    @property
     def valid_dataset(self) -> Dataset:
         return BasicDataset(
             content=self.valid_data,

@@ -200,7 +200,8 @@ def train():
     #Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
-
+    import pdb; pdb.set_trace()
+    
     trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
     svgllama.config.use_cache = False
 
