@@ -185,41 +185,15 @@ class VQDataCollator:
         }
 
 
-
-        ## combine the text inputs
-        text_input_ids = torch.stack(text_input_ids, dim=0)
-        text_attention_mask = torch.stack(text_attention_mask, dim=0)
-        text_labels = torch.stack(text_labels, dim=0)
-
-        ## pad the vq svg quantised
-        svg_seq_lens = list(map(lambda x: x.size(0), svg_quantised))
-        svg_quantised = list(map(lambda x: pad_tensor(x, self.max_svg_length, 0, self.svg_pad_token_h), svg_quantised))
-        svg_quantised = torch.stack(svg_quantised, dim=0)
-
-        svg_padding_mask = torch.zeros(len(svg_seq_lens), self.max_svg_length, dtype=torch.int)  
-        for i, seq_len in enumerate(svg_seq_lens):  
-            svg_padding_mask[i, :seq_len] = 1  
-        svg_padding_mask = svg_padding_mask.bool()
-        # svg_padding_mask = ~(svg_quantised == self.svg_pad_token_id).all(dim=2, keepdim=True).squeeze()
-
-        return {
-            "text_input_ids": text_input_ids,
-            "text_attention_mask": text_attention_mask,
-            "text_labels": text_labels,
-            "svg_quantised": svg_quantised,
-            "svg_padding_mask": svg_padding_mask,
-        }
-
     def __call__(self, batch):
         return self.pad_collate(batch)
 
     
 
 class VQLLaMAData:
-    def __init__(self, args, vq_svg_file, svg_begin_token, svg_end_token, tokenizer: PreTrainedTokenizer, vq_svg_pad_file=None, split="train"):  
+    def __init__(self, vq_svg_file, svg_begin_token, svg_end_token, tokenizer):  
 
         self.tokenizer = tokenizer  
-        self.split = split
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
         self.valid_data = content[:2000]
         self.train_data = content[2000:]

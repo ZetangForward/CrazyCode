@@ -20,8 +20,7 @@ DEFAULT_SVG_END_TOKEN = "</SVG>"
 @dataclass
 class VQVAEConfig:
     config_path: str = field(default=None)
-    ckpt_path: Optional[str] = field(default=None)
-
+    
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
@@ -162,7 +161,6 @@ def train():
     svgllama.add_svg_end_token_id(svg_end_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
 
-
     ## init VQVAE
     block_kwargs = dict(
         width=vqvae_config.vqvae_conv_block.width, 
@@ -174,14 +172,19 @@ def train():
     )
     vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
     plugin_vqvae = PluginVQVAE(vqvae)
-    checkpoint = torch.load(vqvae_args.ckpt_path)
+    checkpoint = torch.load(vqvae_config.ckpt_path)
     plugin_vqvae.load_state_dict(checkpoint['state_dict'])
     print_c("VQVAE loaded!", "green")
     count_parameters(plugin_vqvae)
-
     svgllama.init_vqvae(plugin_vqvae)
+    svgllama.set_svg_pad_token_id(vqvae_config.pad_token_id)
 
-    svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
+    svg_data_module = VQLLaMAData(
+        data_args.data_path, 
+        svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
+        svg_end_token=DEFAULT_SVG_END_TOKEN, 
+        tokenizer=llama_tokenizer, 
+    )
 
     data_collator = VQDataCollator(
         svg_pad_token_h=llamaconfig.svg_token_dims, 

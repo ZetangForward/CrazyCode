@@ -27,19 +27,19 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         self.codebook_size = codebook_size
         self.compress_level = compress_level
         self.svg_pad_token_id = svg_pad_token_id
+        self.vqvae = vqvae
         self.vqvae_embedding = nn.Embedding(codebook_size, config.hidden_size)
         self.vqvae_head = nn.Linear(config.hidden_size, codebook_size)
-        
         self.post_init()
-        
         if config.frozen_llm: 
             print_c("Attention! Part of the parameters are freezed!")
             self.requires_grad_ = False 
             self.input_adapter.requires_grad_ = True
             self.output_adapter.requires_grad_ = True
 
-        self.vqvae = vqvae
-
+    def set_svg_pad_token_id(self, svg_pad_token_id):
+        self.svg_pad_token_id = svg_pad_token_id
+    
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae
         self.vqvae.eval()
@@ -54,10 +54,8 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
     def set_tokenizer(self, tokenizer):
         self.tokenizer = tokenizer
 
-
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
-    
     
     def create_padding_mask(self, x, pad_token_id):
         padding_mask = torch.zeros_like(x, dtype=torch.bool)

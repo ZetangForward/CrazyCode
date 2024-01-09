@@ -23,7 +23,6 @@ deepspeed --num_gpus 1 \
     --deepspeed configs/deepspeed/config.json \
     --fp16 True \
     --remove_unused_columns False \
-    --config_path "configs/deepspeed/vqvae_config.yaml" \
-    --ckpt_path "/zecheng2/vqllama/vqllama_quantizer/version_8/checkpoints/last.ckpt";
+    --config_path "configs/deepspeed/vqvae_config.yaml";
 
 

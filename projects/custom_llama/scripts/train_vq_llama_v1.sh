@@ -5,7 +5,7 @@ deepspeed --num_gpus 16 \
     --hostfile configs/hostfile_v128 \
     train_svg_offline_v1.py \
     --model_name_or_path "/zecheng/model_hub/CodeLlama-7b-hf" \
-    --data_path "/zecheng/svg/icon-shop/meta_data" \
+    --data_path ""/zecheng2/svg/icon-shop/pkl_data/full_data.pkl"" \
     --output_dir "/zecheng/svg_model_hub/Iconshop_CodeLlama-7b" \
     --num_train_epochs 40 \
     --model_max_length 1500 \
