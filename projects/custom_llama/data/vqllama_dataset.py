@@ -159,20 +159,21 @@ class VQDataCollator:
             batch - list of (tensor, label)
         """
 
-        text_input_ids = list(map(lambda x: x['text_input_ids'], batch))
-        text_attention_mask = list(map(lambda x: x['text_attention_mask'], batch))
-        text_labels = list(map(lambda x: x['text_labels'], batch))
-        svg_tensors = list(map(lambda x: x['svg_path'], batch))
-        svg_end_token_id = list(map(lambda x: x['svg_end_token_id'], batch))
+        text_input_ids = [x['text_input_ids'] for x in batch]
+        text_attention_mask = [x['text_attention_mask'] for x in batch]
+        text_labels = [x['text_labels'] for x in batch]
+        svg_tensors = [x['svg_path'] for x in batch]
+        svg_end_token_id = [x['svg_end_token_id'] for x in batch]
 
         if self.cluster_batch:
             # find longest sequence
             max_len = max(map(lambda x: x.shape[0], svg_tensors))
-            max_len = min(max_len, self.max_seq_length)
+            max_len = min(max_len, self.max_svg_length)
         else:
-            max_len = self.max_seq_length
+            max_len = self.max_svg_length
 
         # pad according to max_len
+        import pdb; pdb.set_trace()
         svg_tensors = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), svg_tensors))
         svg_tensors = torch.stack(svg_tensors, dim=0)
 
