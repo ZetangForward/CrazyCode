@@ -27,7 +27,7 @@ class BasicDataset(Dataset):
 
     PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
 
-    def __init__(self, content, tokenizer, svg_begin_token=None, svg_end_token=None, mode="train", svg_token=None, max_text_length=64, max_svg_length=1024) -> None:
+    def __init__(self, content, tokenizer, svg_begin_token=None, svg_end_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -36,7 +36,8 @@ class BasicDataset(Dataset):
         self.svg_begin_token = svg_begin_token
         self.svg_end_token = svg_end_token
         self.max_text_length = max_text_length
-        self.max_svg_length = max_svg_length
+        self.min_path_nums = min_path_nums
+        self.max_path_nums = max_path_nums
 
     def __len__(self):
         return len(self.content)
@@ -66,7 +67,7 @@ class BasicDataset(Dataset):
             text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
         )
 
-        # FIXME: check the dtype 和实际的修改是否正确(这里就是单纯删除</s> token，让文本部分结尾是svg_token)
+
         if self.svg_begin_token is not None:  # utilize svg_token as the end of the text
             text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
             text_labels[text_attention_mask.sum() - 1] = -100
@@ -89,7 +90,7 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, svg_pad_token_h, max_svg_length=1024, return_all_token_mask=False):
+    def __init__(self, svg_pad_token_h, max_svg_length=1024):
         self.max_svg_length = max_svg_length
         self.svg_pad_token_h = svg_pad_token_h
 
@@ -137,8 +138,6 @@ class VQLLaMAData:
         self.valid_data = content[:2000]
         self.train_data = content[2000:]
         
-        assert vq_svg_pad_file is not None, "vq_svg_pad_file should not be None"
-        self.svg_pad_token = auto_read_data(vq_svg_pad_file)
         self.svg_begin_token = svg_begin_token
         self.svg_end_token = svg_end_token
 
@@ -146,24 +145,24 @@ class VQLLaMAData:
     def train_dataset(self) -> Dataset:
         return BasicDataset(
             content=self.train_data,
+            min_path_nums=self.cfg.min_path_nums,
+            max_path_nums=self.cfg.max_path_nums, 
             tokenizer=self.tokenizer,
-            svg_pad_token=self.svg_pad_token,
             mode="train",
             svg_token=self.svg_token,
             max_text_length=self.args.max_text_length,
-            max_svg_length=self.args.max_svg_length,
         )
 
 
     def valid_dataset(self) -> Dataset:
         return BasicDataset(
             content=self.valid_data,
+            min_path_nums=self.cfg.min_path_nums,
+            max_path_nums=self.cfg.max_path_nums, 
             tokenizer=self.tokenizer,
-            svg_pad_token=self.svg_pad_token,
             mode="valid",
             svg_token=self.svg_token,
             max_text_length=self.args.max_text_length,
-            max_svg_length=self.args.max_svg_length,
         )
 
 
