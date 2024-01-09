@@ -122,22 +122,6 @@ def train():
     # parsing vqvae_config:
     vqvae_config = load_yaml_config(vqvae_args.config_path)
 
-    ## init VQVAE
-    block_kwargs = dict(
-        width=vqvae_config.vqvae_conv_block.width, 
-        depth=vqvae_config.vqvae_conv_block.depth, 
-        m_conv=vqvae_config.vqvae_conv_block.m_conv,
-        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
-        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
-        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    )
-    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    plugin_vqvae = PluginVQVAE(vqvae)
-    checkpoint = torch.load(vqvae_args.ckpt_path)
-    import pdb; pdb.set_trace()
-    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
-    import pdb; pdb.set_trace()
-
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     llamaconfig.frozen_llm = False
@@ -178,14 +162,23 @@ def train():
     svgllama.set_tokenizer(llama_tokenizer)
 
 
-    
-    
-    
-    
+    ## init VQVAE
+    block_kwargs = dict(
+        width=vqvae_config.vqvae_conv_block.width, 
+        depth=vqvae_config.vqvae_conv_block.depth, 
+        m_conv=vqvae_config.vqvae_conv_block.m_conv,
+        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
+        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
+        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    )
+    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    plugin_vqvae = PluginVQVAE(vqvae)
+    checkpoint = torch.load(vqvae_args.ckpt_path)
+    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
+    print_c("VQVAE loaded!", "green")
+    count_parameters(plugin_vqvae)
 
     svgllama.init_vqvae(plugin_vqvae)
-
-    import pdb; pdb.set_trace()
 
     svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
 

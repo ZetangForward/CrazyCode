@@ -183,6 +183,18 @@ def convert_list_to_dict(lst: List[Dict], key: str):
 ###### model  utils #######
 ###########################
 
+def count_parameters(model):  
+    total_params = sum(p.numel() for p in model.parameters())  
+      
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)  
+      
+    frozen_params = total_params - trainable_params  
+
+    print_c(f"Total parameters: {total_params}")
+    print_c(f"Trainable parameters: {trainable_params}")
+    print_c(f"Frozen parameters: {frozen_params}")
+      
+    return total_params, trainable_params, frozen_params
 
 def pad_tensor(vec, pad_len, dim, pad_token_id):
         """

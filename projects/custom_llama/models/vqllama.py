@@ -39,7 +39,8 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
 
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae
-        self.vqvae.requires_grad_ = False
+        self.vqvae.eval()
+        # self.vqvae.requires_grad_ = False
 
     def add_svg_end_token_id(self, svg_end_token_id):
         self.svg_end_token_id = svg_end_token_id
