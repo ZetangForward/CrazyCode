@@ -74,6 +74,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             text_labels: B x L,
             svg_tensors: B x L x B,
         """
+        import pdb; pdb.set_trace()
         # handle text
         text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
