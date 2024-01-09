@@ -147,16 +147,17 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             for i in range(bsz):
                 last_svg_token_logits[i] = self.lm_head(hidden_states[i, text_width + real_svg_lengths[i] - 1])
 
-            # calculate MSE Loss for last text token -> golden svg token
+            # calculate CE Loss for last text token -> first svg token
             text2svg_loss = F.cross_entropy(
-                last_text_token_logits, 
-                golden_svg_token_h, 
-                reduction="mean"
+                last_text_token_logits.contiguous().view(-1, self.codebook_size), 
+                svg_token_ids[:, 0].contiguous().view(-1), 
+                reduction="mean",
+                ignore_index=self.svg_pad_token_id,
             )
             
             # calculate CE Loss for last svg token -> golden text token
-            loss_fct = CrossEntropyLoss()
-            svg2text_loss = loss_fct(
+           
+            svg2text_loss = F.cross_entropy(
                 last_svg_token_logits.contiguous().view(-1, self.config.vocab_size), 
                 golden_svg_end_token_ids.contiguous().view(-1), 
             )
