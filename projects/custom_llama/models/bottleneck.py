@@ -165,7 +165,7 @@ class BottleneckBlock(nn.Module):
         # Quantise and dequantise through bottleneck
         x_l, fit = self.quantise(x)  # x_l (4096,), fit (1,)
         x_d = self.dequantise(x_l)  # 4096, 4096
-
+        import pdb; pdb.set_trace()
         # Update embeddings
         if update_k:
             update_metrics = self.update_k(x, x_l)
@@ -209,6 +209,7 @@ class Bottleneck(nn.Module):
         for level in range(min(self.levels, len(xs))):  # 3 or the input level (must start from 1)
             level_block = self.level_blocks[level]
             x = xs[level] # 32, 4096, 128
+            import pdb; pdb.set_trace()
             z, x_quantised, commit_loss, metric = level_block(x, update_k=self.training)
             # z: [32, 128] x_quantised: [32, 4096, 128] 
             zs.append(z)

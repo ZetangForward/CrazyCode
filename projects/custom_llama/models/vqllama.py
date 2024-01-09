@@ -84,7 +84,7 @@ class VQSVGLlama(LlamaForCausalLM):
         # ori_dtype = svg_tensors.dtype
         # svg_tensors = svg_tensors.float()
         import pdb; pdb.set_trace()
-        svg_token_ids, _ = self.vqvae.encode(svg_tensors, start_level=0, end_level=1)
+        svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
         import pdb; pdb.set_trace()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
