@@ -111,24 +111,21 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
             shift_labels = text_labels[..., 1:].contiguous() # last token is convert_token
             # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
-            text_loss = loss_fct(shift_logits, shift_labels)
+            text_loss = F.cross_entropy(shift_logits, shift_labels)
 
-        if svg_quantised is not None:
-            svg_padding_mask = svg_padding_mask.unsqueeze(-1).expand_as(svg_quantised)
-            svg_target = torch.where(svg_padding_mask, svg_quantised, torch.zeros_like(svg_quantised)).to(svg_pred.device)
-            svg_pred = torch.where(svg_padding_mask, svg_pred, torch.zeros_like(svg_pred)).to(svg_pred.device)
-            mask_sum = svg_padding_mask.sum()
+        if svg_token_ids is not None:
             # Shift so that tokens < n predict n
-            svg_pred = svg_pred[:, :-1, :]
-            svg_quantised = svg_quantised[:, 1:, :]
-            svg_loss = torch.sum((svg_pred - svg_quantised) ** 2) / mask_sum
+            shift_svg_logits = svg_pred[:, :-1, :].contiguous()
+            shift_svg_token_ids = svg_token_ids[:, 1:].contiguous()
+            shift_svg_logits = shift_svg_logits.view(-1, self.codebook_size)
+            shift_svg_token_ids = shift_svg_token_ids.view(-1)
+            svg_loss = F.cross_entropy(shift_svg_logits, shift_labels, ignore_index=self.svg_pad_token_id)
 
-        if text_labels is not None and svg_quantised is not None:  # convert token loss is be significant!!
+        if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant!!
             ...
             ## TODO: add convert token loss
             # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
@@ -136,14 +133,12 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
 
             golden_svg_end_token_ids = torch.empty(bsz, 1, 1).fill_(self.svg_end_token_id).to(text_logits.device).long()
 
-            golden_svg_token_h = svg_quantised[:, 0, :]
-
             # obtain the last real token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
             last_text_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
 
             for i in range(bsz):
-                last_text_token_logits[i] = self.output_adapter(hidden_states[i, real_text_lengths[i] - 1])
+                last_text_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1])
 
             # obtain the last svg token logits
             real_svg_lengths = svg_padding_mask.sum(dim=1)  
@@ -153,7 +148,11 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
                 last_svg_token_logits[i] = self.lm_head(hidden_states[i, text_width + real_svg_lengths[i] - 1])
 
             # calculate MSE Loss for last text token -> golden svg token
-            text2svg_loss = F.mse_loss(last_text_token_logits, golden_svg_token_h, reduction="mean")
+            text2svg_loss = F.cross_entropy(
+                last_text_token_logits, 
+                golden_svg_token_h, 
+                reduction="mean"
+            )
             
             # calculate CE Loss for last svg token -> golden text token
             loss_fct = CrossEntropyLoss()
