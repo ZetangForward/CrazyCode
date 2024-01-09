@@ -131,7 +131,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
             bsz, _, dim_ = text_logits.size()
 
-            golden_svg_end_token_ids = torch.empty(bsz, 1, 1).fill_(self.svg_end_token_id).to(text_logits.device).long()
+            golden_svg_end_token_ids = torch.empty(bsz, 1).fill_(self.svg_end_token_id).to(text_logits.device).long()
 
             # obtain the last real token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
@@ -160,6 +160,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             svg2text_loss = F.cross_entropy(
                 last_svg_token_logits.contiguous().view(-1, self.config.vocab_size), 
                 golden_svg_end_token_ids.contiguous().view(-1), 
+                reduction="mean",
             )
 
             convert_token_loss = text2svg_loss + svg2text_loss
