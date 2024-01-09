@@ -17,18 +17,18 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, svg_pad_token_id=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, compress_level=2, svg_pad_token_id=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
         self.svg_end_token_id = svg_end_token_id
         self.svg_begin_token_id = svg_begin_token_id
         self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
-        self.input_adapter = nn.Linear(config.svg_token_dims, config.hidden_size)
-        self.output_adapter = nn.Linear(config.hidden_size, config.svg_token_dims)
         self.codebook_size = codebook_size
-        
-        assert svg_pad_token_id is not None, "pad id should be specified in prior"
+        self.compress_level = compress_level
+        self.svg_pad_token_id = svg_pad_token_id
+        self.vqvae_embedding = nn.Embedding(codebook_size, config.hidden_size)
+        self.vqvae_head = nn.Linear(config.hidden_size, codebook_size)
         
         self.post_init()
         
@@ -71,12 +71,20 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
         
+        # quantizied svg tensors with vqvae
         svg_token_ids, _ = self.vqvae.encode(svg_tensors, start_level=0, end_level=1)
-
-
-        svg_token_embeddings = self.input_adapter(svg_quantised) # Encode svg tokens
+        svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
+        
+        assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"
+        
+        padding_mask = svg_token_ids == pad_token_id
+        
+        
+        
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
-
+        
+        
+        
         # FIXME: check the dtype of two tensors 
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
                  
