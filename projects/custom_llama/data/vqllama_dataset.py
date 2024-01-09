@@ -70,7 +70,7 @@ class BasicDataset(Dataset):
             print_c("sort done !", color='magenta')
         self.content = content
 
-    def pre_process(self, dataset, min_length=0):   
+    def pre_process(self, dataset, min_length=1):   
         # just prevent too short path
         # length exceed max_seq_length will be cut off in __getitem__
         print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
@@ -159,13 +159,14 @@ class VQDataCollator:
         args:
             batch - list of (tensor, label)
         """
-
         text_input_ids = [x['text_input_ids'] for x in batch]
         text_attention_mask = [x['text_attention_mask'] for x in batch]
         text_labels = [x['text_labels'] for x in batch]
         svg_tensors = [x['svg_path'] for x in batch]
         svg_end_token_id = [x['svg_end_token_id'] for x in batch]
-
+            
+        bsz = len(text_input_ids)
+        
         if self.cluster_batch:
             # find longest sequence
             max_len = max(map(lambda x: x.shape[0], svg_tensors))
@@ -179,7 +180,7 @@ class VQDataCollator:
         text_input_ids = torch.stack(text_input_ids, dim=0)
         text_attention_mask = torch.stack(text_attention_mask, dim=0)
         text_labels = torch.stack(text_labels, dim=0)
-        svg_end_token_id = torch.stack(svg_end_token_id, dim=0)
+        svg_end_token_id = torch.empty(bsz, 1).fill_(svg_end_token_id[0]).long()
         
         # get padding mask
         if self.return_all_token_mask:
