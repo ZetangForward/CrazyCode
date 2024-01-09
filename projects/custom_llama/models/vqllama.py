@@ -54,8 +54,10 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
     def set_tokenizer(self, tokenizer):
         self.tokenizer = tokenizer
 
+
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
+    
     
     def create_padding_mask(self, x, pad_token_id):
         padding_mask = torch.zeros_like(x, dtype=torch.bool)
@@ -65,6 +67,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
                 first_pad_position = pad_positions[0].item()
                 padding_mask[idx, first_pad_position:] = True
         return padding_mask
+        
         
     def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, **kwargs): 
         """
@@ -83,7 +86,7 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"
-        svg_padding_mask = svg_token_ids == self.svg_pad_token_id
+        svg_padding_mask = self.create_padding_mask(svg_token_ids, self.svg_pad_token_id)
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
