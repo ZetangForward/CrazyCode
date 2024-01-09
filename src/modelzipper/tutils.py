@@ -70,6 +70,7 @@ def auto_read_data(file_path, return_format="list"):
     Returns:
         list or str: The data read from the file, in the specified format.
     """
+    print_c(f"begin to read data from {file_path} ...")
     file_type = file_path.split('.')[-1].lower()  
     
     if file_type == 'jsonl':  

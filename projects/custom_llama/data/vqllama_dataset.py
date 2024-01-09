@@ -184,11 +184,9 @@ class VQDataCollator:
             "svg_end_token_id": svg_end_token_id
         }
 
-
     def __call__(self, batch):
         return self.pad_collate(batch)
 
-    
 
 class VQLLaMAData:
     def __init__(self, vq_svg_file, svg_begin_token, svg_end_token, tokenizer):  
@@ -197,7 +195,6 @@ class VQLLaMAData:
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
         self.valid_data = content[:2000]
         self.train_data = content[2000:]
-        
         self.svg_begin_token = svg_begin_token
         self.svg_end_token = svg_end_token
 
