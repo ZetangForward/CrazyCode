@@ -200,8 +200,9 @@ class VQLLaMAData:
         self.cfg = config
         self.tokenizer = tokenizer  
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
-        self.valid_data = content[:2000]
-        self.train_data = content[2000:]
+        num_valid_data = min(len(content) * 0.1, 2000)
+        self.valid_data = content[:num_valid_data]
+        self.train_data = content[num_valid_data:]
         self.svg_begin_token = svg_begin_token
         self.svg_end_token = svg_end_token
 
