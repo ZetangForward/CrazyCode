@@ -122,6 +122,10 @@ def train():
     # parsing vqvae_config:
     vqvae_config = load_yaml_config(vqvae_config_path.config_path)
 
+    plugin_vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    checkpoint = torch.load(vqvae_config_path.ckpt_path)
+    import pdb; pdb.set_trace()
+
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     
@@ -173,9 +177,7 @@ def train():
         reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
     )
     
-    plugin_vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    checkpoint = torch.load(vqvae_config_path.ckpt_path)
-    import pdb; pdb.set_trace()
+    
     plugin_vqvae.load_state_dict(checkpoint['state_dict'])
 
     svgllama.init_vqvae(plugin_vqvae)
