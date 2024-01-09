@@ -173,9 +173,7 @@ class VQDataCollator:
             max_len = self.max_svg_length
 
         # pad according to max_len
-        import pdb; pdb.set_trace()
         svg_tensors = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), svg_tensors))
-        
 
         # get padding mask
         if self.return_all_token_mask:
