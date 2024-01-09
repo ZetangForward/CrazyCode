@@ -10,6 +10,16 @@ from torch.utils.data import DataLoader, Dataset
 from modelzipper.tutils import *
 
 
+EDGE = torch.tensor([  # after convert function
+    [    0,    0,    0,    0,    0,    0,    0,    4,  104],
+    [    1,    4,  104,    0,    0,    0,    0,    4,  199],
+    [    1,    4,  199,    0,    0,    0,    0,  199,  199],
+    [    1,  199,  199,    0,    0,    0,    0,  199,    4],
+    [    1,  199,    4,    0,    0,    0,    0,    4,    4],
+    [    1,    4,    4,    0,    0,    0,    0,    4,  104],
+    [    1,    4,  104,    0,    0,    0,    0,    4,  104],
+])
+
 def pad_tensor_with_h(vec, pad_len, dim, pad_token_h):
         """
         args:
