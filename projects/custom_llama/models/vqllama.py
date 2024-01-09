@@ -57,7 +57,15 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
     
-
+    def create_padding_mask(self, x, pad_token_id):
+        padding_mask = torch.zeros_like(x, dtype=torch.bool)
+        for idx, sequence in enumerate(x):
+            pad_positions = (sequence == pad_token_id).nonzero(as_tuple=True)[0]
+            if pad_positions.numel() > 0:  
+                first_pad_position = pad_positions[0].item()
+                padding_mask[idx, first_pad_position:] = True
+        return padding_mask
+        
     def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, **kwargs): 
         """
             text_input_ids: B x L 
