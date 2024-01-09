@@ -137,7 +137,7 @@ class BasicDataset(Dataset):
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
-            "svg_path": sample.long,
+            "svg_path": sample.long(),
             "svg_end_token_id": svg_end_token_id, 
         }
 
