@@ -55,20 +55,23 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         return super().load_state_dict(state_dict, strict)
     
 
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_quantised=None, svg_padding_mask=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
-            svg_quantised: B x L x D,
+            svg_tensors: B x L x B,
             svg_padding_mask: B x L
         """
-        import pdb; pdb.set_trace()
         text_width = input_embeddings.size(1)
 
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
         
+        # TODO:  add vqvae change svg loss
+        svg_token_ids, _ = self.vqvae.encode(svg_tensors, start_level=0, end_level=1)
+
+
         svg_token_embeddings = self.input_adapter(svg_quantised) # Encode svg tokens
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
 
