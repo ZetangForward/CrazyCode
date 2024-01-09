@@ -202,9 +202,11 @@ class VQLLaMAData:
             min_path_nums=self.cfg.min_path_nums,
             max_path_nums=self.cfg.max_path_nums, 
             tokenizer=self.tokenizer,
-            mode="train",
-            svg_token=self.svg_token,
+            svg_begin_token = self.svg_begin_token,
+            svg_end_token = self.svg_end_token,
             max_text_length=self.cfg.max_text_length,
+            mode="train",
+            cluster_batch=False
         )
 
     @property
@@ -214,9 +216,11 @@ class VQLLaMAData:
             min_path_nums=self.cfg.min_path_nums,
             max_path_nums=self.cfg.max_path_nums, 
             tokenizer=self.tokenizer,
-            mode="valid",
-            svg_token=self.svg_token,
+            svg_begin_token = self.svg_begin_token,
+            svg_end_token = self.svg_end_token,
             max_text_length=self.cfg.max_text_length,
+            mode="valid",
+            cluster_batch=False
         )
 
 
