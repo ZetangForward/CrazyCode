@@ -16,7 +16,7 @@ from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 
 
-class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
+class VQSVGLlama(LlamaForCausalLM):  
     def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, compress_level=2, svg_pad_token_id=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
