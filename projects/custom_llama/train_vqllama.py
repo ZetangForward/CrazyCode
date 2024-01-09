@@ -104,7 +104,7 @@ class CustomTrainier(Trainer):
         return (total_loss, outputs) if return_outputs else total_loss 
 
 
-class PluginVQVAE(pl.LightningModule):
+class PluginVQVAE(nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
@@ -131,10 +131,11 @@ def train():
         dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
         reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
     )
-    plugin_vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    plugin_vqvae = PluginVQVAE(vqvae)
     checkpoint = torch.load(vqvae_args.ckpt_path)
+    plugin_vqvae.load_state_dict(checkpoint['state_dict']['model'])
     import pdb; pdb.set_trace()
-    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
 
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
