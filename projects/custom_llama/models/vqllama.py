@@ -42,8 +42,8 @@ class VQSVGLlama(LlamaForCausalLM):
     
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae
-        self.vqvae.eval()
-        # self.vqvae.requires_grad_ = False
+        self.vqvae.model.eval()
+        self.vqvae.model.requires_grad_ = False
 
     def add_svg_end_token_id(self, svg_end_token_id):
         self.svg_end_token_id = svg_end_token_id
@@ -74,14 +74,18 @@ class VQSVGLlama(LlamaForCausalLM):
             text_labels: B x L,
             svg_tensors: B x L x B,
         """
-        import pdb; pdb.set_trace()
+        
         # handle text
         text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
         
         # quantizied svg tensors with vqvae
+        # ori_dtype = svg_tensors.dtype
+        # svg_tensors = svg_tensors.float()
+        import pdb; pdb.set_trace()
         svg_token_ids, _ = self.vqvae.encode(svg_tensors, start_level=0, end_level=1)
+        import pdb; pdb.set_trace()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"

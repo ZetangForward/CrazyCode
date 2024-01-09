@@ -165,7 +165,7 @@ class VQVAE(nn.Module):
 
     def encode(self, x, start_level=0, end_level=None):
         x = normalize_func(x) # normalize to [-1, 1]
-        x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
+        x_in = x.permute(0, 2, 1)  # x_in (32, 9, 256)
         xs = []
 
         if end_level is None:
@@ -178,7 +178,7 @@ class VQVAE(nn.Module):
 
         zs, xs_quantised = self.bottleneck(xs[start_level:end_level], just_return_zs=True)
 
-        xs_quantised = [tmp.permute(0, 2, 1).float() for tmp in xs_quantised]
+        xs_quantised = [tmp.permute(0, 2, 1) for tmp in xs_quantised]
 
         return zs, xs_quantised
 

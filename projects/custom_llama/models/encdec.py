@@ -42,7 +42,6 @@ class EncoderConvBlock(nn.Module):
         self.model = nn.Sequential(*blocks)
 
     def forward(self, x):
-        
         return self.model(x)
 
 
@@ -198,6 +197,7 @@ class Encoder(nn.Module):
         iterator = zip(list(range(self.levels)), self.downs_t, self.strides_t)
         for level, down_t, stride_t in iterator:
             level_block = self.level_blocks[level]
+            import pdb; pdb.set_trace()
             x = level_block(x)
             emb, T = self.output_emb_width, T // (stride_t ** down_t)
             assert_shape(x, (N, emb, T))

@@ -109,12 +109,6 @@ class PluginVQVAE(nn.Module):
         super().__init__()
         self.model = model
 
-    @torch.no_grad()
-    def predict_token(self, batch):
-        svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
-        zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
-        return zs, xs_quantised
-
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, VQVAEConfig))
     model_args, data_args, training_args, vqvae_args = parser.parse_args_into_dataclasses()
