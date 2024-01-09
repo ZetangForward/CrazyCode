@@ -134,7 +134,8 @@ def train():
     vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
     plugin_vqvae = PluginVQVAE(vqvae)
     checkpoint = torch.load(vqvae_args.ckpt_path)
-    plugin_vqvae.load_state_dict(checkpoint['state_dict']['model'])
+    import pdb; pdb.set_trace()
+    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
     import pdb; pdb.set_trace()
 
     # config 
