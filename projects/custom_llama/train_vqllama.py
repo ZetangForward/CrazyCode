@@ -20,12 +20,12 @@ DEFAULT_SVG_END_TOKEN = "</SVG>"
 @dataclass
 class VQVAEConfig:
     config_path: str = field(default=None)
+    ckpt_path: Optional[str] = field(default=None)
 
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
-    ckpt_path: Optional[str] = field(default=None)
-
+    
 @dataclass
 class DataArguments:
     data_path: str = field(default=None, metadata={"help": "Path to the training data."})
@@ -117,10 +117,10 @@ class PluginVQVAE(pl.LightningModule):
 
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, VQVAEConfig))
-    model_args, data_args, training_args, vqvae_config_path = parser.parse_args_into_dataclasses()
+    model_args, data_args, training_args, vqvae_args = parser.parse_args_into_dataclasses()
     
     # parsing vqvae_config:
-    vqvae_config = load_yaml_config(vqvae_config_path.config_path)
+    vqvae_config = load_yaml_config(vqvae_args.config_path)
 
     ## init VQVAE
     block_kwargs = dict(
@@ -132,7 +132,7 @@ def train():
         reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
     )
     plugin_vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    checkpoint = torch.load(vqvae_config_path.ckpt_path)
+    checkpoint = torch.load(vqvae_args.ckpt_path)
     import pdb; pdb.set_trace()
     plugin_vqvae.load_state_dict(checkpoint['state_dict'])
 
