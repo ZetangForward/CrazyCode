@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Dataset
 from modelzipper.tutils import *
 
 
-def pad_tensor(vec, pad_len, dim, pad_token_h):
+def pad_tensor_with_h(vec, pad_len, dim, pad_token_h):
         """
         args:
             vec - tensor to pad
@@ -22,16 +22,29 @@ def pad_tensor(vec, pad_len, dim, pad_token_h):
         """
         return torch.cat([vec, pad_token_h.repeat(pad_len - vec.size(dim), 1)], dim=dim)
 
+def pad_tensor(vec, pad, dim, pad_token_id):
+        """
+        args:
+            vec - tensor to pad
+            pad - the size to pad to
+            dim - dimension to pad
+            pad_token_id - padding token id
+        return:
+            a new tensor padded to 'pad' in dimension 'dim'
+        """
+        pad_size = list(vec.shape)
+        pad_size[dim] = pad - vec.size(dim)
+        return torch.cat([vec, torch.empty(*pad_size).fill_(pad_token_id)], dim=dim)
+
 
 class BasicDataset(Dataset):
 
     PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
 
-    def __init__(self, content, tokenizer, svg_begin_token=None, svg_end_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64) -> None:
+    def __init__(self, content, tokenizer, svg_begin_token=None, svg_end_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
-        self.content = content
         self.mode = mode
         self.svg_begin_token = svg_begin_token
         self.svg_end_token = svg_end_token
@@ -39,16 +52,54 @@ class BasicDataset(Dataset):
         self.min_path_nums = min_path_nums
         self.max_path_nums = max_path_nums
 
+        content = self.pre_process(content)
+
+        if cluster_batch:
+            # first sort the dataset by length
+            print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
+            content = sorted(content, key=lambda x: x['mesh_data'].shape[0])
+            print_c("sort done !", color='magenta')
+
+        self.content = content
+
+
+    def pre_process(self, dataset, min_length=0):   
+        # just prevent too short path
+        # length exceed max_seq_length will be cut off in __getitem__
+        print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
+        new_dataset = []
+        for item in dataset:
+            sample = item['mesh_data']
+            if sample is None:
+                continue
+            if sample[:7].equal(EDGE):
+                sample = sample[7:]
+            if min_length <= len(sample):
+                new_dataset.append(
+                    {
+                        'keywords': item['keywords'],
+                        'mesh_data': sample,
+                    }
+                )
+        return new_dataset
+
+    def custom_command(self, svg_tensor):
+        col1 = svg_tensor[:, 0]
+        col1[col1 == 1] = 100
+        col1[col1 == 2] = 200
+        svg_tensor[:, 0] = col1
+        return svg_tensor
+
     def __len__(self):
         return len(self.content)
 
-    def __getitem__(self, index):
-        svg_quantised = self.content[index]["xs_quantised"]
-        keywords = self.content[index]["keywords"]
+    def __getitem__(self, idx):
+        item = self.dataset[idx]
+        keywords, sample = item['keywords'], item['mesh_data']
         prompts = self.PROMPT_TEMPLATE.format(keywords=keywords)
-        
-        # truncate the svg_quantised
-        svg_quantised = svg_quantised[: self.max_svg_length]
+
+        sample = sample[:self.max_path_nums]  # prevent too long num path
+        sample = self.custom_command(sample)
 
         # process the input keywords
         if self.svg_begin_token is not None:
@@ -67,7 +118,6 @@ class BasicDataset(Dataset):
             text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
         )
 
-
         if self.svg_begin_token is not None:  # utilize svg_token as the end of the text
             text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
             text_labels[text_attention_mask.sum() - 1] = -100
@@ -80,7 +130,7 @@ class BasicDataset(Dataset):
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
-            "svg_quantised": svg_quantised,
+            "svg_path": sample.long,
             "svg_end_token_id": svg_end_token_id, 
         }
 
@@ -90,15 +140,51 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, svg_pad_token_h, max_svg_length=1024):
+    def __init__(self, svg_pad_token_h, max_svg_length=1024, pad_token_id=0, cluster_batch=False):
         self.max_svg_length = max_svg_length
         self.svg_pad_token_h = svg_pad_token_h
+        self.pad_token_id = pad_token_id
+        self.cluster_batch = cluster_batch
 
     def pad_collate(self, batch):
+        """
+        args:
+            batch - list of (tensor, label)
+        """
+
         text_input_ids = list(map(lambda x: x['text_input_ids'], batch))
         text_attention_mask = list(map(lambda x: x['text_attention_mask'], batch))
         text_labels = list(map(lambda x: x['text_labels'], batch))
-        svg_quantised = list(map(lambda x: x['svg_quantised'], batch))
+        svg_tensors = list(map(lambda x: x['svg_path'], batch))
+        svg_end_token_id = list(map(lambda x: x['svg_end_token_id'], batch))
+
+        if self.cluster_batch:
+            # find longest sequence
+            max_len = max(map(lambda x: x.shape[0], svg_tensors))
+            max_len = min(max_len, self.max_seq_length)
+        else:
+            max_len = self.max_seq_length
+
+        # pad according to max_len
+        svg_tensors = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), svg_tensors))
+        svg_tensors = torch.stack(svg_tensors, dim=0)
+
+        # get padding mask
+        if self.return_all_token_mask:
+            padding_mask = ~(svg_tensors == self.pad_token_id)
+        else:
+            padding_mask = ~(svg_tensors == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
+
+        return {
+            "text_input_ids": text_input_ids,
+            "text_attention_mask": text_attention_mask,
+            "svg_path": svg_tensors, 
+            "text_labels": text_labels,
+            "svg_padding_mask": padding_mask,
+            "svg_end_token_id": svg_end_token_id
+        }
+
+
 
         ## combine the text inputs
         text_input_ids = torch.stack(text_input_ids, dim=0)
