@@ -101,7 +101,7 @@ class BasicDataset(Dataset):
         return len(self.content)
 
     def __getitem__(self, idx):
-        item = self.dataset[idx]
+        item = self.content[idx]
         keywords, sample = item['keywords'], item['mesh_data']
         prompts = self.PROMPT_TEMPLATE.format(keywords=keywords)
 
@@ -200,7 +200,7 @@ class VQLLaMAData:
         self.cfg = config
         self.tokenizer = tokenizer  
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
-        num_valid_data = min(len(content) * 0.1, 2000)
+        num_valid_data = min(int(len(content) * 0.1), 2000)
         self.valid_data = content[:num_valid_data]
         self.train_data = content[num_valid_data:]
         self.svg_begin_token = svg_begin_token

@@ -138,6 +138,25 @@ def train():
         padding_side="right",
         use_fast=True,
     )
+    
+    svg_data_module = VQLLaMAData(
+        llamaconfig, 
+        data_args.data_path, 
+        svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
+        svg_end_token=DEFAULT_SVG_END_TOKEN, 
+        tokenizer=llama_tokenizer, 
+    )
+
+    data_collator = VQDataCollator(
+        svg_pad_token_h=llamaconfig.svg_token_dims, 
+        max_svg_length=llamaconfig.max_svg_length
+    )
+    
+    data_module = dict(
+        train_dataset=svg_data_module.train_dataset, 
+        eval_dataset=svg_data_module.valid_dataset, 
+        data_collator=data_collator
+    )
 
     svgllama = VQSVGLlama.from_pretrained(
         model_args.model_name_or_path, 
@@ -181,25 +200,7 @@ def train():
     svgllama.init_vqvae(plugin_vqvae)
     svgllama.set_svg_pad_token_id(vqvae_config.pad_token_id)
 
-    svg_data_module = VQLLaMAData(
-        llamaconfig, 
-        data_args.data_path, 
-        svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
-        svg_end_token=DEFAULT_SVG_END_TOKEN, 
-        tokenizer=llama_tokenizer, 
-    )
-
-    data_collator = VQDataCollator(
-        svg_pad_token_h=llamaconfig.svg_token_dims, 
-        max_svg_length=llamaconfig.max_svg_length
-    )
     
-    data_module = dict(
-        train_dataset=svg_data_module.train_dataset, 
-        eval_dataset=svg_data_module.valid_dataset, 
-        data_collator=data_collator
-    )
-
     #Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
