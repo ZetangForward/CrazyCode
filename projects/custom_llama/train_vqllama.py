@@ -6,6 +6,8 @@ from transformers import Trainer
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
+from models.vqvae import VQVAE
+import pytorchlightning as pl
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -47,7 +49,30 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         del state_dict
         trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
 
-        
+
+def smart_tokenizer_and_embedding_resize(
+    special_tokens_dict: Dict,
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.PreTrainedModel,
+):
+    """Resize tokenizer and embedding.
+
+    Note: This is the unoptimized version that may make your embedding size not be divisible by 64.
+    """
+    num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
+    new_token_num = model.resize_token_embeddings(len(tokenizer))
+    print(f"Adding {new_token_num} tokens to the pretrained dict")
+    
+    if num_new_tokens > 0:
+        input_embeddings = model.get_input_embeddings().weight.data
+        output_embeddings = model.get_output_embeddings().weight.data
+
+        input_embeddings_avg = input_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
+        output_embeddings_avg = output_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
+
+        input_embeddings[-num_new_tokens:] = input_embeddings_avg
+        output_embeddings[-num_new_tokens:] = output_embeddings_avg
+
 
 class CustomTrainier(Trainer):
     def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, svg_tokenizer=None, **kwargs):
@@ -74,28 +99,15 @@ class CustomTrainier(Trainer):
         return (total_loss, outputs) if return_outputs else total_loss 
 
 
-def smart_tokenizer_and_embedding_resize(
-    special_tokens_dict: Dict,
-    tokenizer: transformers.PreTrainedTokenizer,
-    model: transformers.PreTrainedModel,
-):
-    """Resize tokenizer and embedding.
+class PluginVQVAE(pl.LightningModule):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
 
-    Note: This is the unoptimized version that may make your embedding size not be divisible by 64.
-    """
-    num_new_tokens = tokenizer.add_special_tokens(special_tokens_dict)
-    new_token_num = model.resize_token_embeddings(len(tokenizer))
-    print(f"Adding {new_token_num} tokens to the pretrained dict")
-    
-    if num_new_tokens > 0:
-        input_embeddings = model.get_input_embeddings().weight.data
-        output_embeddings = model.get_output_embeddings().weight.data
-
-        input_embeddings_avg = input_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
-        output_embeddings_avg = output_embeddings[:-num_new_tokens].mean(dim=0, keepdim=True)
-
-        input_embeddings[-num_new_tokens:] = input_embeddings_avg
-        output_embeddings[-num_new_tokens:] = output_embeddings_avg
+    @torch.no_grad()
+    def predict_token(self, batch):
+        svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
+        zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
 
 
 def train():
@@ -136,12 +148,16 @@ def train():
             added_tokens, llama_tokenizer, svgllama
         )
 
-
     svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
     svg_end_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_END_TOKEN)
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.add_svg_end_token_id(svg_end_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
+
+
+    ## init VQVAE
+    
+    vqvae = VQVAE.load_from_checkpoint(data_args.vq_svg_pad_file)
     
     svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
 
