@@ -22,6 +22,7 @@ deepspeed --num_gpus 1 \
     --gradient_checkpointing True \
     --deepspeed configs/deepspeed/config.json \
     --fp16 True \
-    --remove_unused_columns False;
+    --remove_unused_columns False \
+    --config_path "configs/deepspeed/vqvae_config.yaml";
 
 

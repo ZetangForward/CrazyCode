@@ -7,7 +7,7 @@ from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 from models.vqvae import VQVAE
-import pytorchlightning as pl
+import pytorch_lightning as pl
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -16,6 +16,10 @@ DEFAULT_BOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 DEFAULT_SVG_END_TOKEN = "</SVG>"
+
+@dataclass
+class VQVAEConfig:
+    config_path: str = field(default=None)
 
 @dataclass
 class ModelArguments:
@@ -108,12 +112,15 @@ class PluginVQVAE(pl.LightningModule):
     def predict_token(self, batch):
         svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
         zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
-
+        return zs, xs_quantised
 
 def train():
-    parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-        
+    parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, VQVAEConfig))
+    model_args, data_args, training_args, vqvae_config_path = parser.parse_args_into_dataclasses()
+    
+    # parsing vqvae_config:
+    vqvae_config = load_yaml_config(vqvae_config_path.config_path)
+
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     
@@ -156,9 +163,21 @@ def train():
 
 
     ## init VQVAE
+    block_kwargs = dict(
+        width=vqvae_config.vqvae_conv_block.width, 
+        depth=vqvae_config.vqvae_conv_block.depth, 
+        m_conv=vqvae_config.vqvae_conv_block.m_conv,
+        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
+        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
+        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    )
     
-    vqvae = VQVAE.load_from_checkpoint(data_args.vq_svg_pad_file)
-    
+    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    plugin_vqvae = PluginVQVAE(vqvae).load_from_checkpoint("/zecheng2/vqllama/vqllama_quantizer/version_8/checkpoints")
+    svgllama.init_vqvae(plugin_vqvae)
+
+    import pdb; pdb.set_trace()
+
     svg_data_module = VQLLaMAData(llamaconfig, data_args.data_path, svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, svg_end_token=DEFAULT_SVG_END_TOKEN, tokenizer=llama_tokenizer, vq_svg_pad_file=data_args.vq_svg_pad_file)
 
     data_collator = VQDataCollator(
