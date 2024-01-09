@@ -24,6 +24,7 @@ class VQVAEConfig:
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
+    ckpt_path: Optional[str] = field(default=None)
 
 @dataclass
 class DataArguments:
@@ -172,8 +173,11 @@ def train():
         reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
     )
     
-    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    plugin_vqvae = PluginVQVAE(vqvae).load_from_checkpoint("/zecheng2/vqllama/vqllama_quantizer/version_8/checkpoints")
+    plugin_vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    checkpoint = torch.load(vqvae_config_path.ckpt_path)
+    import pdb; pdb.set_trace()
+    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
+
     svgllama.init_vqvae(plugin_vqvae)
 
     import pdb; pdb.set_trace()
