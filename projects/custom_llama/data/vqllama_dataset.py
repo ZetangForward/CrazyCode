@@ -186,8 +186,8 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, vq_svg_file, svg_begin_token, svg_end_token, tokenizer):  
-
+    def __init__(self, config, vq_svg_file, svg_begin_token, svg_end_token, tokenizer):  
+        self.cfg = config
         self.tokenizer = tokenizer  
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
         self.valid_data = content[:2000]
@@ -204,7 +204,7 @@ class VQLLaMAData:
             tokenizer=self.tokenizer,
             mode="train",
             svg_token=self.svg_token,
-            max_text_length=self.args.max_text_length,
+            max_text_length=self.cfg.max_text_length,
         )
 
     @property
@@ -216,7 +216,7 @@ class VQLLaMAData:
             tokenizer=self.tokenizer,
             mode="valid",
             svg_token=self.svg_token,
-            max_text_length=self.args.max_text_length,
+            max_text_length=self.cfg.max_text_length,
         )
 
 

@@ -128,6 +128,8 @@ def train():
     llamaconfig.max_svg_length = 1024
     llamaconfig.max_text_length = 64
     llamaconfig.svg_token_dims = 4096
+    llamaconfig.min_path_nums = 4
+    llamaconfig.max_path_nums = 1600
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -180,6 +182,7 @@ def train():
     svgllama.set_svg_pad_token_id(vqvae_config.pad_token_id)
 
     svg_data_module = VQLLaMAData(
+        llamaconfig, 
         data_args.data_path, 
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         svg_end_token=DEFAULT_SVG_END_TOKEN, 
