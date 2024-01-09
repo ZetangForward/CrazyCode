@@ -83,13 +83,13 @@ class VQSVGLlama(LlamaForCausalLM):
         # quantizied svg tensors with vqvae
         # ori_dtype = svg_tensors.dtype
         # svg_tensors = svg_tensors.float()
-        import pdb; pdb.set_trace()
+        self.vqvae.model.eval()
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
-        import pdb; pdb.set_trace()
-        svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
+
+        svg_token_embeddings = self.vqvae_embedding(svg_token_ids[0]) # Encode svg tokens
         
         assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"
-        svg_padding_mask = self.create_padding_mask(svg_token_ids, self.svg_pad_token_id)
+        svg_padding_mask = self.create_padding_mask(svg_token_ids[0], self.svg_pad_token_id)
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
