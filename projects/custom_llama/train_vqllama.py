@@ -138,7 +138,6 @@ def train():
 
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
-    
     llamaconfig.frozen_llm = False
     llamaconfig.max_svg_length = 1024
     llamaconfig.max_text_length = 64
