@@ -96,7 +96,7 @@ class CustomTrainier(Trainer):
             text_input_ids=inputs['text_input_ids'],
             text_attention_mask=inputs['text_attention_mask'],
             text_labels=inputs['text_labels'],
-            svg_path=inputs['svg_path'],
+            svg_tensors=inputs['svg_path'],
             svg_padding_mask=inputs['svg_padding_mask'],
             svg_end_token_id=inputs['svg_end_token_id'],
         )

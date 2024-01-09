@@ -17,7 +17,7 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM, GenerationMixin):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, svg_pad_token_id=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
         self.svg_end_token_id = svg_end_token_id
@@ -26,7 +26,10 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
         self.convert_token_weight = convert_token_weight
         self.input_adapter = nn.Linear(config.svg_token_dims, config.hidden_size)
         self.output_adapter = nn.Linear(config.hidden_size, config.svg_token_dims)
-
+        self.codebook_size = codebook_size
+        
+        assert svg_pad_token_id is not None, "pad id should be specified in prior"
+        
         self.post_init()
         
         if config.frozen_llm: 
@@ -63,12 +66,11 @@ class VQSVGLlama(LlamaForCausalLM, GenerationMixin):
             svg_tensors: B x L x B,
             svg_padding_mask: B x L
         """
-        text_width = input_embeddings.size(1)
-
+        # handle text
+        text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
         
-        # TODO:  add vqvae change svg loss
         svg_token_ids, _ = self.vqvae.encode(svg_tensors, start_level=0, end_level=1)
 
 
