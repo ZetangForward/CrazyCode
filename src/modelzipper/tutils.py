@@ -184,6 +184,14 @@ def convert_list_to_dict(lst: List[Dict], key: str):
 ###### model  utils #######
 ###########################
 
+def freeze_model(model):
+    """
+    Freeze the model.
+    """
+    for param in model.parameters():
+        param.requires_grad = False
+
+
 def count_parameters(model):  
     total_params = sum(p.numel() for p in model.parameters())  
       

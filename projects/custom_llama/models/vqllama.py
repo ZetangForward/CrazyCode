@@ -79,11 +79,10 @@ class VQSVGLlama(LlamaForCausalLM):
         text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
-        
         # quantizied svg tensors with vqvae
         if self.vqvae.model.training: # deepspeed will make vqvae training again
             self.vqvae.model.eval()  
-            self.vqvae.model.requires_grad_ = False
+            freeze_model(self.vqvae.model)
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
         svg_token_ids = svg_token_ids[0]  # first compress level
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
@@ -132,7 +131,6 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_svg_token_ids = shift_svg_token_ids.view(-1)
             svg_loss = F.cross_entropy(shift_svg_logits, shift_svg_token_ids, ignore_index=self.svg_pad_token_id)
 
-        import pdb; pdb.set_trace()
         if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
             bsz, _, dim_ = text_logits.size()
 
@@ -141,7 +139,8 @@ class VQSVGLlama(LlamaForCausalLM):
             # obtain the last text token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
             last_text_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
-
+            
+            import pdb; pdb.set_trace()
             for i in range(bsz):  # convert the last text token (<svg>) to the first svg token
                 last_text_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1])
 
@@ -161,7 +160,6 @@ class VQSVGLlama(LlamaForCausalLM):
             )
             
             # calculate CE Loss for last svg token -> golden text token
-           
             svg2text_loss = F.cross_entropy(
                 last_svg_token_logits.contiguous().view(-1, self.config.vocab_size), 
                 golden_svg_end_token_ids.contiguous().view(-1), 
@@ -170,6 +168,7 @@ class VQSVGLlama(LlamaForCausalLM):
 
             convert_token_loss = text2svg_loss + svg2text_loss
 
+        import pdb; pdb.set_trace()
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
