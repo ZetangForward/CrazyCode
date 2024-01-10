@@ -173,10 +173,6 @@ def train():
         codebook_size=vqvae_config.vqvae.l_bins,
         cache_dir=training_args.cache_dir
     )
-    
-    count_parameters(svgllama)
-
-    import pdb; pdb.set_trace()
 
     if "llama" in model_args.model_name_or_path.lower():
         # add new tokens and resize embedding & LM head
@@ -193,8 +189,6 @@ def train():
     svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
-
-    count_parameters(svgllama)
 
     ## init VQVAE
     block_kwargs = dict(
@@ -213,29 +207,28 @@ def train():
     svgllama.init_vqvae(plugin_vqvae)
     
     count_parameters(svgllama)
-    import pdb; pdb.set_trace()
 
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
 
-    # init optimizer
-    if svgllama.model_parallel:
-        all_params = [param for module in svgllama.modules() for param in module.parameters()]
-    else:
-        all_params = svgllama.parameters()
+    # # init optimizer
+    # if svgllama.model_parallel:
+    #     all_params = [param for module in svgllama.modules() for param in module.parameters()]
+    # else:
+    #     all_params = svgllama.parameters()
     
-    trainable_params = [p for p in all_params if p.requires_grad]
-    optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
+    # trainable_params = [p for p in all_params if p.requires_grad]
+    # optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
 
-    # init lr scheduler
-    lr_scheduler = transformers.get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=training_args.warmup_steps,
-        num_training_steps=training_args.max_steps,
-    )
+    # # init lr scheduler
+    # lr_scheduler = transformers.get_linear_schedule_with_warmup(
+    #     optimizer,
+    #     num_warmup_steps=training_args.warmup_steps,
+    #     num_training_steps=training_args.max_steps,
+    # )
     
-    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, optimizers=(optimizer, lr_scheduler) **data_module)
+    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, optimizers=None, **data_module)
     
     svgllama.config.use_cache = False
 

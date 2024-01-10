@@ -1,4 +1,4 @@
-deepspeed --num_gpus 1 \
+deepspeed --num_gpus 8 \
     --num_nodes 1 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
