@@ -170,9 +170,4 @@ class VQSVGLlama(LlamaForCausalLM):
         return next(self.parameters()).device
     
 if __name__ == "__main__":
-    pretrained_model = LlamaForCausalLM.from_pretrained("/zecheng/model_hub/Llama-2-7b-hf", device_map="auto")
-    llamaconfig = LlamaConfig.from_pretrained("/zecheng/model_hub/Llama-2-7b-hf")
-    llamaconfig.svg_vocab_size = 1000
-    llamaconfig.text_width = 64
-    svgllama = SvgLlama(llamaconfig)
-    svgllama.load_state_dict(pretrained_model.state_dict(), strict=False)
+    pass  # not implement yet
