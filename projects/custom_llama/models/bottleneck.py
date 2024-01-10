@@ -208,10 +208,10 @@ class Bottleneck(nn.Module):
         for level in range(min(self.levels, len(xs))):  # 3 or the input level (must start from 1)
             level_block = self.level_blocks[level]
             x = xs[level] # 32, 4096, 128
-            z, x_quantised, commit_loss, metric = level_block(x, update_k=self.training)
+            z, x_quantised, commit_loss, metric = level_block(x, update_k=self.requires_grad_)
             # z: [32, 128] x_quantised: [32, 4096, 128] 
             zs.append(z)
-            if not self.training:
+            if not self.requires_grad_:  # judge whether to update k according to the grad
                 # Be extra paranoid and make sure the encoder weights can't
                 # change from straight-through estimator
                 x_quantised = x_quantised.detach()

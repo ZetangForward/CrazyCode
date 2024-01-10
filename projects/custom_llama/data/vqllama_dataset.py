@@ -132,7 +132,7 @@ class BasicDataset(Dataset):
 
         if self.svg_end_token is not None:
             svg_end_token_id = self.tokenizer.convert_tokens_to_ids(self.svg_end_token)
-        import pdb; pdb.set_trace()
+        
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,

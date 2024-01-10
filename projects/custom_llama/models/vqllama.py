@@ -81,7 +81,7 @@ class VQSVGLlama(LlamaForCausalLM):
         input_embeddings = text_embedding_module(text_input_ids)
         
         # quantizied svg tensors with vqvae
-        if self.vqvae.model.requires_grad_: # deepspeed will make vqvae training again
+        if self.vqvae.model.training: # deepspeed will make vqvae training again
             self.vqvae.model.eval()  
             self.vqvae.model.requires_grad_ = False
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
