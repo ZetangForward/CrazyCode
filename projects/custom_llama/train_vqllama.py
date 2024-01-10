@@ -79,7 +79,7 @@ def smart_tokenizer_and_embedding_resize(
 
 
 class CustomTrainier(Trainer):
-    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, svg_tokenizer=None, **kwargs):
+    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
         super().__init__(
             model=model, 
             args=args, 
@@ -88,7 +88,6 @@ class CustomTrainier(Trainer):
             tokenizer=tokenizer,
             **kwargs,
         )
-        self.svg_tokenizer = svg_tokenizer
         
     def compute_loss(self, model, inputs, return_outputs=False):
         outputs = model(
@@ -98,7 +97,7 @@ class CustomTrainier(Trainer):
             svg_tensors=inputs['svg_path'],
             svg_padding_mask=inputs['svg_padding_mask'],
         )
-        total_loss = outputs.pop("total_loss")
+        total_loss = outputs.get("total_loss")
         self.log(outputs)  # log other metrics
         return (total_loss, outputs) if return_outputs else total_loss 
 
