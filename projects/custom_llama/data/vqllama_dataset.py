@@ -211,7 +211,6 @@ class VQDataCollator:
             "svg_path": svg_tensors, 
             "text_labels": text_labels,
             "svg_padding_mask": svg_padding_mask,
-            "svg_end_token_id": svg_end_token_id
         }
 
     def __call__(self, batch):

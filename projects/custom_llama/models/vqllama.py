@@ -25,6 +25,7 @@ class VQSVGLlama(LlamaForCausalLM):
         self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
         self.codebook_size = codebook_size + 1  # add one for svg end token
+        self.svg_end_token_id = codebook_size
         self.compress_level = compress_level
         self.svg_pad_token_id = svg_pad_token_id
         self.vqvae = vqvae
@@ -72,13 +73,15 @@ class VQSVGLlama(LlamaForCausalLM):
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
-            svg_tensors: B x L x B,
+            svg_tensors: B x L x l_bins,
+            svg_padding_mask: B x L,
         """
         
-        # handle text
+        # embedding text
         text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
+        
         # quantizied svg tensors with vqvae
         if self.vqvae.model.training: # deepspeed will make vqvae training again
             self.vqvae.model.eval()
@@ -86,13 +89,6 @@ class VQSVGLlama(LlamaForCausalLM):
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
         svg_token_ids = svg_token_ids[0]  # first compress level
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
-        
-        # # create svg padding mask
-        # fake_svg_input_tokens = torch.zeros_like(svg_tensors, dtype=svg_tensors.dtype).to(svg_tensors.device)
-        # svg_pad_token_ids, _ = self.vqvae.model.encode(fake_svg_input_tokens, start_level=0, end_level=1)
-        # svg_pad_token_ids = svg_pad_token_ids[0]
-        
-        svg_padding_mask = self.create_padding_mask(svg_token_ids, self.svg_pad_token_id)  # curently made handly
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
