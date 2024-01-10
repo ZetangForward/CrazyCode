@@ -8,7 +8,6 @@ from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 from models.vqvae import VQVAE
 import pytorch_lightning as pl
-from transformers import AdamW
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -80,13 +79,14 @@ def smart_tokenizer_and_embedding_resize(
 
 
 class CustomTrainier(Trainer):
-    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
+    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, optimizers, **kwargs):
         super().__init__(
             model=model, 
             args=args, 
             train_dataset=train_dataset, 
             eval_dataset=eval_dataset, 
             tokenizer=tokenizer,
+            optimizers=optimizers, 
             **kwargs,
         )
         
@@ -208,16 +208,19 @@ def train():
     svgllama.init_vqvae(plugin_vqvae)
     
     
-    
-
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
 
+    import pdb; pdb.set_trace()
     # init optimizer
-    all_params = svgllama.parameters() if not svgllama.model_parallel else svgllama.module.parameters()
-    trainable_params = filter(lambda p: p.requires_grad, all_params)
-    optimizer = AdamW(trainable_params, lr=training_args.learning_rate)
+    count_parameters(svgllama)
+    if svgllama.model_parallel:
+        all_params = [param for module in svgllama.modules() for param in module.parameters()]
+    else:
+        all_params = svgllama.parameters()
+    trainable_params = [p for p in all_params if p.requires_grad]
+    optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
 
     # init lr scheduler
     lr_scheduler = transformers.get_linear_schedule_with_warmup(
@@ -226,7 +229,7 @@ def train():
         num_training_steps=training_args.max_steps,
     )
     
-    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
+    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, optimizers=(optimizer, lr_scheduler) **data_module)
     
     svgllama.config.use_cache = False
 
