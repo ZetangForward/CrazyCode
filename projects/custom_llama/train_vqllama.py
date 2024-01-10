@@ -17,7 +17,6 @@ DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 
-
 @dataclass
 class VQVAEConfig:
     config_path: str = field(default=None)
@@ -203,7 +202,7 @@ def train():
     count_parameters(plugin_vqvae)
     svgllama.init_vqvae(plugin_vqvae)
 
-    #Tell Trainer not to attempt DataParallel
+    # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
     
