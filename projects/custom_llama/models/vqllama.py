@@ -125,7 +125,7 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_loss = F.cross_entropy(shift_svg_logits, shift_golden_svg_tokens)
 
         if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
-            bsz, _, dim_ = text_logits.size()
+            bsz, _, dim_ = svg_pred.size()
             # obtain the last text token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
             first_svg_token_logits = torch.zeros(bsz, 1, dim_).to(text_logits.device)
