@@ -67,7 +67,6 @@ post_process_output = postprocess(output, padding_mask, False)[0]  # path interp
 raw_rendered, raw_str = convert_svg(post_process_output, True)
 raw_rendered.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/raw_rendered.png")
 
-import pdb; pdb.set_trace()
 svg_token_ids = plugin_vqvae.model.encode(padded_sample.unsqueeze(0), start_level=0, end_level=1)
 svg_token_ids = svg_token_ids[0]  # 这里是不加padding mask的svg token ids
 
@@ -76,7 +75,6 @@ remain_svg_token_ids = svg_token_ids[:, :compress_padding_mask.sum()] # 这里�
 postprocess_output_no_padding = plugin_vqvae.model.decode(svg_token_ids, 0, 1, padding_mask, False, True)[0]
 postprocess_output_with_padding = plugin_vqvae.model.decode(remain_svg_token_ids, 0, 1, padding_mask, False, True)[0]
 
-import pdb; pdb.set_trace()
 
 p_svg_no_padding, p_svg_str_no_padding = convert_svg(postprocess_output_no_padding, True)
 p_svg_with_padding, p_svg_str_with_padding = convert_svg(postprocess_output_with_padding, True)

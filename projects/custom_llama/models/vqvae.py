@@ -218,9 +218,10 @@ class VQVAE(nn.Module):
             end_level = self.levels
             
         xs_quantised = self.bottleneck.decode(zs, start_level=start_level, end_level=end_level)
+        
         # Use only lowest level
         decoder, x_quantised = self.decoders[start_level], xs_quantised[0:1]
-        x_out = decoder(x_quantised, all_levels=False)
+        x_out = decoder(x_quantised, all_levels=False).permute(0, 2, 1)
         x_out = self.denormalize_func(x_out)
 
         if return_postprocess:
