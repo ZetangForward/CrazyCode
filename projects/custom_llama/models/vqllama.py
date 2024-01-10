@@ -169,5 +169,3 @@ class VQSVGLlama(LlamaForCausalLM):
     def model_device(self):
         return next(self.parameters()).device
     
-if __name__ == "__main__":
-    pass  # not implement yet
