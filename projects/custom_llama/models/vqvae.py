@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models.bottleneck import NoBottleneck, Bottleneck
 from models.encdec import Encoder, Decoder
-from torchvision import transforms
 
 # helper functions
 def assert_shape(x, exp_shape):
