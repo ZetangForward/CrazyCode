@@ -68,7 +68,7 @@ class VQSVGLlama(LlamaForCausalLM):
         if self.vqvae.model.training: # deepspeed will make vqvae training again
             self.vqvae.model.eval()
             freeze_model(self.vqvae.model)
-        svg_token_ids = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
+        svg_token_ids = self.vqvae.model.encode_no_grad(svg_tensors, start_level=0, end_level=1)
         svg_token_ids = svg_token_ids[0]  # first compress level
         compress_svg_max_length = svg_token_ids.size(1)
         # add svg end token id

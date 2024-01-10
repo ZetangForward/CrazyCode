@@ -90,7 +90,10 @@ class CustomTrainier(Trainer):
         )
         
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]):
-        import pdb; pdb.set_trace()
+        if self.model.vqvae.model.training: # deepspeed will make vqvae training again
+            self.model.vqvae.model.eval()
+            self.model.vqvae.model.requires_grad_ = False
+        
         inputs = self._prepare_inputs(inputs)
         with self.compute_loss_context_manager():
             loss = self.compute_loss(model, inputs)
@@ -107,7 +110,7 @@ class CustomTrainier(Trainer):
             svg_tensors=inputs['svg_path'],
             svg_padding_mask=inputs['svg_padding_mask'],
         )
-        total_loss = outputs.get("total_loss")
+        total_loss = outputs.pop("total_loss")
         self.log(outputs)  # log other metrics
         return (total_loss, outputs) if return_outputs else total_loss 
 

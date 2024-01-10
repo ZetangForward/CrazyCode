@@ -243,6 +243,22 @@ class VQVAE(nn.Module):
             
         zs = self.bottleneck.encode(xs[start_level:end_level])
         return zs
+    
+    @t.no_grad()
+    def encode_no_grad(self, x, start_level=0, end_level=None):  # for deepspeed hf Trainer
+        x = self.normalize_func(x) # normalize to [-1, 1]
+        x_in = x.permute(0, 2, 1)  # x_in (32, 9, 256)
+        xs = []
+
+        if end_level is None:
+            end_level = self.levels
+
+        for level in range(self.levels):
+            x_out = self.encoders[level](x_in)
+            xs.append(x_out[-1])
+            
+        zs = self.bottleneck.encode(xs[start_level:end_level])
+        return zs
 
 
     def sample(self, n_samples):  # random sample from prior
