@@ -104,7 +104,7 @@ class VQSVGLlama(LlamaForCausalLM):
         svg_pred = self.vqvae_head(hidden_states[:, text_width:, :]).float() 
         
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
-        import pdb; pdb.set_trace()
+
         if text_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
@@ -115,8 +115,7 @@ class VQSVGLlama(LlamaForCausalLM):
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             text_loss = F.cross_entropy(shift_logits, shift_labels)
-        
-        import pdb; pdb.set_trace()
+
         if golden_svg_tokens is not None:
             # Shift so that tokens < n predict n
             shift_svg_logits = svg_pred[:, :-1, :].contiguous()
@@ -125,49 +124,30 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_golden_svg_tokens = shift_golden_svg_tokens.view(-1)
             svg_loss = F.cross_entropy(shift_svg_logits, shift_golden_svg_tokens)
 
-        import pdb; pdb.set_trace()
         if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
             bsz, _, dim_ = text_logits.size()
-
-            golden_svg_end_token_ids = torch.empty(bsz, 1).fill_(self.svg_end_token_id).to(text_logits.device).long()
-
             # obtain the last text token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
-            last_text_token_logits = torch.zeros(bsz, 1, dim_).to(text_logits.device)
+            first_svg_token_logits = torch.zeros(bsz, 1, dim_).to(text_logits.device)
             
             for i in range(bsz):  # convert the last text token (<svg>) to the first svg token
-                last_text_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1][None, ])
+                first_svg_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1][None, ])
 
-            # obtain the last svg token logits
-            # real_svg_lengths = svg_padding_mask.sum(dim=1)  
-            # last_svg_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
-
-            # for i in range(bsz):
-            #     last_svg_token_logits[i] = self.lm_head(hidden_states[i, text_width + real_svg_lengths[i] - 1])
-            import pdb; pdb.set_trace()
             # calculate CE Loss for last text token -> first svg token
-            text2svg_loss = F.cross_entropy(
-                last_text_token_logits.contiguous().view(-1, self.codebook_size), 
+            convert_token_loss = F.cross_entropy(
+                first_svg_token_logits.contiguous().view(-1, self.codebook_size), 
                 svg_token_ids[:, 0].contiguous().view(-1), 
                 reduction="mean",
-                ignore_index=self.svg_pad_token_id,
             )
-            
-            # # calculate CE Loss for last svg token -> golden text token
-            # svg2text_loss = F.cross_entropy(
-            #     last_svg_token_logits.contiguous().view(-1, self.config.vocab_size), 
-            #     golden_svg_end_token_ids.contiguous().view(-1), 
-            #     reduction="mean",
-            # )
 
-            convert_token_loss = text2svg_loss
-
-        import pdb; pdb.set_trace()
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
         metrics = dict(
-            total_loss=total_loss, text_loss=text_loss, svg_loss=svg_loss, convert_token_loss=convert_token_loss
+            total_loss=total_loss, 
+            text_loss=text_loss, 
+            svg_loss=svg_loss, 
+            convert_token_loss=convert_token_loss,
         )
 
         if self.training:
