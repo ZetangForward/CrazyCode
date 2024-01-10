@@ -138,19 +138,18 @@ class VQSVGLlama(LlamaForCausalLM):
 
             # obtain the last text token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
-            last_text_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
+            last_text_token_logits = torch.zeros(bsz, 1, dim_).to(text_logits.device)
             
-            import pdb; pdb.set_trace()
             for i in range(bsz):  # convert the last text token (<svg>) to the first svg token
-                last_text_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1])
+                last_text_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1][None, ])
 
             # obtain the last svg token logits
-            real_svg_lengths = svg_padding_mask.sum(dim=1)  
-            last_svg_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
+            # real_svg_lengths = svg_padding_mask.sum(dim=1)  
+            # last_svg_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
 
-            for i in range(bsz):
-                last_svg_token_logits[i] = self.lm_head(hidden_states[i, text_width + real_svg_lengths[i] - 1])
-
+            # for i in range(bsz):
+            #     last_svg_token_logits[i] = self.lm_head(hidden_states[i, text_width + real_svg_lengths[i] - 1])
+            import pdb; pdb.set_trace()
             # calculate CE Loss for last text token -> first svg token
             text2svg_loss = F.cross_entropy(
                 last_text_token_logits.contiguous().view(-1, self.codebook_size), 
@@ -159,14 +158,14 @@ class VQSVGLlama(LlamaForCausalLM):
                 ignore_index=self.svg_pad_token_id,
             )
             
-            # calculate CE Loss for last svg token -> golden text token
-            svg2text_loss = F.cross_entropy(
-                last_svg_token_logits.contiguous().view(-1, self.config.vocab_size), 
-                golden_svg_end_token_ids.contiguous().view(-1), 
-                reduction="mean",
-            )
+            # # calculate CE Loss for last svg token -> golden text token
+            # svg2text_loss = F.cross_entropy(
+            #     last_svg_token_logits.contiguous().view(-1, self.config.vocab_size), 
+            #     golden_svg_end_token_ids.contiguous().view(-1), 
+            #     reduction="mean",
+            # )
 
-            convert_token_loss = text2svg_loss + svg2text_loss
+            convert_token_loss = text2svg_loss
 
         import pdb; pdb.set_trace()
         if text_loss is not None and svg_loss is not None:  
