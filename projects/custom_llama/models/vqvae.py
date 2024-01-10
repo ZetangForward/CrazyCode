@@ -258,7 +258,9 @@ class VQVAE(nn.Module):
         """
         
         x = self.normalize_func(x) # normalize to [-1, 1]
-        x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
+        # TODO: not sure whether to utilize float32
+        # x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
+        x_in = x.permute(0, 2, 1)
         xs = []
 
         for level in range(self.levels):
@@ -323,7 +325,7 @@ class VQVAE(nn.Module):
                 metrics[key] = val.detach()
 
         if return_all_quantized_res:
-            x_outs = [tmp.permute(0, 2, 1).float() for tmp in x_outs]
+            x_outs = [tmp.permute(0, 2, 1) for tmp in x_outs]
             if denormalize:
                 x_outs = [self.denormalize_func(tmp) for tmp in x_outs]
             return x_outs, zs[0], xs_quantised[0]
