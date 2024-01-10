@@ -97,7 +97,6 @@ class CustomTrainier(Trainer):
             text_labels=inputs['text_labels'],
             svg_tensors=inputs['svg_path'],
             svg_padding_mask=inputs['svg_padding_mask'],
-            svg_end_token_id=inputs['svg_end_token_id'],
         )
         total_loss = outputs.pop("total_loss")
         self.log(outputs)  # log other metrics

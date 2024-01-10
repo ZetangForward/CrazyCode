@@ -87,6 +87,7 @@ class VQSVGLlama(LlamaForCausalLM):
             self.vqvae.model.eval()
             freeze_model(self.vqvae.model)
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
+        svg_token_ids = svg_token_ids[0]  # first compress level
         compress_svg_max_length = svg_token_ids.size(1)
         # add svg end token id
         real_svg_lengths = svg_padding_mask.sum(dim=1)
@@ -96,7 +97,8 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
             svg_padding_mask[cur_padding_pos] = True
 
-        svg_token_ids = svg_token_ids[0]  # first compress level
+        golden_svg_tokens = torch.where(svg_padding_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
+        import pdb; pdb.set_trace()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
@@ -116,7 +118,7 @@ class VQSVGLlama(LlamaForCausalLM):
         svg_pred = self.vqvae_head(hidden_states[:, text_width:, :]).float() 
         
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
-
+        import pdb; pdb.set_trace()
         if text_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
@@ -128,14 +130,16 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_labels = shift_labels.to(shift_logits.device)
             text_loss = F.cross_entropy(shift_logits, shift_labels)
         
-        if svg_token_ids is not None:
+        import pdb; pdb.set_trace()
+        if golden_svg_tokens is not None:
             # Shift so that tokens < n predict n
             shift_svg_logits = svg_pred[:, :-1, :].contiguous()
-            shift_svg_token_ids = svg_token_ids[:, 1:].contiguous()
+            shift_golden_svg_tokens = golden_svg_tokens[:, 1:].contiguous()
             shift_svg_logits = shift_svg_logits.view(-1, self.codebook_size)
-            shift_svg_token_ids = shift_svg_token_ids.view(-1)
-            svg_loss = F.cross_entropy(shift_svg_logits, shift_svg_token_ids, ignore_index=self.svg_pad_token_id)
+            shift_golden_svg_tokens = shift_golden_svg_tokens.view(-1)
+            svg_loss = F.cross_entropy(shift_svg_logits, shift_golden_svg_tokens)
 
+        import pdb; pdb.set_trace()
         if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
             bsz, _, dim_ = text_logits.size()
 

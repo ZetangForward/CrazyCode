@@ -204,12 +204,12 @@ class VQDataCollator:
         # create padding mask
         svg_padding_mask = list(map(lambda x: cal_compress_padding_mask(x), padding_mask))
         svg_padding_mask = torch.stack(svg_padding_mask, dim=0)
-        import pdb; pdb.set_trace()
+
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
-            "svg_path": svg_tensors, 
             "text_labels": text_labels,
+            "svg_path": svg_tensors, 
             "svg_padding_mask": svg_padding_mask,
         }
 
