@@ -11,8 +11,8 @@ import pytorch_lightning as pl
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
-DEFAULT_EOS_TOKEN = "<s>"
-DEFAULT_BOS_TOKEN = "</s>"
+DEFAULT_BOS_TOKEN = "<s>"
+DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 DEFAULT_SVG_END_TOKEN = "</SVG>"
@@ -187,7 +187,7 @@ def train():
     )
     vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
     plugin_vqvae = PluginVQVAE(vqvae)
-    checkpoint = torch.load(vqvae_config.ckpt_path)
+    checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
     plugin_vqvae.load_state_dict(checkpoint['state_dict'])
     print_c("VQVAE loaded!", "green")
     count_parameters(plugin_vqvae)

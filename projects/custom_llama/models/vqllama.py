@@ -119,7 +119,7 @@ class VQSVGLlama(LlamaForCausalLM):
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             text_loss = F.cross_entropy(shift_logits, shift_labels)
-        import pdb; pdb.set_trace()
+        
         if svg_token_ids is not None:
             # Shift so that tokens < n predict n
             shift_svg_logits = svg_pred[:, :-1, :].contiguous()
@@ -128,19 +128,17 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_svg_token_ids = shift_svg_token_ids.view(-1)
             svg_loss = F.cross_entropy(shift_svg_logits, shift_svg_token_ids, ignore_index=self.svg_pad_token_id)
 
-        if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant!!
-            ...
-            ## TODO: add convert token loss
-            # 注意：这里不能直接取最后一位，因为最后一位可能是padding，要根据实际的attention mask来取
+        import pdb; pdb.set_trace()
+        if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
             bsz, _, dim_ = text_logits.size()
 
             golden_svg_end_token_ids = torch.empty(bsz, 1).fill_(self.svg_end_token_id).to(text_logits.device).long()
 
-            # obtain the last real token logits
+            # obtain the last text token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
             last_text_token_logits = torch.zeros(bsz, dim_).to(text_logits.device)
 
-            for i in range(bsz):
+            for i in range(bsz):  # convert the last text token (<svg>) to the first svg token
                 last_text_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1])
 
             # obtain the last svg token logits

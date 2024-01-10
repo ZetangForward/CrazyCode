@@ -103,7 +103,7 @@ class BasicDataset(Dataset):
     def __getitem__(self, idx):
         item = self.content[idx]
         keywords, sample = item['keywords'], item['mesh_data']
-        prompts = self.PROMPT_TEMPLATE.format(keywords=keywords)
+        prompts = self.PROMPT_TEMPLATE.format(keywords=', '.join(keywords))
 
         sample = sample[:self.max_path_nums]  # prevent too long num path
         sample = self.custom_command(sample)
@@ -125,14 +125,14 @@ class BasicDataset(Dataset):
             text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
         )
 
-        if self.svg_begin_token is not None:  # utilize svg_token as the end of the text
+        if self.svg_begin_token is not None and self.tokenizer.eos_token_id in text_input_ids:  # utilize svg_token as the end of the text
             text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
             text_labels[text_attention_mask.sum() - 1] = -100
             text_attention_mask[text_attention_mask.sum() - 1] = 0
 
         if self.svg_end_token is not None:
             svg_end_token_id = self.tokenizer.convert_tokens_to_ids(self.svg_end_token)
-
+        import pdb; pdb.set_trace()
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
