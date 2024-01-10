@@ -176,6 +176,8 @@ def train():
     
     count_parameters(svgllama)
 
+    import pdb; pdb.set_trace()
+
     if "llama" in model_args.model_name_or_path.lower():
         # add new tokens and resize embedding & LM head
         added_tokens = {
