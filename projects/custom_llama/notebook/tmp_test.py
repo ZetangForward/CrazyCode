@@ -44,16 +44,11 @@ plugin_vqvae.model.half()
 
 def cal_compress_padding_mask(x):
 
-    # 确保长度是偶数，如果是奇数，可以添加一个值以配合压缩逻辑
+    # add one more False to make sure the odd of the length of x when it is even
     if len(x) % 2 != 0:
         x = torch.cat((x, torch.tensor([False])))
-
-    # 压缩mask
-    # 使用.view(-1, 2)将原始mask分为两列，然后使用.any(dim=1)检查每对是否有任何True值
     x = x.view(-1, 2).any(dim=1)
-    
     return x
-
 
 sample = dataset[0]['svg_path']
 max_seq_len = 512
