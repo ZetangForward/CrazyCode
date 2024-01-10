@@ -25,7 +25,9 @@ def cal_compress_padding_mask(x):
     """
     x: seq_len
     """
-    if len(x) % 2 != 0:
+    print(x)
+    print(x.size())
+    if x.size(0) % 2 != 0:
         x = torch.cat((x, torch.tensor([False])))
     x = x.view(-1, 2).any(dim=1)
     return x

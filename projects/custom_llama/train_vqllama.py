@@ -78,6 +78,7 @@ def smart_tokenizer_and_embedding_resize(
         output_embeddings[-num_new_tokens:] = output_embeddings_avg
 
 
+
 class CustomTrainier(Trainer):
     def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
         super().__init__(
@@ -111,8 +112,12 @@ class CustomTrainier(Trainer):
             svg_padding_mask=inputs['svg_padding_mask'],
         )
         total_loss = outputs.pop("total_loss")
+        for key in outputs:
+            outputs[key] = outputs[key].item()
         self.log(outputs)  # log other metrics
         return (total_loss, outputs) if return_outputs else total_loss 
+
+
 
 
 class PluginVQVAE(nn.Module):
@@ -201,10 +206,25 @@ def train():
     print_c("VQVAE loaded!", "green")
     count_parameters(plugin_vqvae)
     svgllama.init_vqvae(plugin_vqvae)
+    
+    
+    
 
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
+
+    # init optimizer
+    all_params = svgllama.parameters() if not svgllama.model_parallel else svgllama.module.parameters()
+    trainable_params = filter(lambda p: p.requires_grad, all_params)
+    optimizer = AdamW(trainable_params, lr=training_args.learning_rate)
+
+    # init lr scheduler
+    lr_scheduler = transformers.get_linear_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=training_args.warmup_steps,
+        num_training_steps=training_args.max_steps,
+    )
     
     trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
     
