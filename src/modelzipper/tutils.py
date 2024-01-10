@@ -192,18 +192,23 @@ def freeze_model(model):
         param.requires_grad = False
 
 
-def count_parameters(model):  
-    total_params = sum(p.numel() for p in model.parameters())  
-      
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)  
-      
-    frozen_params = total_params - trainable_params  
+def count_parameters(model, model_parallel=False):
+    if model_parallel:
+        all_params = [p for module in model.modules() for p in module.parameters()]
+    else:
+        all_params = list(model.parameters())
+
+    total_params = sum(p.numel() for p in all_params)
+    trainable_params = sum(p.numel() for p in all_params if p.requires_grad)
+    frozen_params = total_params - trainable_params
 
     print_c(f"Total parameters: {total_params}")
     print_c(f"Trainable parameters: {trainable_params}")
     print_c(f"Frozen parameters: {frozen_params}")
-      
+
     return total_params, trainable_params, frozen_params
+
+
 
 def pad_tensor(vec, pad_len, dim, pad_token_id):
         """

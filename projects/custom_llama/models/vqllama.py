@@ -24,7 +24,7 @@ class VQSVGLlama(LlamaForCausalLM):
         self.vqvae = vqvae
         self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
         self.vqvae_head = nn.Linear(config.hidden_size, self.codebook_size)
-        self.post_init()
+
         if config.frozen_llm: 
             print_c("Attention! Part of the parameters are freezed!")
             self.requires_grad_ = False 
@@ -34,7 +34,8 @@ class VQSVGLlama(LlamaForCausalLM):
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae
         self.vqvae.model.eval()
-        self.vqvae.model.requires_grad_ = False
+        for param in self.vqvae.model.parameters():
+            param.requires_grad = False
 
     def add_svg_begin_token_id(self, svg_begin_token_id):
         self.svg_begin_token_id = svg_begin_token_id
@@ -149,12 +150,6 @@ class VQSVGLlama(LlamaForCausalLM):
             "hidden_states": outputs.hidden_states,
             "attentions": outputs.attentions,
         }
-
-
-    @torch.no_grad()
-    def generate(self, input_ids=None, attention_mask=None, max_length=None, min_length=None, **kwargs):
-        return super().generate(input_ids, attention_mask, max_length, min_length, **kwargs)
-    
     
     @property
     def model_device(self):

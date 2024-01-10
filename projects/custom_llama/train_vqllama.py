@@ -173,7 +173,7 @@ def train():
         codebook_size=vqvae_config.vqvae.l_bins,
         cache_dir=training_args.cache_dir
     )
-    
+
     if "llama" in model_args.model_name_or_path.lower():
         # add new tokens and resize embedding & LM head
         added_tokens = {
@@ -204,21 +204,21 @@ def train():
     checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
     plugin_vqvae.load_state_dict(checkpoint['state_dict'])
     print_c("VQVAE loaded!", "green")
-    count_parameters(plugin_vqvae)
     svgllama.init_vqvae(plugin_vqvae)
     
-    
+    count_parameters(svgllama)
+    import pdb; pdb.set_trace()
+
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
 
-    import pdb; pdb.set_trace()
     # init optimizer
-    count_parameters(svgllama)
     if svgllama.model_parallel:
         all_params = [param for module in svgllama.modules() for param in module.parameters()]
     else:
         all_params = svgllama.parameters()
+    
     trainable_params = [p for p in all_params if p.requires_grad]
     optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
 
