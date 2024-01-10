@@ -95,10 +95,9 @@ class VQSVGLlama(LlamaForCausalLM):
         for i in range(bsz):
             cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
             svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
-            svg_padding_mask[cur_padding_pos] = True
+            svg_padding_mask[i, cur_padding_pos] = True
 
         golden_svg_tokens = torch.where(svg_padding_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
-        import pdb; pdb.set_trace()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
