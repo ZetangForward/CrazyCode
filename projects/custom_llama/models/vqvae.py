@@ -233,9 +233,7 @@ class VQVAE(nn.Module):
         if end_level is None:
             end_level = self.levels
         import pdb; pdb.set_trace()
-        xs_quantised = self.bottleneck.decode(
-            zs, start_level=start_level, end_level=end_level
-        )
+        xs_quantised = self.bottleneck.decode(zs, start_level=start_level, end_level=end_level)
         
         # Use only lowest level
         decoder, x_quantised = self.decoders[start_level], xs_quantised[0:1]
