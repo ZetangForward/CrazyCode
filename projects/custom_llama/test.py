@@ -164,7 +164,7 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        outputs, _, _ = self.forward(batch, return_all_quantized_res=True, denormalize=True)
+        outputs = self.forward(batch, return_all_quantized_res=True, denormalize=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
         post_process_output = postprocess(output, batch['padding_mask'], self.cfg.experiment.path_interpolation)  # path interpolation
         golden = sanint_check_golden(batch['svg_path'])

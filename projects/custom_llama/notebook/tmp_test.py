@@ -61,7 +61,7 @@ padding_mask = ~(padded_sample == 0).all(dim=1, keepdim=True).squeeze()
 compress_padding_mask = cal_compress_padding_mask(padding_mask)
 
 ## raw forward function
-outputs, _, _ = plugin_vqvae.model(padded_sample.unsqueeze(0), return_all_quantized_res=True, denormalize=True)
+outputs = plugin_vqvae.model(padded_sample.unsqueeze(0), padding_mask, return_all_quantized_res=True, denormalize=True)
 output = outputs[0]
 post_process_output = postprocess(output, padding_mask, False)  # path interpolation
 raw_rendered, raw_str = convert_svg(post_process_output, True)
