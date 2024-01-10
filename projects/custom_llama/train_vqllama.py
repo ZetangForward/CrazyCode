@@ -89,6 +89,16 @@ class CustomTrainier(Trainer):
             **kwargs,
         )
         
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]):
+        import pdb; pdb.set_trace()
+        inputs = self._prepare_inputs(inputs)
+        with self.compute_loss_context_manager():
+            loss = self.compute_loss(model, inputs)
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
+        self.accelerator.backward(loss)
+        return loss.detach() / self.args.gradient_accumulation_steps
+        
     def compute_loss(self, model, inputs, return_outputs=False):
         outputs = model(
             text_input_ids=inputs['text_input_ids'],
@@ -152,6 +162,7 @@ def train():
     svgllama = VQSVGLlama.from_pretrained(
         model_args.model_name_or_path, 
         config=llamaconfig, 
+        codebook_size=vqvae_config.vqvae.l_bins,
         cache_dir=training_args.cache_dir
     )
     

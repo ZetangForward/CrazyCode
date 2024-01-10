@@ -118,7 +118,6 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_golden_svg_tokens = golden_svg_tokens[:, 1:].contiguous()
             shift_svg_logits = shift_svg_logits.view(-1, self.codebook_size)
             shift_golden_svg_tokens = shift_golden_svg_tokens.view(-1)
-            import pdb; pdb.set_trace()
             svg_loss = F.cross_entropy(shift_svg_logits, shift_golden_svg_tokens)
 
         if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
