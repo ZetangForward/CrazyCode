@@ -10,6 +10,7 @@ from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 from models.vqvae import VQVAE
 from data.svg_data import *
 import pytorch_lightning as pl
+from utils.visualize_svg import *
 
 VQVAE_CONFIG_PATH = "/workspace/zecheng/modelzipper/projects/custom_llama/configs/deepspeed/vqvae_config.yaml"
 DATA_PATH = "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
@@ -63,6 +64,14 @@ svg_token_ids = svg_token_ids[0]  # 这里是不加padding mask的svg token ids
 
 remain_svg_token_ids = svg_token_ids[:, :compress_padding_mask.sum()] # 这里是加入padding mask的svg token ids
 
-postprocess_output = plugin_vqvae.model.decode(svg_token_ids, 0, 1, padding_mask, True, True)
+postprocess_output_no_padding = plugin_vqvae.model.decode(svg_token_ids, 0, 1, padding_mask, False, True)
+postprocess_output_with_padding = plugin_vqvae.model.decode(remain_svg_token_ids, 0, 1, padding_mask, False, True)
+
+import pdb; pdb.set_trace()
 
 
+p_svg_no_padding, p_svg_str_no_padding = convert_svg(postprocess_output_no_padding, True)
+p_svg_with_padding, p_svg_str_with_padding = convert_svg(postprocess_output_with_padding, True)
+
+p_svg_no_padding.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/no_padding.png")
+p_svg_with_padding.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/with_padding.png")

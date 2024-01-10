@@ -60,7 +60,8 @@ def postprocess(x, padding_mask=None, path_interpolation=True):
         # conduct path interpolation
         # return List[Tensor]
         batch_size = x.size(0)
-        x = remove_padding(x, padding_mask)  # remove the padding
+        if padding_mask is not None:
+            x = remove_padding(x, padding_mask)  # remove the padding
         full_x = []
         for i in range(batch_size):
             current_path = []
@@ -212,29 +213,12 @@ class VQVAE(nn.Module):
         tensor = t.round(tensor).long()
         return tensor
         
-    
-    def _decode(self, zs, start_level=0, end_level=None):
-        # Decode
+
+    def decode(self, zs, start_level=0, end_level=None, padding_mask=None, path_interpolation=False, return_postprocess=True):
         if end_level is None:
             end_level = self.levels
-        assert len(zs) == end_level - start_level
-        xs_quantised = self.bottleneck.decode(
-            zs, start_level=start_level, end_level=end_level
-        )
-        assert len(xs_quantised) == end_level - start_level
-
-        # Use only lowest level
-        decoder, x_quantised = self.decoders[start_level], xs_quantised[0:1]
-        x_out = decoder(x_quantised, all_levels=False)
-        x_out = self.postprocess(x_out)
-        return x_out
-
-    def decode(self, zs, start_level=0, end_level=None, padding_mask=None, path_interpolation=True, return_postprocess=True):
-        if end_level is None:
-            end_level = self.levels
-        import pdb; pdb.set_trace()
+            
         xs_quantised = self.bottleneck.decode(zs, start_level=start_level, end_level=end_level)
-        
         # Use only lowest level
         decoder, x_quantised = self.decoders[start_level], xs_quantised[0:1]
         x_out = decoder(x_quantised, all_levels=False)

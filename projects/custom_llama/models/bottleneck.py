@@ -142,7 +142,9 @@ class BottleneckBlock(nn.Module):
         return x_l
 
     def decode(self, x_l):
-        import pdb; pdb.set_trace()
+        if x_l.ndim == 1:
+            x_l = x_l[None, :]
+            
         N, T = x_l.shape
         width = self.emb_width
 
@@ -200,7 +202,6 @@ class Bottleneck(nn.Module):
     def decode(self, zs, start_level=0, end_level=None):
         if end_level is None:
             end_level = self.levels
-        import pdb; pdb.set_trace()
         xs_quantised = [level_block.decode(z) for (level_block, z) in zip(
             self.level_blocks[start_level:end_level], zs)]
         return xs_quantised
