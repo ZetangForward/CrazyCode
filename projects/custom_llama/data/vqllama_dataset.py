@@ -64,13 +64,12 @@ class BasicDataset(Dataset):
 
     PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
 
-    def __init__(self, content, tokenizer, svg_begin_token=None, svg_end_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
+    def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
         self.mode = mode
         self.svg_begin_token = svg_begin_token
-        self.svg_end_token = svg_end_token
         self.max_text_length = max_text_length
         self.min_path_nums = min_path_nums
         self.max_path_nums = max_path_nums
@@ -143,15 +142,12 @@ class BasicDataset(Dataset):
             text_labels[text_attention_mask.sum() - 1] = -100
             text_attention_mask[text_attention_mask.sum() - 1] = 0
 
-        if self.svg_end_token is not None:
-            svg_end_token_id = self.tokenizer.convert_tokens_to_ids(self.svg_end_token)
         
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
             "svg_path": sample.long(),
-            "svg_end_token_id": svg_end_token_id, 
         }
 
 
@@ -176,7 +172,6 @@ class VQDataCollator:
         text_attention_mask = [x['text_attention_mask'] for x in batch]
         text_labels = [x['text_labels'] for x in batch]
         svg_tensors = [x['svg_path'] for x in batch]
-        svg_end_token_id = [x['svg_end_token_id'] for x in batch]
             
         bsz = len(text_input_ids)
         
@@ -193,7 +188,6 @@ class VQDataCollator:
         text_input_ids = torch.stack(text_input_ids, dim=0)
         text_attention_mask = torch.stack(text_attention_mask, dim=0)
         text_labels = torch.stack(text_labels, dim=0)
-        svg_end_token_id = torch.empty(bsz, 1).fill_(svg_end_token_id[0]).long()
         
         # get padding mask
         if self.return_all_token_mask:
@@ -218,7 +212,7 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, svg_end_token, tokenizer):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer):  
         self.cfg = config
         self.tokenizer = tokenizer  
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
@@ -226,7 +220,6 @@ class VQLLaMAData:
         self.valid_data = content[:num_valid_data]
         self.train_data = content[num_valid_data:]
         self.svg_begin_token = svg_begin_token
-        self.svg_end_token = svg_end_token
 
     @property
     def train_dataset(self) -> Dataset:
@@ -236,7 +229,6 @@ class VQLLaMAData:
             max_path_nums=self.cfg.max_path_nums, 
             tokenizer=self.tokenizer,
             svg_begin_token = self.svg_begin_token,
-            svg_end_token = self.svg_end_token,
             max_text_length=self.cfg.max_text_length,
             mode="train",
             cluster_batch=False
@@ -250,7 +242,6 @@ class VQLLaMAData:
             max_path_nums=self.cfg.max_path_nums, 
             tokenizer=self.tokenizer,
             svg_begin_token = self.svg_begin_token,
-            svg_end_token = self.svg_end_token,
             max_text_length=self.cfg.max_text_length,
             mode="valid",
             cluster_batch=False

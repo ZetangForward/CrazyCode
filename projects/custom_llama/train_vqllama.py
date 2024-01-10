@@ -15,7 +15,7 @@ DEFAULT_BOS_TOKEN = "<s>"
 DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
-DEFAULT_SVG_END_TOKEN = "</SVG>"
+
 
 @dataclass
 class VQVAEConfig:
@@ -136,7 +136,6 @@ def train():
         llamaconfig, 
         data_args.data_path, 
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
-        svg_end_token=DEFAULT_SVG_END_TOKEN, 
         tokenizer=llama_tokenizer, 
     )
 
@@ -163,16 +162,14 @@ def train():
             "eos_token": DEFAULT_EOS_TOKEN,
             "bos_token": DEFAULT_BOS_TOKEN,
             "pad_token": DEFAULT_PAD_TOKEN,
-            "additional_special_tokens": [DEFAULT_SVG_BEGIN_TOKEN, DEFAULT_SVG_END_TOKEN],
+            "additional_special_tokens": [DEFAULT_SVG_BEGIN_TOKEN],
         }
         smart_tokenizer_and_embedding_resize(
             added_tokens, llama_tokenizer, svgllama
         )
 
     svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
-    svg_end_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_END_TOKEN)
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
-    svgllama.add_svg_end_token_id(svg_end_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
 
     ## init VQVAE

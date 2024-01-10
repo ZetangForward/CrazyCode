@@ -17,10 +17,9 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_end_token_id=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, compress_level=2, svg_pad_token_id=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, compress_level=2, svg_pad_token_id=None):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
-        self.svg_end_token_id = svg_end_token_id
         self.svg_begin_token_id = svg_begin_token_id
         self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
@@ -29,8 +28,8 @@ class VQSVGLlama(LlamaForCausalLM):
         self.compress_level = compress_level
         self.svg_pad_token_id = svg_pad_token_id
         self.vqvae = vqvae
-        self.vqvae_embedding = nn.Embedding(codebook_size, config.hidden_size)
-        self.vqvae_head = nn.Linear(config.hidden_size, codebook_size)
+        self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
+        self.vqvae_head = nn.Linear(config.hidden_size, self.codebook_size)
         self.post_init()
         if config.frozen_llm: 
             print_c("Attention! Part of the parameters are freezed!")
@@ -46,9 +45,6 @@ class VQSVGLlama(LlamaForCausalLM):
         self.vqvae.model.eval()
         self.vqvae.model.requires_grad_ = False
 
-    def add_svg_end_token_id(self, svg_end_token_id):
-        self.svg_end_token_id = svg_end_token_id
-
     def add_svg_begin_token_id(self, svg_begin_token_id):
         self.svg_begin_token_id = svg_begin_token_id
 
@@ -57,16 +53,6 @@ class VQSVGLlama(LlamaForCausalLM):
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
-    
-    def create_padding_mask(self, x, pad_token_id):
-        padding_mask = torch.ones_like(x, dtype=torch.bool).to(x.device)
-        # for idx, sequence in enumerate(x):
-        #     pad_positions = (sequence == pad_token_id).nonzero(as_tuple=True)[0]
-        #     if pad_positions.numel() > 0:  
-        #         first_pad_position = pad_positions[0].item()
-        #         padding_mask[idx, first_pad_position:] = False
-        return padding_mask
-        
         
     def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
         """
@@ -96,13 +82,14 @@ class VQSVGLlama(LlamaForCausalLM):
             cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
             svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
             svg_padding_mask[i, cur_padding_pos] = True
-
+            
         golden_svg_tokens = torch.where(svg_padding_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
+        svg_padding_mask = svg_padding_mask.to(text_attention_mask.dtype)  # prevent the type error
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
-        import pdb; pdb.set_trace()
+        
         outputs = self.model(
             input_ids=None, 
             attention_mask=attention_masks,
