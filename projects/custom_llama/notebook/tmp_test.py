@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from transformers import Trainer
 from modelzipper.tutils import *
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
-from models.vqvae import VQVAE
+from models.vqvae import VQVAE, postprocess
 from data.svg_data import *
 import pytorch_lightning as pl
 from utils.visualize_svg import *
@@ -59,6 +59,15 @@ max_seq_len = 512
 padded_sample = torch.concatenate([sample, torch.zeros(max_seq_len - sample.shape[0], 9)])
 padding_mask = ~(padded_sample == 0).all(dim=1, keepdim=True).squeeze()
 compress_padding_mask = cal_compress_padding_mask(padding_mask)
+
+## raw forward function
+outputs, _, _ = plugin_vqvae.model(padded_sample, return_all_quantized_res=True, denormalize=True)
+output = outputs[0]
+post_process_output = postprocess(output, padding_mask, False)  # path interpolation
+raw_rendered, raw_str = convert_svg(post_process_output, True)
+raw_rendered.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/raw_rendered.png")
+
+import pdb; pdb.set_trace()
 svg_token_ids, _ = plugin_vqvae.model.encode(padded_sample.unsqueeze(0), start_level=0, end_level=1)
 svg_token_ids = svg_token_ids[0]  # 这里是不加padding mask的svg token ids
 

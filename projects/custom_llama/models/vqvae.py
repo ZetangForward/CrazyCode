@@ -252,7 +252,7 @@ class VQVAE(nn.Module):
         return self.decode(zs)
 
 
-    def forward(self, x, padding_mask=None, loss_fn='l2', return_all_quantized_res=False):
+    def forward(self, x, padding_mask=None, loss_fn='l2', return_all_quantized_res=False, denormalize=False):
         """
         x: [B, L, C]
         padding_mask: [B, L]
@@ -320,8 +320,11 @@ class VQVAE(nn.Module):
         for key, val in metrics.items():
             metrics[key] = val.detach()
 
+        
         if return_all_quantized_res:
             x_outs = [tmp.permute(0, 2, 1).float() for tmp in x_outs]
+            if denormalize:
+                x_outs = [self.denormalize_func(tmp) for tmp in x_outs]
             return x_outs, loss, metrics
 
         return x_out, loss, metrics
