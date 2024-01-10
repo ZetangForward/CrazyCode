@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 11
-EPOCH: &EPOCH 30
+JOB_ID: &JOB_ID 9
+EPOCH: &EPOCH 76
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
@@ -32,12 +32,13 @@ vqvae:
   downs_t: [1, 1]
   strides_t: [2, 2]
   emb_width: 4096
-  l_bins: 8192
+  l_bins: 16384
   l_mu: 0.99
   spectral: 0.0
   multispectral: 1.0
-  hvqvae_multipliers: [1, 1, 1]
+  hvqvae_multipliers: [2, 1, 1]
   loss_fn: 'l2'
+  dilation_growth_rate: 1
   use_nonrelative_specloss: True
   use_bottleneck: True
   commit: 1.0
@@ -46,8 +47,8 @@ vqvae:
   use_modified_block: False
 
 vqvae_conv_block:
-  depth: 6
-  width: 1024
+  depth: 4
+  width: 512
   m_conv: 1.0
   dilation_growth_rate: 1
   dilation_cycle: null

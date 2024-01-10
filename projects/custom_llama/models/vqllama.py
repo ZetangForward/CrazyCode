@@ -120,7 +120,7 @@ class VQSVGLlama(LlamaForCausalLM):
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             text_loss = F.cross_entropy(shift_logits, shift_labels)
-
+        import pdb; pdb.set_trace()
         if svg_token_ids is not None:
             # Shift so that tokens < n predict n
             shift_svg_logits = svg_pred[:, :-1, :].contiguous()
