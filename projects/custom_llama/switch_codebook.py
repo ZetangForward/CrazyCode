@@ -90,7 +90,17 @@ def remove_padding(x, padding_mask):
         for i in range(x.size(0)):
             res.append(x[i, :padding_mask[i].sum(), :])
         return res
-    
+
+def cal_compress_padding_mask(x):
+    """
+    x: seq_len
+    """
+    print(x)
+    print(x.size())
+    if x.size(0) % 2 != 0:
+        x = torch.cat((x, torch.tensor([False])))
+    x = x.view(-1, 2).any(dim=1)
+    return x 
     
 def sanint_check_golden(x):
     """
@@ -166,13 +176,12 @@ class ObtainSVGCode(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
-        zs, xs_quantised = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
-
+        import pdb; pdb.set_trace()
+        zs = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
+        
         standard_results = {
-            "svg_tensors": svg_tensors.squeeze(),
-            "padding_mask": padding_mask.squeeze(),
+            "padding_mask": padding_mask,
             "keys": batch['keywords'][0],
-            "xs_quantised": xs_quantised[0].squeeze(),  # just return the first compressed level
             "zs": zs[0].squeeze(), # just return the first compressed level
         }
 

@@ -117,8 +117,6 @@ class CustomTrainier(Trainer):
         return (total_loss, outputs) if return_outputs else total_loss 
 
 
-
-
 class PluginVQVAE(nn.Module):
     def __init__(self, model):
         super().__init__()
@@ -226,7 +224,7 @@ def train():
     #     num_warmup_steps=training_args.warmup_steps,
     #     num_training_steps=training_args.max_steps,
     # )
-    
+
     trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
     
     svgllama.config.use_cache = False

@@ -1,10 +1,10 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data"
 JOB_ID: &JOB_ID 8
-EPOCH: &EPOCH 70
+EPOCH: &EPOCH 84
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
 SNAP_ID: &SNAP_ID 0
-TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/pkl_data/full_data_snaps/sub_full_data_${SNAP_ID}.pkl"
+TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/pkl_data/full_data.pkl"
 
 hydra:
   job:
@@ -18,7 +18,7 @@ dataset:
   max_path_nums: 512
   pad_token_id: 0
   val_batch_size: 1  # must set bsz as 1 to avoid the extra padding
-  nworkers: 2
+  nworkers: 12
   x_channels: 9
   num_bins: 9
   inference_mode: True
