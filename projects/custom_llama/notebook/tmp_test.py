@@ -39,6 +39,7 @@ checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
 plugin_vqvae.load_state_dict(checkpoint['state_dict'])
 plugin_vqvae.eval()
 plugin_vqvae.cpu()
+plugin_vqvae.half()
 
 
 def cal_compress_padding_mask(x):
@@ -65,7 +66,7 @@ outputs, raw_zs, raw_quantized_zs = plugin_vqvae.model(padded_sample.unsqueeze(0
 output = outputs[0]
 post_process_output = postprocess(output, padding_mask, False)[0]  # path interpolation
 raw_rendered, raw_str = convert_svg(post_process_output, True)
-raw_rendered.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/raw_rendered.png")
+raw_rendered.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/raw_rendered_half.png")
 
 svg_token_ids = plugin_vqvae.model.encode(padded_sample.unsqueeze(0), start_level=0, end_level=1)
 svg_token_ids = svg_token_ids[0]  # 这里是不加padding mask的svg token ids
@@ -79,5 +80,5 @@ postprocess_output_with_padding = plugin_vqvae.model.decode(remain_svg_token_ids
 p_svg_no_padding, p_svg_str_no_padding = convert_svg(postprocess_output_no_padding, True)
 p_svg_with_padding, p_svg_str_with_padding = convert_svg(postprocess_output_with_padding, True)
 
-p_svg_no_padding.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/no_padding.png")
-p_svg_with_padding.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/with_padding.png")
+p_svg_no_padding.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/no_padding_half.png")
+p_svg_with_padding.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/with_padding_half.png")
