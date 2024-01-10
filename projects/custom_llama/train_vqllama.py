@@ -79,14 +79,13 @@ def smart_tokenizer_and_embedding_resize(
 
 
 class CustomTrainier(Trainer):
-    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, optimizers, **kwargs):
+    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
         super().__init__(
             model=model, 
             args=args, 
             train_dataset=train_dataset, 
             eval_dataset=eval_dataset, 
             tokenizer=tokenizer,
-            optimizers=optimizers, 
             **kwargs,
         )
         
@@ -228,7 +227,7 @@ def train():
     #     num_training_steps=training_args.max_steps,
     # )
     
-    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, optimizers=None, **data_module)
+    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
     
     svgllama.config.use_cache = False
 
