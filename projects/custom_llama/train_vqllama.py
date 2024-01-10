@@ -201,7 +201,6 @@ def train():
     print_c("VQVAE loaded!", "green")
     count_parameters(plugin_vqvae)
     svgllama.init_vqvae(plugin_vqvae)
-    svgllama.set_svg_pad_token_id(vqvae_config.pad_token_id)
 
     #Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True

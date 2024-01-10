@@ -13,7 +13,7 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlama(LlamaForCausalLM):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_begin_token_id=None, vqvae=None, codebook_size=16384, compress_level=2, svg_pad_token_id=None):  
+    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_begin_token_id=None, vqvae=None, codebook_size=8192):  
         super(VQSVGLlama, self).__init__(config)
         self.tokenizer = tokenizer
         self.svg_begin_token_id = svg_begin_token_id
@@ -21,8 +21,6 @@ class VQSVGLlama(LlamaForCausalLM):
         self.convert_token_weight = convert_token_weight
         self.codebook_size = codebook_size + 1  # add one for svg end token
         self.svg_end_token_id = codebook_size
-        self.compress_level = compress_level
-        self.svg_pad_token_id = svg_pad_token_id
         self.vqvae = vqvae
         self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
         self.vqvae_head = nn.Linear(config.hidden_size, self.codebook_size)
@@ -32,9 +30,6 @@ class VQSVGLlama(LlamaForCausalLM):
             self.requires_grad_ = False 
             self.input_adapter.requires_grad_ = True
             self.output_adapter.requires_grad_ = True
-
-    def set_svg_pad_token_id(self, svg_pad_token_id):
-        self.svg_pad_token_id = svg_pad_token_id
     
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae

@@ -1,5 +1,5 @@
 deepspeed --num_gpus 16 \
-    --num_nodes 8 \
+    --num_nodes 4 \
     --master_addr worker-0 \
     --master_port 7329 \
     --hostfile configs/hostfile_v128 \
