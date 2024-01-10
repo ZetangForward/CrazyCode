@@ -38,7 +38,7 @@ plugin_vqvae = PluginVQVAE(vqvae)
 checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
 plugin_vqvae.load_state_dict(checkpoint['state_dict'])
 plugin_vqvae.eval()
-plugin_vqvae.cpu()
+plugin_vqvae.cuda()
 plugin_vqvae.model.half()
 
 
@@ -57,14 +57,14 @@ def cal_compress_padding_mask(x):
 
 sample = dataset[0]['svg_path']
 max_seq_len = 512
-padded_sample = torch.concatenate([sample, torch.zeros(max_seq_len - sample.shape[0], 9)]).to(torch.float16)
+padded_sample = torch.concatenate([sample, torch.zeros(max_seq_len - sample.shape[0], 9)]).to(torch.float16).cuda()
 padding_mask = ~(padded_sample == 0).all(dim=1, keepdim=True).squeeze()
 compress_padding_mask = cal_compress_padding_mask(padding_mask)
 
-padding_mask = padding_mask.to(torch.float16)
-compress_padding_mask = compress_padding_mask.to(torch.float16)
+padding_mask = padding_mask.to(torch.float16).cuda()
+compress_padding_mask = compress_padding_mask.to(torch.float16).cuda()
 
-## raw forward function
+# raw forward function
 outputs, raw_zs, raw_quantized_zs = plugin_vqvae.model(padded_sample.unsqueeze(0), padding_mask, return_all_quantized_res=True, denormalize=True)
 output = outputs[0]
 post_process_output = postprocess(output, padding_mask, False)[0]  # path interpolation
