@@ -173,6 +173,8 @@ def train():
         codebook_size=vqvae_config.vqvae.l_bins,
         cache_dir=training_args.cache_dir
     )
+    
+    count_parameters(svgllama)
 
     if "llama" in model_args.model_name_or_path.lower():
         # add new tokens and resize embedding & LM head
@@ -189,6 +191,8 @@ def train():
     svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
+
+    count_parameters(svgllama)
 
     ## init VQVAE
     block_kwargs = dict(
