@@ -63,7 +63,7 @@ compress_padding_mask = cal_compress_padding_mask(padding_mask)
 ## raw forward function
 outputs = plugin_vqvae.model(padded_sample.unsqueeze(0), padding_mask, return_all_quantized_res=True, denormalize=True)
 output = outputs[0]
-post_process_output = postprocess(output, padding_mask, False)  # path interpolation
+post_process_output = postprocess(output, padding_mask, False)[0]  # path interpolation
 raw_rendered, raw_str = convert_svg(post_process_output, True)
 raw_rendered.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/raw_rendered.png")
 
