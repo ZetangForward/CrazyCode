@@ -20,6 +20,19 @@ EDGE = torch.tensor([  # after convert function
     [    1,    4,  104,    0,    0,    0,    0,    4,  104],
 ])
 
+
+def cal_compress_padding_mask(x):
+    """
+    x: seq_len
+    """
+    if len(x) % 2 != 0:
+        x = torch.cat((x, torch.tensor([False])))
+
+    x = x.view(-1, 2).any(dim=1)
+    
+    return x
+
+
 def pad_tensor_with_h(vec, pad_len, dim, pad_token_h):
         """
         args:
@@ -188,12 +201,16 @@ class VQDataCollator:
         else:
             padding_mask = ~(svg_tensors == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
 
+        # create padding mask
+        svg_padding_mask = list(map(lambda x: cal_compress_padding_mask(x), padding_mask))
+        svg_padding_mask = torch.stack(svg_padding_mask, dim=0)
+        import pdb; pdb.set_trace()
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "svg_path": svg_tensors, 
             "text_labels": text_labels,
-            "svg_padding_mask": padding_mask,
+            "svg_padding_mask": svg_padding_mask,
             "svg_end_token_id": svg_end_token_id
         }
 

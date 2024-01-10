@@ -24,7 +24,7 @@ class VQSVGLlama(LlamaForCausalLM):
         self.svg_begin_token_id = svg_begin_token_id
         self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
-        self.codebook_size = codebook_size
+        self.codebook_size = codebook_size + 1  # add one for svg end token
         self.compress_level = compress_level
         self.svg_pad_token_id = svg_pad_token_id
         self.vqvae = vqvae
@@ -67,7 +67,7 @@ class VQSVGLlama(LlamaForCausalLM):
         return padding_mask
         
         
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, svg_end_token_id=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
@@ -81,7 +81,7 @@ class VQSVGLlama(LlamaForCausalLM):
         input_embeddings = text_embedding_module(text_input_ids)
         # quantizied svg tensors with vqvae
         if self.vqvae.model.training: # deepspeed will make vqvae training again
-            self.vqvae.model.eval()  
+            self.vqvae.model.eval()
             freeze_model(self.vqvae.model)
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
         svg_token_ids = svg_token_ids[0]  # first compress level
