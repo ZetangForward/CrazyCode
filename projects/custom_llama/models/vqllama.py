@@ -102,7 +102,7 @@ class VQSVGLlama(LlamaForCausalLM):
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
-                 
+        import pdb; pdb.set_trace()
         outputs = self.model(
             input_ids=None, 
             attention_mask=attention_masks,
