@@ -86,11 +86,11 @@ class VQSVGLlama(LlamaForCausalLM):
         self.vqvae.model.eval()  # deepspeed will make vqvae training again
         self.vqvae.model.requires_grad_ = False
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
-
-        svg_token_embeddings = self.vqvae_embedding(svg_token_ids[0]) # Encode svg tokens
+        svg_token_ids = svg_token_ids[0]  # first compress level
+        svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
         assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"
-        svg_padding_mask = self.create_padding_mask(svg_token_ids[0], self.svg_pad_token_id)  # curently made handly
+        svg_padding_mask = self.create_padding_mask(svg_token_ids, self.svg_pad_token_id)  # curently made handly
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
         attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
@@ -127,7 +127,7 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_svg_token_ids = svg_token_ids[:, 1:].contiguous()
             shift_svg_logits = shift_svg_logits.view(-1, self.codebook_size)
             shift_svg_token_ids = shift_svg_token_ids.view(-1)
-            svg_loss = F.cross_entropy(shift_svg_logits, shift_labels, ignore_index=self.svg_pad_token_id)
+            svg_loss = F.cross_entropy(shift_svg_logits, shift_svg_token_ids, ignore_index=self.svg_pad_token_id)
 
         if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant!!
             ...
