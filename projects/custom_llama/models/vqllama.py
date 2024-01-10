@@ -58,12 +58,12 @@ class VQSVGLlama(LlamaForCausalLM):
         return super().load_state_dict(state_dict, strict)
     
     def create_padding_mask(self, x, pad_token_id):
-        padding_mask = torch.zeros_like(x, dtype=torch.bool)
-        for idx, sequence in enumerate(x):
-            pad_positions = (sequence == pad_token_id).nonzero(as_tuple=True)[0]
-            if pad_positions.numel() > 0:  
-                first_pad_position = pad_positions[0].item()
-                padding_mask[idx, first_pad_position:] = True
+        padding_mask = torch.ones_like(x, dtype=torch.bool).to(x.device)
+        # for idx, sequence in enumerate(x):
+        #     pad_positions = (sequence == pad_token_id).nonzero(as_tuple=True)[0]
+        #     if pad_positions.numel() > 0:  
+        #         first_pad_position = pad_positions[0].item()
+        #         padding_mask[idx, first_pad_position:] = False
         return padding_mask
         
         
@@ -88,7 +88,11 @@ class VQSVGLlama(LlamaForCausalLM):
         svg_token_ids = svg_token_ids[0]  # first compress level
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
-        assert self.svg_pad_token_id is not None, "you should specify the svg padding mask"
+        # # create svg padding mask
+        # fake_svg_input_tokens = torch.zeros_like(svg_tensors, dtype=svg_tensors.dtype).to(svg_tensors.device)
+        # svg_pad_token_ids, _ = self.vqvae.model.encode(fake_svg_input_tokens, start_level=0, end_level=1)
+        # svg_pad_token_ids = svg_pad_token_ids[0]
+        
         svg_padding_mask = self.create_padding_mask(svg_token_ids, self.svg_pad_token_id)  # curently made handly
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
