@@ -8,6 +8,7 @@ from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 from models.vqvae import VQVAE
 import pytorch_lightning as pl
+from transformers import AdamW
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -79,7 +80,7 @@ def smart_tokenizer_and_embedding_resize(
 
 
 class CustomTrainier(Trainer):
-    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
+    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, optimizers, **kwargs):
         super().__init__(
             model=model, 
             args=args, 
