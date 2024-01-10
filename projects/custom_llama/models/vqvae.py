@@ -155,20 +155,6 @@ class VQVAE(nn.Module):
         # define encoder and decoder
         self.encoders = nn.ModuleList()
         self.decoders = nn.ModuleList()
-
-        def normalize_func(self, tensor, min_val=0, max_val=200):
-            # normalize to [-1, 1]
-            normalized_tensor = (tensor - min_val) / (max_val - min_val)
-            normalized_tensor = normalized_tensor * 2 - 1
-            return normalized_tensor
-
-
-        def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
-            tensor = (normalized_tensor + 1) / 2
-            tensor = tensor * (max_val - min_val) + min_val
-            tensor = t.round(tensor).long()
-            return tensor
-        
         
         def _block_kwargs(level):
             this_block_kwargs = dict(block_kwargs)
@@ -213,6 +199,20 @@ class VQVAE(nn.Module):
         else:
             self.bottleneck = NoBottleneck(self.cfg.levels)    
 
+    def normalize_func(self, tensor, min_val=0, max_val=200):
+        # normalize to [-1, 1]
+        normalized_tensor = (tensor - min_val) / (max_val - min_val)
+        normalized_tensor = normalized_tensor * 2 - 1
+        return normalized_tensor
+
+
+    def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
+        tensor = (normalized_tensor + 1) / 2
+        tensor = tensor * (max_val - min_val) + min_val
+        tensor = t.round(tensor).long()
+        return tensor
+        
+    
     def _decode(self, zs, start_level=0, end_level=None):
         # Decode
         if end_level is None:
