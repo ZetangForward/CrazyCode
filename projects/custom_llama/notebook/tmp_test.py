@@ -61,8 +61,8 @@ padded_sample = torch.concatenate([sample, torch.zeros(max_seq_len - sample.shap
 padding_mask = ~(padded_sample == 0).all(dim=1, keepdim=True).squeeze()
 compress_padding_mask = cal_compress_padding_mask(padding_mask)
 
-padding_mask = padding_mask.to(torch.float16).cuda()
-compress_padding_mask = compress_padding_mask.to(torch.float16).cuda()
+padding_mask = padding_mask.cuda()
+compress_padding_mask = compress_padding_mask.cuda()
 
 # raw forward function
 outputs, raw_zs, raw_quantized_zs = plugin_vqvae.model(padded_sample.unsqueeze(0), padding_mask, return_all_quantized_res=True, denormalize=True)
