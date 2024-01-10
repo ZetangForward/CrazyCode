@@ -2,15 +2,11 @@
 Code for VQ-SVG-LLAMA
 """
 import sys
-import json
-import re 
 import random
 import torch  
 import torch.nn as nn 
-from tqdm import tqdm  
 import torch.nn.functional as F
-from transformers import LlamaConfig, LlamaForCausalLM  
-from torch.nn import CrossEntropyLoss
+from transformers import LlamaForCausalLM  
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
