@@ -9,8 +9,8 @@ deepspeed --num_gpus 16 \
     --output_dir "/zecheng2/vqllama/vqllama_llama/version_0" \
     --num_train_epochs 60 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 2 \
+    --per_device_train_batch_size 1 \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
