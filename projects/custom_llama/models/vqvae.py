@@ -240,9 +240,8 @@ class VQVAE(nn.Module):
             x_out = self.encoders[level](x_in)
             xs.append(x_out[-1])
             
-        zs, xs_quantised = self.bottleneck(xs[start_level:end_level], just_return_zs=True)
-        xs_quantised = [tmp.permute(0, 2, 1) for tmp in xs_quantised]
-        return zs, xs_quantised
+        zs = self.bottleneck.encode(xs[start_level:end_level])
+        return zs
 
 
     def sample(self, n_samples):  # random sample from prior
@@ -326,7 +325,7 @@ class VQVAE(nn.Module):
             x_outs = [tmp.permute(0, 2, 1).float() for tmp in x_outs]
             if denormalize:
                 x_outs = [self.denormalize_func(tmp) for tmp in x_outs]
-            return x_outs
+            return x_outs, zs[0], xs_quantised[0]
 
         return x_out, loss, metrics
 

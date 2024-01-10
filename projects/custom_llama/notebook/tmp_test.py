@@ -61,14 +61,14 @@ padding_mask = ~(padded_sample == 0).all(dim=1, keepdim=True).squeeze()
 compress_padding_mask = cal_compress_padding_mask(padding_mask)
 
 ## raw forward function
-outputs = plugin_vqvae.model(padded_sample.unsqueeze(0), padding_mask, return_all_quantized_res=True, denormalize=True)
+outputs, raw_zs, raw_quantized_zs = plugin_vqvae.model(padded_sample.unsqueeze(0), padding_mask, return_all_quantized_res=True, denormalize=True)
 output = outputs[0]
 post_process_output = postprocess(output, padding_mask, False)[0]  # path interpolation
 raw_rendered, raw_str = convert_svg(post_process_output, True)
 raw_rendered.save_png("/workspace/zecheng/modelzipper/projects/custom_llama/notebook/raw_rendered.png")
 
 import pdb; pdb.set_trace()
-svg_token_ids, _ = plugin_vqvae.model.encode(padded_sample.unsqueeze(0), start_level=0, end_level=1)
+svg_token_ids = plugin_vqvae.model.encode(padded_sample.unsqueeze(0), start_level=0, end_level=1)
 svg_token_ids = svg_token_ids[0]  # 这里是不加padding mask的svg token ids
 
 remain_svg_token_ids = svg_token_ids[:, :compress_padding_mask.sum()] # 这里是加入padding mask的svg token ids
