@@ -194,9 +194,10 @@ def main(config):
     # set training dataset
 
     # sanity check
-    snap_id = config.experiment.snap_id
-    dataset_id = int(os.path.basename(config.dataset.test_data_path).split('.')[0].split('_')[-1])
-    assert snap_id == dataset_id, f"dataset_id: {dataset_id} != snap_id: {snap_id}"
+    # snap_id = config.experiment.snap_id
+    # dataset_id = int(os.path.basename(config.dataset.test_data_path).split('.')[0].split('_')[-1])
+    # assert snap_id == dataset_id, f"dataset_id: {dataset_id} != snap_id: {snap_id}"
+    snap_id = "full"
     
     # load snap datasets
     data_module = SvgDataModule(config.dataset)
