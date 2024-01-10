@@ -76,7 +76,7 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_tensors: B x L x l_bins,
             svg_padding_mask: B x L,
         """
-        
+        bsz = text_input_ids.size(0)
         # embedding text
         text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
@@ -87,6 +87,15 @@ class VQSVGLlama(LlamaForCausalLM):
             self.vqvae.model.eval()
             freeze_model(self.vqvae.model)
         svg_token_ids, _ = self.vqvae.model.encode(svg_tensors, start_level=0, end_level=1)
+        compress_svg_max_length = svg_token_ids.size(1)
+        # add svg end token id
+        real_svg_lengths = svg_padding_mask.sum(dim=1)
+
+        for i in range(bsz):
+            cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
+            svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
+            svg_padding_mask[cur_padding_pos] = True
+
         svg_token_ids = svg_token_ids[0]  # first compress level
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
