@@ -80,7 +80,7 @@ def smart_tokenizer_and_embedding_resize(
 
 
 class CustomTrainier(Trainer):
-    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, optimizers, **kwargs):
+    def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
         super().__init__(
             model=model, 
             args=args, 
