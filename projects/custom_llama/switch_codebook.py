@@ -176,7 +176,6 @@ class ObtainSVGCode(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
-        import pdb; pdb.set_trace()
         zs = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
         
         standard_results = {

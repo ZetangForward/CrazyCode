@@ -1,8 +1,4 @@
 /opt/conda/envs/llama/lib/python3.10/site-packages/hydra/_internal/hydra.py:119: UserWarning: Future Hydra versions will no longer change working directory at job runtime by default.
 See https://hydra.cc/docs/1.2/upgrades/1.1_to_1.2/changes_to_job_working_dir/ for more information.
   ret = run_job(
-ModelZipper is ready for launch🚀 | Current Version🦄 >>> 0.2.6 <<< | AOE Time🕒 2024-01-11 06:56:21
-GPU available: True (cuda), used: True
-TPU available: False, using: 0 TPU cores
-IPU available: False, using: 0 IPUs
-HPU available: False, using: 0 HPUs
+ModelZipper is ready for launch🚀 | Current Version🦄 >>> 0.2.6 <<< | AOE Time🕒 2024-01-11 06:57:22
