@@ -257,13 +257,14 @@ class VQDataCollator:
 
         # get padding mask
         if self.return_all_token_mask:
-            padding_mask = ~(svg_tensors == self.pad_token_id)
+            svg_padding_mask = ~(svg_tensors == self.pad_token_id)
         else:
-            padding_mask = ~(svg_tensors == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
+            svg_padding_mask = ~(svg_tensors == self.pad_token_id).all(dim=2, keepdim=True).squeeze()
 
         # create padding mask
-        svg_padding_mask = list(map(lambda x: cal_compress_padding_mask(x), padding_mask))
-        svg_padding_mask = torch.stack(svg_padding_mask, dim=0)
+        if not self.offline_mode:  # only online mode needs it
+            svg_padding_mask = list(map(lambda x: cal_compress_padding_mask(x), svg_padding_mask))
+            svg_padding_mask = torch.stack(svg_padding_mask, dim=0)
 
         return {
             "text_input_ids": text_input_ids,
