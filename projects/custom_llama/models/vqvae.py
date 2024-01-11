@@ -52,7 +52,7 @@ def postprocess(x, padding_mask=None, path_interpolation=True):
     dtype = x.dtype
     if x.ndim == 2:
         x = x.unsqueeze(0)
-    if padding_mask.ndim == 1:
+    if padding_mask is not None and padding_mask.ndim == 1:
         padding_mask = padding_mask.unsqueeze(0)
 
     if path_interpolation:  

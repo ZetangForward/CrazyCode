@@ -12,6 +12,8 @@ from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 from models.vqvae import VQVAE
 from train_vqllama import smart_tokenizer_and_embedding_resize
 from torch import Tensor
+from utils.visualize_svg import convert_svg
+
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -43,12 +45,12 @@ class PluginVQVAE(nn.Module):
         self.model = model
 
 
-def predict_loop(model, dataloader, tokenizer, max_generate_length=1024, **kwargs) -> List[Tensor]:
+def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, **kwargs) -> List[Tensor]:
     
     res = []
     with tqdm(desc="Predicting", total=len(dataloader)) as pbar:
         for batch_ in dataloader:
-            cur_batch_res = {}
+            cur_batch_res = []
             text_input_ids = batch_.get("text_input_ids")
             text_attention_mask = batch_.get("text_attention_mask")
             golden_svg_path = batch_.get("svg_path")
@@ -61,64 +63,21 @@ def predict_loop(model, dataloader, tokenizer, max_generate_length=1024, **kwarg
                     **kwargs
                 )
                 
-                for i, ids in enumerate(post_processed_ids):
-                    output = tokenizer.decode(ids)
-                    cur_batch_res[f"generated_svg_path_{i}"] = output
-            
-            cur_batch_res["golden_svg_path"] = golden_svg_path
-            cur_batch_res["generated_svg_path"] = generation_output
-            
-        
-    
-    with torch.no_grad():
-        generation_output = model.generate(
-            input_ids=input_ids,
-            generation_config=generation_config,
-            return_dict_in_generate=True,
-            output_scores=True,
-            max_new_tokens=max_new_tokens,
-        )
-    s = generation_output.sequences[0]
-    output = tokenizer.decode(s)
-    return output
+                for i, svg_token_ids in enumerate(post_processed_ids):
+                    decoded_svg_path = vqvae.decode(
+                        zs=svg_token_ids, start_level=0, start_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
 
-    with open(file_path, "r") as f:
-        content = [json.loads(line) for line in f]
-
-    res = []
-    with tqdm(total=len(content)) as pbar:
-        for samples in content:
-            inter_res = dict()
-            for k, v in samples.items():
-                if k == "id_":
-                    gen_res = v
-                    continue
-                gen_res = evaluate(v, max_new_tokens=1024)
-                inter_res[k] = gen_res
-            res.append(inter_res)
-            # cond_bbox_input = samples.get("cond_bbox_input_seqs")[0]
-            # continual_gen_input = samples.get("continual_gen_input_seqs")[0]
-            # cond_cate_to_size_pos = samples.get("cond_cate_to_size_pos_input_seqs")[0]
-            # cond_cate_size_to_pos = samples.get("cond_cate_size_to_pos_input_seqs")[0]
-            # cond_recover_mask_input = samples.get("cond_recover_mask_input_seqs")[0]
-            # id_ = samples.get("id_")
-
-            # cond_bbox_input = evaluate(cond_bbox_input, max_new_tokens=1024)
-            # continual_gen_input = evaluate(continual_gen_input, max_new_tokens=1024)
-            # cond_cate_to_size_pos = evaluate(cond_cate_to_size_pos, max_new_tokens=1024)
-            # cond_cate_size_to_pos = evaluate(cond_cate_size_to_pos, max_new_tokens=1024)
-            # cond_recover_mask = evaluate(cond_recover_mask_input, max_new_tokens=1024)
-            
-            # res.append({
-            #     "cond_bbox_input": cond_bbox_input,
-            #     "continual_gen_input": continual_gen_input,
-            #     "cond_cate_to_size_pos": cond_cate_to_size_pos,
-            #     "cond_cate_size_to_pos": cond_cate_size_to_pos,
-            #     "cond_recover_mask": cond_recover_mask,
-            #     "id": id_
-            # })
+                    cur_batch_res.append(
+                        dict(
+                            golden_svg_path = golden_svg_path,
+                            generated_svg_path = decoded_svg_path,
+                            text_input_ids = text_input_ids,
+                        )
+                    )
+            res.extend(cur_batch_res)
             pbar.update(1)
-
+    return res
+                    
 
 
 def test():
@@ -191,9 +150,10 @@ def test():
     checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
     plugin_vqvae.load_state_dict(checkpoint['state_dict'])
     print_c("VQVAE loaded!", "green")
-    svgllama.init_vqvae(plugin_vqvae)
+    vqvae = plugin_vqvae.model
     
     svgllama.eval()
+    vqvae.eval()
     
     if test_args.fp16:
         svgllama = svgllama.half()
@@ -208,6 +168,7 @@ def test():
     
     predicted_results = predict_loop(
         model=svgllama, 
+        vqvae=vqvae,
         dataloader=predict_dataloader, 
         tokenizer=llama_tokenizer,
         max_generate_length=test_args.max_generate_length,
