@@ -7,7 +7,7 @@ deepspeed --num_gpus 16 \
     --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir "/zecheng2/vqllama/vqllama_llama/version_1" \
-    --num_train_epochs 80 \
+    --num_train_epochs 100 \
     --model_max_length 1500 \
     --per_device_train_batch_size 36 \
     --per_device_eval_batch_size 36 \
@@ -19,7 +19,7 @@ deepspeed --num_gpus 16 \
     --learning_rate 3e-6 \
     --warmup_steps 20 \
     --logging_steps 1 \
-    --dataloader_num_workers 24 \
+    --dataloader_num_workers 12 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
