@@ -158,6 +158,7 @@ def train():
         svg_pad_token_h=llamaconfig.svg_token_dims, 
         max_svg_length=llamaconfig.max_svg_length,
         offline_mode=True,
+        return_all_token_mask=True, # for offline setting
     )
     
     data_module = dict(
