@@ -19,7 +19,7 @@ setup(
         'matplotlib',
         'pyyaml',
         'fire',
-        'transformers>=4.34.0',
+        'transformers==4.35.0',
         'matplotlib',
         'gpustat',
         'pytz',
