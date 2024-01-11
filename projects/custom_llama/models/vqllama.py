@@ -78,7 +78,7 @@ class VQSVGLlama(LlamaForCausalLM):
             cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
             svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
             svg_padding_mask[i, cur_padding_pos] = True
-        
+
         golden_svg_tokens = torch.where(svg_padding_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         
@@ -120,7 +120,7 @@ class VQSVGLlama(LlamaForCausalLM):
             shift_golden_svg_tokens = shift_golden_svg_tokens.view(-1)
             svg_loss = F.cross_entropy(shift_svg_logits, shift_golden_svg_tokens)
 
-        if text_labels is not None and svg_token_ids is not None:  # convert token loss is be significant as vocabularies are different
+        if text_labels is not None and golden_svg_tokens is not None:  # convert token loss is be significant as vocabularies are different
             bsz, _, dim_ = svg_pred.size()
             # obtain the last text token logits
             real_text_lengths = text_attention_mask.sum(dim=1)  
@@ -132,10 +132,10 @@ class VQSVGLlama(LlamaForCausalLM):
             # calculate CE Loss for last text token -> first svg token
             convert_token_loss = F.cross_entropy(
                 first_svg_token_logits.contiguous().view(-1, self.codebook_size), 
-                svg_token_ids[:, 0].contiguous().view(-1), 
+                golden_svg_tokens[:, 0].contiguous().view(-1), 
                 reduction="mean",
             )
-        import pdb; pdb.set_trace()
+            
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
