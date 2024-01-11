@@ -156,6 +156,60 @@ class VQSVGLlama(LlamaForCausalLM):
             "attentions": outputs.attentions,
         }
     
+    @torch.no_grad()
+    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, svg_tensors=None, max_generate_length=1024, **kwargs):
+        
+        outputs = self.model(
+            input_ids=text_input_ids,
+            past_key_values=past_key_values,
+            use_cache=True,
+        )
+        last_hidden_state = outputs.last_hidden_state
+        past_key_values = outputs.past_key_values
+        
+        generated_ids = [token.item() for token in text_input_ids]
+        pos = 0
+        
+        for _ in range(max_generate_length - 1):
+            outputs = self.model(
+                input_ids=pred_token_idx,
+                past_key_values=past_key_values,
+                use_cache=True,
+            )
+            last_hidden_state = outputs.last_hidden_state
+            past_key_values = outputs.past_key_values
+            text_logits = self.vqvae_head(last_hidden_state).float()
+            pred_token_idx = text_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
+            generated_ids.append(pred_token_idx.item())
+            
+            if pred_token_idx == self.tokenizer.eos_token_id:
+                break
+            
+        return generated_ids
+        
+        
+     
+        
+        
+        
+        
+        
+    def forward_svg_modal(self, input_ids, past_key_values):
+        svg_embeddings = self.svg_embedding(input_ids)
+        intermediate_states = self.model(
+                past_key_values=past_key_values,
+                inputs_embeds=svg_embeddings, 
+                output_attentions=True, 
+                output_hidden_states=True,
+                use_cache=True,
+            )
+        
+        hidden_states = intermediate_states.last_hidden_state
+        svg_logits = self.svg_lm_head(hidden_states).float()
+        svg_next_token_id = torch.argmax(svg_logits[:, -1, :], dim=-1).unsqueeze(1)
+        
+        return svg_next_token_id, intermediate_states.past_key_values
+    
     @property
     def model_device(self):
         return next(self.parameters()).device
