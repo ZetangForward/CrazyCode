@@ -277,21 +277,27 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train"):  
         self.cfg = config
         self.tokenizer = tokenizer
         content = None
-        if os.path.isdir(vq_svg_file): # read data sequencially
-            all_file_path = auto_read_dir(vq_svg_file)
-            raw_content = [auto_read_data(item) for item in all_file_path]
-            content = [item for sublist in raw_content for item in sublist]
-        else: # directly read data from file
-            content = auto_read_data(vq_svg_file) ## Load VQSVG data
-        num_valid_data = min(int(len(content) * 0.1), 2000)
-        print_c(f"num of valid data: {num_valid_data}", color='magenta')
-        print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
-        self.valid_data = content[:num_valid_data]
-        self.train_data = content[num_valid_data:]
+        if mode == "test":
+            content = auto_read_data(vq_svg_file)
+            print_c(f"num of testing data: {len(content)}", color='magenta')
+            self.pred_data = content
+        else:  # for training setting
+            if os.path.isdir(vq_svg_file): # read data sequencially
+                all_file_path = auto_read_dir(vq_svg_file)
+                raw_content = [auto_read_data(item) for item in all_file_path]
+                content = [item for sublist in raw_content for item in sublist]
+            else: # directly read data from file
+                content = auto_read_data(vq_svg_file) ## Load VQSVG data
+            num_valid_data = min(int(len(content) * 0.1), 2000)
+            print_c(f"num of valid data: {num_valid_data}", color='magenta')
+            print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
+            self.valid_data = content[:num_valid_data]
+            self.train_data = content[num_valid_data:]
+        
         self.svg_begin_token = svg_begin_token
         self.offline_mode = offline_mode
 
@@ -343,6 +349,44 @@ class VQLLaMAData:
                 cluster_batch=False
             )
 
-
+    @property
+    def predict_dataset(self) -> Dataset:
+        if self.pred_data is None:
+            return None
+        if self.offline_mode:
+            return OfflineBasicDataset(
+                content=self.pred_data,
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
+                tokenizer=self.tokenizer,
+                svg_begin_token = self.svg_begin_token,
+                max_text_length=self.cfg.max_text_length,
+                mode="test",
+            )
+        else:
+            return BasicDataset(
+                content=self.pred_data,
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
+                tokenizer=self.tokenizer,
+                svg_begin_token = self.svg_begin_token,
+                max_text_length=self.cfg.max_text_length,
+                mode="test",
+                cluster_batch=False
+            )
+            
+            
     def predict_dataloader(self) -> DataLoader:
-        pass
+        if self.predict_dataset is not None:
+            return DataLoader(
+                self.predict_dataset, batch_size=self.cfg.val_batch_size, 
+                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+                collate_fn=PadCollate(
+                    cluster_batch=self.cfg.cluster_batch, 
+                    max_seq_length=self.cfg.max_path_nums, 
+                    pad_token_id=self.cfg.pad_token_id, 
+                    return_all_token_mask=self.cfg.return_all_token_mask
+                ),
+            )
+            
+            
