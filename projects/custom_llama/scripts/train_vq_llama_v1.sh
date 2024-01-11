@@ -1,7 +1,7 @@
 deepspeed --num_gpus 16 \
     --num_nodes 4 \
     --master_addr worker-0 \
-    --master_port 7529 \
+    --master_port 7529 \            
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \

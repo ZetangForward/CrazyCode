@@ -161,6 +161,11 @@ class VQSVGLlama(LlamaForCausalLM):
         
         assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
+        batch_size = text_input_ids.size(0)
+  
+        # initial eos_generated_mask to False for all samples as no sample has generated eos_token yet
+        eos_generated_mask = torch.zeros(batch_size, dtype=torch.bool)
+        
         outputs = self.model(
             input_ids=text_input_ids,
             past_key_values=past_key_values,
@@ -172,13 +177,14 @@ class VQSVGLlama(LlamaForCausalLM):
         text_width = text_input_ids.size(1)
         
         generated_ids = [text_input_ids[:, i].unsqueeze(1) for i in range(text_width)]
-        pos = 0
         
         # create svg_begin token id and embeddings
         svg_begin_token_ids = torch.empty(text_input_ids.size(0)).fill_(self.svg_begin_token_id).long().to(last_hidden_state.device)
-        input_embeddings = self.vqvae_embedding(svg_begin_token_ids)
+        
+        prev_svg_token_ids = svg_begin_token_ids.unsqueeze(1)
         
         for _ in range(max_generate_length - 1):
+            input_embeddings = self.vqvae_embedding(prev_svg_token_ids)
             outputs = self.model(
                 input_ids=None,
                 past_key_values=past_key_values,
@@ -189,10 +195,19 @@ class VQSVGLlama(LlamaForCausalLM):
             past_key_values = outputs.past_key_values
             pred_logits = self.vqvae_head(last_hidden_state).float()
             pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
-            generated_ids.append(pred_svg_idx.item())
             
-            if pred_svg_idx == self.tokenizer.eos_token_id:
+            # update eos_generated_mask, as some samples generate svg_eos_token
+            eos_generated_mask |= (pred_svg_idx.squeeze(1) == self.svg_end_token_id)  
+        
+            # add the predicted svg token embedding to input_embeddings according to pred_svg_idx
+            current_step_ids = torch.full((batch_size, 1), self.svg_end_token_id, dtype=torch.long, device=last_hidden_state.device)  
+            current_step_ids[~eos_generated_mask] = pred_svg_idx[~eos_generated_mask]  
+            generated_ids.append(current_step_ids)  
+            
+            if eos_generated_mask.all():
                 break
+            
+            prev_svg_token_ids = current_step_ids
             
         return generated_ids
         
