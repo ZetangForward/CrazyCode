@@ -281,8 +281,14 @@ class VQDataCollator:
 class VQLLaMAData:
     def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True):  
         self.cfg = config
-        self.tokenizer = tokenizer  
-        content = auto_read_data(vq_svg_file) ## Load VQSVG data
+        self.tokenizer = tokenizer
+        content = None
+        if os.path.isdir(vq_svg_file): # read data sequencially
+            all_file_path = auto_read_dir(vq_svg_file)
+            raw_content = [auto_read_data(item) for item in all_file_path]
+            content = [item for sublist in raw_content for item in sublist]
+        else: # directly read data from file
+            content = auto_read_data(vq_svg_file) ## Load VQSVG data
         num_valid_data = min(int(len(content) * 0.1), 2000)
         self.valid_data = content[:num_valid_data]
         self.train_data = content[num_valid_data:]
