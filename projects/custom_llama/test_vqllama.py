@@ -18,7 +18,9 @@ DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 @dataclass
 class TestConfig:
     vqvae_config_path: str = field(default=None)
-    
+    tokenier_config_path: str = field(default=None)
+    model_name_or_path: str = field(default=None)
+    data_path: str = field(default=None)
 
 
 
@@ -36,7 +38,7 @@ def train():
     vqvae_config = load_yaml_config(test_args.vqvae_config_path)
 
     # config 
-    llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
+    llamaconfig = transformers.LlamaConfig.from_pretrained(test_args.model_name_or_path)
     llamaconfig.frozen_llm = False
     llamaconfig.max_text_length = 64
     llamaconfig.svg_token_dims = 4096
@@ -44,19 +46,19 @@ def train():
     llamaconfig.max_path_nums = 512
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        model_args.model_name_or_path,
-        cache_dir=training_args.cache_dir,
-        model_max_length=training_args.model_max_length,
+        test_args.tokenier_config_path,
+        model_max_length=test_args.model_max_length,
         padding_side="right",
         use_fast=True,
     )
     
     svg_data_module = VQLLaMAData(
         llamaconfig, 
-        data_args.data_path, 
+        test_args.data_path, 
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         tokenizer=llama_tokenizer, 
-        offline_mode=True
+        offline_mode=False,
+        mode="test"
     )
 
     data_collator = VQDataCollator(
@@ -73,13 +75,13 @@ def train():
     )
 
     svgllama = VQSVGLlama.from_pretrained(
-        model_args.model_name_or_path, 
+        test_args.model_name_or_path, 
         config=llamaconfig, 
         codebook_size=vqvae_config.vqvae.l_bins,
         cache_dir=training_args.cache_dir
     )
 
-    if "llama" in model_args.model_name_or_path.lower():
+    if "llama" in test_args.model_name_or_path.lower():
         # add new tokens and resize embedding & LM head
         added_tokens = {
             "eos_token": DEFAULT_EOS_TOKEN,
