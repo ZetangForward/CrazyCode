@@ -1,3 +1,7 @@
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_llama/version_1"
+
+mkdir -p ${OUTPUT_DIR}
+
 deepspeed --num_gpus 16 \
     --num_nodes 3 \
     --master_addr worker-0 \
@@ -6,7 +10,7 @@ deepspeed --num_gpus 16 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
-    --output_dir "/zecheng2/vqllama/vqllama_llama/version_1" \
+    --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
     --model_max_length 1500 \
     --per_device_train_batch_size 64 \
