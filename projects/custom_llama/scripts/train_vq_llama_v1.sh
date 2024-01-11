@@ -9,16 +9,16 @@ deepspeed --num_gpus 16 \
     --output_dir "/zecheng2/vqllama/vqllama_llama/version_1" \
     --num_train_epochs 100 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 36 \
-    --per_device_eval_batch_size 36 \
+    --per_device_train_batch_size 34 \
+    --per_device_eval_batch_size 34 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --save_strategy "steps" \
     --save_steps 80 \
     --save_total_limit 10 \
-    --learning_rate 3e-6 \
+    --learning_rate 3e-5 \
     --warmup_steps 20 \
-    --logging_steps 1 \
+    --logging_steps 5 \
     --dataloader_num_workers 64 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
