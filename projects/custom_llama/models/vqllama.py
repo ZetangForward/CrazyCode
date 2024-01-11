@@ -61,11 +61,15 @@ class VQSVGLlama(LlamaForCausalLM):
         input_embeddings = text_embedding_module(text_input_ids)
         
         # quantizied svg tensors with vqvae
-        if self.vqvae.model.training: # deepspeed will make vqvae training again
-            self.vqvae.model.eval()
-            freeze_model(self.vqvae.model)
-        svg_token_ids = self.vqvae.model.encode_no_grad(svg_tensors, start_level=0, end_level=1)
-        svg_token_ids = svg_token_ids[0]  # first compress level
+        if self.vqvae is None: # online mode
+            if self.vqvae.model.training: # deepspeed will make vqvae training again
+                self.vqvae.model.eval()
+                freeze_model(self.vqvae.model)
+            svg_token_ids = self.vqvae.model.encode_no_grad(svg_tensors, start_level=0, end_level=1)
+            svg_token_ids = svg_token_ids[0]  # first compress level
+        else:  # offline mode
+            svg_token_ids = svg_tensors
+        import pdb; pdb.set_trace()
         compress_svg_max_length = svg_token_ids.size(1)
         # add svg end token id
         real_svg_lengths = svg_padding_mask.sum(dim=1)
@@ -74,7 +78,7 @@ class VQSVGLlama(LlamaForCausalLM):
             cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
             svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
             svg_padding_mask[i, cur_padding_pos] = True
-            
+        
         golden_svg_tokens = torch.where(svg_padding_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         

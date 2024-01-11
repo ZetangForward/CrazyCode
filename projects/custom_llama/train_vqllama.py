@@ -107,7 +107,7 @@ class CustomTrainier(Trainer):
             text_input_ids=inputs['text_input_ids'],
             text_attention_mask=inputs['text_attention_mask'],
             text_labels=inputs['text_labels'],
-            svg_tensors=inputs['svg_path'],
+            svg_ids=inputs['svg_path'],  # offline mode
             svg_padding_mask=inputs['svg_padding_mask'],
         )
         total_loss = outputs.pop("total_loss")
@@ -151,11 +151,13 @@ def train():
         data_args.data_path, 
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         tokenizer=llama_tokenizer, 
+        offline_mode=True
     )
 
     data_collator = VQDataCollator(
         svg_pad_token_h=llamaconfig.svg_token_dims, 
-        max_svg_length=llamaconfig.max_svg_length
+        max_svg_length=llamaconfig.max_svg_length,
+        offline_mode=True,
     )
     
     data_module = dict(
@@ -188,22 +190,23 @@ def train():
     svgllama.set_tokenizer(llama_tokenizer)
 
     ## init VQVAE
-    block_kwargs = dict(
-        width=vqvae_config.vqvae_conv_block.width, 
-        depth=vqvae_config.vqvae_conv_block.depth, 
-        m_conv=vqvae_config.vqvae_conv_block.m_conv,
-        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
-        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
-        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    )
-    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    plugin_vqvae = PluginVQVAE(vqvae)
-    checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
-    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
-    print_c("VQVAE loaded!", "green")
-    svgllama.init_vqvae(plugin_vqvae)
+    # block_kwargs = dict(
+    #     width=vqvae_config.vqvae_conv_block.width, 
+    #     depth=vqvae_config.vqvae_conv_block.depth, 
+    #     m_conv=vqvae_config.vqvae_conv_block.m_conv,
+    #     dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
+    #     dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
+    #     reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    # )
+    ## offline inference version
+    # vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    # plugin_vqvae = PluginVQVAE(vqvae)
+    # checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
+    # plugin_vqvae.load_state_dict(checkpoint['state_dict'])
+    # print_c("VQVAE loaded!", "green")
+    # svgllama.init_vqvae(plugin_vqvae)
     
-    count_parameters(svgllama)
+    # count_parameters(svgllama)
 
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True

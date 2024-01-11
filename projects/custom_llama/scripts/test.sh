@@ -1,14 +1,13 @@
-deepspeed --num_gpus 8 \
+deepspeed --num_gpus 1 \
     --num_nodes 1 \
-    --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \
-    --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_7.pkl" \
     --output_dir "/zecheng2/vqllama/vqllama_llama/version_0" \
     --num_train_epochs 60 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 2 \
-    --per_device_eval_batch_size 2 \
+    --per_device_train_batch_size 12 \
+    --per_device_eval_batch_size 12 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --save_strategy "steps" \
@@ -22,7 +21,7 @@ deepspeed --num_gpus 8 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
-    --deepspeed configs/deepspeed/stage2.json \
+    --deepspeed configs/deepspeed/stage3.json \
     --fp16 True \
     --remove_unused_columns False \
     --config_path "configs/deepspeed/vqvae_config.yaml";

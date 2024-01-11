@@ -181,11 +181,10 @@ class OfflineBasicDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.content[idx]
-        keywords, sample = item['keywords'], item['zs']
+        keywords, sample = item['keys'], item['zs']
         prompts = self.PROMPT_TEMPLATE.format(keywords=', '.join(keywords))
 
         sample = sample[:self.max_path_nums]  # prevent too long num path
-        sample = self.custom_command(sample)
 
         # process the input keywords
         if self.svg_begin_token is not None:
@@ -208,8 +207,7 @@ class OfflineBasicDataset(Dataset):
             text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
             text_labels[text_attention_mask.sum() - 1] = -100
             text_attention_mask[text_attention_mask.sum() - 1] = 0
-
-        
+            
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
@@ -303,7 +301,6 @@ class VQLLaMAData:
                 svg_begin_token = self.svg_begin_token,
                 max_text_length=self.cfg.max_text_length,
                 mode="train",
-                cluster_batch=False
             )
         else:
             return BasicDataset(
@@ -328,7 +325,6 @@ class VQLLaMAData:
                 svg_begin_token = self.svg_begin_token,
                 max_text_length=self.cfg.max_text_length,
                 mode="valid",
-                cluster_batch=False
             )
         else:
             return BasicDataset(
