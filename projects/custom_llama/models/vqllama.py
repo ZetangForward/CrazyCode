@@ -157,7 +157,7 @@ class VQSVGLlama(LlamaForCausalLM):
         }
     
     @torch.no_grad()
-    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, svg_tensors=None, max_generate_length=1024, **kwargs):
+    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, top_p_top_k_filtering=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.Longtensor]:
         
         assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
@@ -194,7 +194,11 @@ class VQSVGLlama(LlamaForCausalLM):
             last_hidden_state = outputs.last_hidden_state
             past_key_values = outputs.past_key_values
             pred_logits = self.vqvae_head(last_hidden_state).float()
-            pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
+            
+            if top_p_top_k_filtering:
+                pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1, :], top_k=top_k, top_p=top_p, temperature=temperature)
+            else:
+                pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
             
             # update eos_generated_mask, as some samples generate svg_eos_token
             eos_generated_mask |= (pred_svg_idx.squeeze(1) == self.svg_end_token_id)  
@@ -204,7 +208,7 @@ class VQSVGLlama(LlamaForCausalLM):
             current_step_ids[~eos_generated_mask] = pred_svg_idx[~eos_generated_mask]  
             generated_ids.append(current_step_ids)  
             
-            if eos_generated_mask.all():
+            if eos_generated_mask.all():  # all samples have generated eos_token, break
                 break
             
             prev_svg_token_ids = current_step_ids
