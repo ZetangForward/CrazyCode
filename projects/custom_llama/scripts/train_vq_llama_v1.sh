@@ -2,7 +2,7 @@ deepspeed --num_gpus 16 \
     --num_nodes 2 \
     --master_addr worker-0 \
     --master_port 8429 \
-    --hostfile configs/machine/hostfile_v64_sxm4 \
+    --hostfile configs/machine/hostfile_v64_sxm4_01 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
