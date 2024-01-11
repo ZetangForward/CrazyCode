@@ -188,11 +188,6 @@ class VQSVGLlama(LlamaForCausalLM):
         return generated_ids
         
         
-     
-        
-        
-        
-        
         
     def forward_svg_modal(self, input_ids, past_key_values):
         svg_embeddings = self.svg_embedding(input_ids)
