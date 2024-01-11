@@ -1,7 +1,5 @@
 from modelzipper.tutils import *
 
-
-
 def main(rd):
     # load the data
     file_paths = []
@@ -20,10 +18,6 @@ def main(rd):
     b_t = time.time()
     auto_save_data(merged_list, save_path)
     print_c(f"save predictions to {save_path}, total time: {time.time() - b_t}", "magenta")
-
-
-
-
 
 if __name__ == "__main__":
     fire.Fire(main)

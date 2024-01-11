@@ -151,17 +151,111 @@ class BasicDataset(Dataset):
         }
 
 
+class OfflineBasicDataset(Dataset):
+
+    PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
+
+    def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
+        super().__init__()
+
+        self.tokenizer = tokenizer
+        self.mode = mode
+        self.svg_begin_token = svg_begin_token
+        self.max_text_length = max_text_length
+        self.min_path_nums = min_path_nums
+        self.max_path_nums = max_path_nums
+
+        content = self.pre_process(content)
+        if cluster_batch:
+            # first sort the dataset by length
+            print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
+            content = sorted(content, key=lambda x: x['mesh_data'].shape[0])
+            print_c("sort done !", color='magenta')
+        self.content = content
+
+    def pre_process(self, dataset, min_length=1):   
+        # just prevent too short path
+        # length exceed max_seq_length will be cut off in __getitem__
+        print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
+        new_dataset = []
+        for item in dataset:
+            sample = item['mesh_data']
+            if sample is None:
+                continue
+            if sample[:7].equal(EDGE):
+                sample = sample[7:]
+            if min_length <= len(sample):
+                new_dataset.append(
+                    {
+                        'keywords': item['keywords'],
+                        'mesh_data': sample,
+                    }
+                )
+        return new_dataset
+
+    def custom_command(self, svg_tensor):
+        col1 = svg_tensor[:, 0]
+        col1[col1 == 1] = 100
+        col1[col1 == 2] = 200
+        svg_tensor[:, 0] = col1
+        return svg_tensor
+
+    def __len__(self):
+        return len(self.content)
+
+    def __getitem__(self, idx):
+        item = self.content[idx]
+        keywords, sample = item['keywords'], item['mesh_data']
+        prompts = self.PROMPT_TEMPLATE.format(keywords=', '.join(keywords))
+
+        sample = sample[:self.max_path_nums]  # prevent too long num path
+        sample = self.custom_command(sample)
+
+        # process the input keywords
+        if self.svg_begin_token is not None:
+            prompts = prompts + " " + self.svg_begin_token
+
+        seq_inputs = self.tokenizer(
+            prompts, 
+            padding="max_length", 
+            truncation=True, 
+            max_length=self.max_text_length,
+            return_tensors="pt",
+        )
+        text_input_ids = seq_inputs.input_ids[0]
+        text_attention_mask = seq_inputs.attention_mask[0]
+        text_labels = torch.where(
+            text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
+        )
+
+        if self.svg_begin_token is not None and self.tokenizer.eos_token_id in text_input_ids:  # utilize svg_token as the end of the text
+            text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
+            text_labels[text_attention_mask.sum() - 1] = -100
+            text_attention_mask[text_attention_mask.sum() - 1] = 0
+
+        
+        return {
+            "text_input_ids": text_input_ids,
+            "text_attention_mask": text_attention_mask,
+            "text_labels": text_labels,
+            "svg_path": sample.long(),
+        }
+
+
+
+
 class VQDataCollator:
     """
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, svg_pad_token_h, max_svg_length=1024, pad_token_id=0, cluster_batch=False, return_all_token_mask=False):
+    def __init__(self, svg_pad_token_h, max_svg_length=1024, pad_token_id=0, cluster_batch=False, return_all_token_mask=False, offline_mode=True):
         self.max_svg_length = max_svg_length
         self.svg_pad_token_h = svg_pad_token_h
         self.pad_token_id = pad_token_id
         self.cluster_batch = cluster_batch
         self.return_all_token_mask = return_all_token_mask
+        self.offline_mode = offline_mode
 
     def pad_collate(self, batch):
         """
@@ -212,7 +306,7 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True):  
         self.cfg = config
         self.tokenizer = tokenizer  
         content = auto_read_data(vq_svg_file) ## Load VQSVG data
@@ -220,32 +314,57 @@ class VQLLaMAData:
         self.valid_data = content[:num_valid_data]
         self.train_data = content[num_valid_data:]
         self.svg_begin_token = svg_begin_token
+        self.offline_mode = offline_mode
 
     @property
     def train_dataset(self) -> Dataset:
-        return BasicDataset(
-            content=self.train_data,
-            min_path_nums=self.cfg.min_path_nums,
-            max_path_nums=self.cfg.max_path_nums, 
-            tokenizer=self.tokenizer,
-            svg_begin_token = self.svg_begin_token,
-            max_text_length=self.cfg.max_text_length,
-            mode="train",
-            cluster_batch=False
-        )
+        if self.offline_mode:
+            return OfflineBasicDataset(
+                content=self.train_data,
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
+                tokenizer=self.tokenizer,
+                svg_begin_token = self.svg_begin_token,
+                max_text_length=self.cfg.max_text_length,
+                mode="train",
+                cluster_batch=False
+            )
+        else:
+            return BasicDataset(
+                content=self.train_data,
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
+                tokenizer=self.tokenizer,
+                svg_begin_token = self.svg_begin_token,
+                max_text_length=self.cfg.max_text_length,
+                mode="train",
+                cluster_batch=False
+            )
 
     @property
     def valid_dataset(self) -> Dataset:
-        return BasicDataset(
-            content=self.valid_data,
-            min_path_nums=self.cfg.min_path_nums,
-            max_path_nums=self.cfg.max_path_nums, 
-            tokenizer=self.tokenizer,
-            svg_begin_token = self.svg_begin_token,
-            max_text_length=self.cfg.max_text_length,
-            mode="valid",
-            cluster_batch=False
-        )
+        if self.offline_mode:
+            return OfflineBasicDataset(
+                content=self.valid_data,
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
+                tokenizer=self.tokenizer,
+                svg_begin_token = self.svg_begin_token,
+                max_text_length=self.cfg.max_text_length,
+                mode="valid",
+                cluster_batch=False
+            )
+        else:
+            return BasicDataset(
+                content=self.valid_data,
+                min_path_nums=self.cfg.min_path_nums,
+                max_path_nums=self.cfg.max_path_nums, 
+                tokenizer=self.tokenizer,
+                svg_begin_token = self.svg_begin_token,
+                max_text_length=self.cfg.max_text_length,
+                mode="valid",
+                cluster_batch=False
+            )
 
 
     def predict_dataloader(self) -> DataLoader:

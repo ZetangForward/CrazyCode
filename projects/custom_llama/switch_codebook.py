@@ -175,11 +175,10 @@ class ObtainSVGCode(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        svg_tensors, padding_mask = batch['svg_path'], batch['padding_mask']
+        svg_tensors = batch['svg_path']
         zs = self.model.encode(svg_tensors, start_level=0, end_level=1) # just get the first compressed level
         
         standard_results = {
-            "padding_mask": padding_mask,
             "keys": batch['keywords'][0],
             "zs": zs[0].squeeze(), # just return the first compressed level
         }
