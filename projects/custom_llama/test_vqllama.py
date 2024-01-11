@@ -43,8 +43,45 @@ class PluginVQVAE(nn.Module):
         self.model = model
 
 
+def saint_check_input(prompt, input_lst):
+    while True:  
+        user_input = input(prompt).strip()  
+        if user_input.lower() in input_lst:  
+            return user_input.lower()  
+        else:  
+            print(f"Invalid input. Please enter one of the following: {input_lst}") 
+
+
+
+def interative_loop(model, image_save_root_dir, vqvae, tokenizer, max_generate_length=1024, **kwargs):
+    """
+    For user interactive input
+    """
+    input_text = None
+    while input_text.lower() not in ("q", "quit"):
+        input_text = input("Please input text: (press q to quit)").strip()
+        input_ids = tokenizer(input_text, return_tensors="pt").input_ids
+        input_ids = input_ids.to(model.device)
+        with torch.no_grad():
+            _, post_processed_ids = model.generate(  # List[Tensor]
+                text_input_ids=input_ids,
+                max_generate_length=max_generate_length,
+                **kwargs
+            )
+            svg_token_ids = post_processed_ids[0]
+            decoded_svg_path = vqvae.decode(  # L x l_bins ?
+                zs=svg_token_ids, start_level=0, start_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+        svg, svg_str = convert_svg(decoded_svg_path, True)
+        whether_save_image = saint_check_input("Whether to save the image? (y/n)", ['y', 'n', 'Y', 'N'])
+        if whether_save_image == 'y':
+            save_file_name = input_text.replace(" ", "_")
+            svg.save_png(os.path.join(image_save_root_dir, f"{save_file_name}.png"))
+        
+
 def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, **kwargs) -> List[Tensor]:
-    
+    """
+    For testing the whole dataset
+    """
     res = []
     with tqdm(desc="Predicting", total=len(dataloader)) as pbar:
         for batch_ in dataloader:
