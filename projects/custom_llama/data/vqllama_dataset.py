@@ -290,6 +290,8 @@ class VQLLaMAData:
         else: # directly read data from file
             content = auto_read_data(vq_svg_file) ## Load VQSVG data
         num_valid_data = min(int(len(content) * 0.1), 2000)
+        print_c(f"num of valid data: {num_valid_data}", color='magenta')
+        print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
         self.valid_data = content[:num_valid_data]
         self.train_data = content[num_valid_data:]
         self.svg_begin_token = svg_begin_token
