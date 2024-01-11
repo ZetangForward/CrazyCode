@@ -11,7 +11,6 @@ from models.vqvae import VQVAE
 from train_vqllama import smart_tokenizer_and_embedding_resize
 from utils.visualize_svg import sanint_check_svg_tensor, convert_svg, merge_images
 
-
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
 DEFAULT_BOS_TOKEN = "<s>"
