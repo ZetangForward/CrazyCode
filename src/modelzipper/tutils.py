@@ -209,7 +209,6 @@ def count_parameters(model, model_parallel=False):
     return total_params, trainable_params, frozen_params
 
 
-
 def pad_tensor(vec, pad_len, dim, pad_token_id):
         """
         args:
