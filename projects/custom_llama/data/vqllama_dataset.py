@@ -139,7 +139,6 @@ class BasicDataset(Dataset):
             text_input_ids[text_attention_mask.sum() - 1] = self.tokenizer.pad_token_id
             text_labels[text_attention_mask.sum() - 1] = -100
             text_attention_mask[text_attention_mask.sum() - 1] = 0
-
         
         return {
             "text_input_ids": text_input_ids,
@@ -379,14 +378,10 @@ class VQLLaMAData:
     def predict_dataloader(self) -> DataLoader:
         if self.predict_dataset is not None:
             return DataLoader(
-                self.predict_dataset, batch_size=self.cfg.val_batch_size, 
-                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
-                collate_fn=PadCollate(
-                    cluster_batch=self.cfg.cluster_batch, 
-                    max_seq_length=self.cfg.max_path_nums, 
-                    pad_token_id=self.cfg.pad_token_id, 
-                    return_all_token_mask=self.cfg.return_all_token_mask
-                ),
+                self.predict_dataset, 
+                batch_size=self.cfg.predict_batch_size, 
+                num_workers=self.cfg.dataloader_num_workers, 
+                pin_memory=False, drop_last=False, shuffle=False,
             )
             
             

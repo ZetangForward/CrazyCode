@@ -157,7 +157,7 @@ class VQSVGLlama(LlamaForCausalLM):
         }
     
     @torch.no_grad()
-    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, top_p_top_k_filtering=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.LongTensor]:
+    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.LongTensor]:
         
         assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
@@ -195,14 +195,14 @@ class VQSVGLlama(LlamaForCausalLM):
             past_key_values = outputs.past_key_values
             pred_logits = self.vqvae_head(last_hidden_state).float()
             
-            if top_p_top_k_filtering:
+            if do_sample:
                 pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1, :], top_k=top_k, top_p=top_p, temperature=temperature)
             else:
                 pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
             
             # update eos_generated_mask, as some samples generate svg_eos_token
             eos_generated_mask |= (pred_svg_idx.squeeze(1) == self.svg_end_token_id)  
-        
+
             # add the predicted svg token embedding to input_embeddings according to pred_svg_idx
             current_step_ids = torch.full((batch_size, 1), self.svg_end_token_id, dtype=torch.long, device=last_hidden_state.device)  
             current_step_ids[~eos_generated_mask] = pred_svg_idx[~eos_generated_mask]  
@@ -212,8 +212,15 @@ class VQSVGLlama(LlamaForCausalLM):
                 break
             
             prev_svg_token_ids = current_step_ids
+        
+        generated_ids = torch.cat(generated_ids, dim=1)  # B x gen_length
+        generated_mask = ~(generated_ids == self.svg_end_token_id)  # B x gen_length
+        post_processed_ids = []  # List[Tensor]
+        
+        for i in range(batch_size):
+            post_processed_ids.append(generated_ids[i, :generated_mask[i].sum()])
             
-        return generated_ids
+        return generated_ids, post_processed_ids
         
         
         

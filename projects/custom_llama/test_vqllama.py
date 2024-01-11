@@ -1,12 +1,17 @@
 import random
 import os
+from typing import List, Optional
+from torch.utils.data import DataLoader, Dataset
 import transformers
 from dataclasses import dataclass, field
 from transformers import Trainer
+from transformers.trainer_utils import EvalLoopOutput
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
 from models.vqvae import VQVAE
+from train_vqllama import smart_tokenizer_and_embedding_resize
+from torch import Tensor
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -15,14 +20,21 @@ DEFAULT_EOS_TOKEN = "</s>"
 DEFAULT_UNK_TOKEN = "<unk>"
 DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 
+
 @dataclass
 class TestConfig:
     vqvae_config_path: str = field(default=None)
     tokenier_config_path: str = field(default=None)
     model_name_or_path: str = field(default=None)
     data_path: str = field(default=None)
-
-
+    predict_batch_size: int = field(default=1)
+    dataloader_num_workers: int = field(default=0)
+    max_generate_length: int = field(default=1024)
+    do_sample: bool = field(default=False)
+    top_p: float = field(default=0.9)
+    top_k: int = field(default=40)
+    num_beams: int = field(default=1)
+    temperature: float = field(default=0.8)
 
 
 class PluginVQVAE(nn.Module):
@@ -30,7 +42,86 @@ class PluginVQVAE(nn.Module):
         super().__init__()
         self.model = model
 
-def train():
+
+def predict_loop(model, dataloader, tokenizer, max_generate_length=1024, **kwargs) -> List[Tensor]:
+    
+    res = []
+    with tqdm(desc="Predicting", total=len(dataloader)) as pbar:
+        for batch_ in dataloader:
+            cur_batch_res = {}
+            text_input_ids = batch_.get("text_input_ids")
+            text_attention_mask = batch_.get("text_attention_mask")
+            golden_svg_path = batch_.get("svg_path")
+            
+            with torch.no_grad():
+                _, post_processed_ids = model.generate(  # List[Tensor]
+                    text_input_ids=text_input_ids,
+                    text_attention_mask=text_attention_mask,
+                    max_generate_length=max_generate_length,
+                    **kwargs
+                )
+                
+                for i, ids in enumerate(post_processed_ids):
+                    output = tokenizer.decode(ids)
+                    cur_batch_res[f"generated_svg_path_{i}"] = output
+            
+            cur_batch_res["golden_svg_path"] = golden_svg_path
+            cur_batch_res["generated_svg_path"] = generation_output
+            
+        
+    
+    with torch.no_grad():
+        generation_output = model.generate(
+            input_ids=input_ids,
+            generation_config=generation_config,
+            return_dict_in_generate=True,
+            output_scores=True,
+            max_new_tokens=max_new_tokens,
+        )
+    s = generation_output.sequences[0]
+    output = tokenizer.decode(s)
+    return output
+
+    with open(file_path, "r") as f:
+        content = [json.loads(line) for line in f]
+
+    res = []
+    with tqdm(total=len(content)) as pbar:
+        for samples in content:
+            inter_res = dict()
+            for k, v in samples.items():
+                if k == "id_":
+                    gen_res = v
+                    continue
+                gen_res = evaluate(v, max_new_tokens=1024)
+                inter_res[k] = gen_res
+            res.append(inter_res)
+            # cond_bbox_input = samples.get("cond_bbox_input_seqs")[0]
+            # continual_gen_input = samples.get("continual_gen_input_seqs")[0]
+            # cond_cate_to_size_pos = samples.get("cond_cate_to_size_pos_input_seqs")[0]
+            # cond_cate_size_to_pos = samples.get("cond_cate_size_to_pos_input_seqs")[0]
+            # cond_recover_mask_input = samples.get("cond_recover_mask_input_seqs")[0]
+            # id_ = samples.get("id_")
+
+            # cond_bbox_input = evaluate(cond_bbox_input, max_new_tokens=1024)
+            # continual_gen_input = evaluate(continual_gen_input, max_new_tokens=1024)
+            # cond_cate_to_size_pos = evaluate(cond_cate_to_size_pos, max_new_tokens=1024)
+            # cond_cate_size_to_pos = evaluate(cond_cate_size_to_pos, max_new_tokens=1024)
+            # cond_recover_mask = evaluate(cond_recover_mask_input, max_new_tokens=1024)
+            
+            # res.append({
+            #     "cond_bbox_input": cond_bbox_input,
+            #     "continual_gen_input": continual_gen_input,
+            #     "cond_cate_to_size_pos": cond_cate_to_size_pos,
+            #     "cond_cate_size_to_pos": cond_cate_size_to_pos,
+            #     "cond_recover_mask": cond_recover_mask,
+            #     "id": id_
+            # })
+            pbar.update(1)
+
+
+
+def test():
     parser = transformers.HfArgumentParser((TestConfig))
     test_args = parser.parse_args_into_dataclasses()
     
@@ -60,25 +151,13 @@ def train():
         offline_mode=False,
         mode="test"
     )
-
-    data_collator = VQDataCollator(
-        svg_pad_token_h=llamaconfig.svg_token_dims, 
-        max_svg_length=llamaconfig.max_path_nums,
-        offline_mode=True,
-        return_all_token_mask=True, # for offline setting
-    )
     
-    data_module = dict(
-        train_dataset=svg_data_module.train_dataset, 
-        eval_dataset=svg_data_module.valid_dataset, 
-        data_collator=data_collator
-    )
+    predict_dataloader = svg_data_module.predict_dataloader()
 
     svgllama = VQSVGLlama.from_pretrained(
         test_args.model_name_or_path, 
         config=llamaconfig, 
         codebook_size=vqvae_config.vqvae.l_bins,
-        cache_dir=training_args.cache_dir
     )
 
     if "llama" in test_args.model_name_or_path.lower():
@@ -114,31 +193,29 @@ def train():
     print_c("VQVAE loaded!", "green")
     svgllama.init_vqvae(plugin_vqvae)
     
-
-    # # init optimizer
-    # if svgllama.model_parallel:
-    #     all_params = [param for module in svgllama.modules() for param in module.parameters()]
-    # else:
-    #     all_params = svgllama.parameters()
+    svgllama.eval()
     
-    # trainable_params = [p for p in all_params if p.requires_grad]
-    # optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
-
-    # # init lr scheduler
-    # lr_scheduler = transformers.get_linear_schedule_with_warmup(
-    #     optimizer,
-    #     num_warmup_steps=training_args.warmup_steps,
-    #     num_training_steps=training_args.max_steps,
-    # )
-
-    trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
+    if test_args.fp16:
+        svgllama = svgllama.half()
+        
+    sampling_strategy = dict(
+        do_sample=test_args.do_sample,
+        temperature=test_args.temperature,
+        top_p=test_args.top_p,
+        top_k=test_args.top_k,
+        num_beams=test_args.num_beams,
+    )
     
-    svgllama.config.use_cache = False
-
-    trainer.train()
-    trainer.save_state()
-    safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)
+    predicted_results = predict_loop(
+        model=svgllama, 
+        dataloader=predict_dataloader, 
+        tokenizer=llama_tokenizer,
+        max_generate_length=test_args.max_generate_length,
+        **sampling_strategy,
+    )
+    
+   
 
 
 if __name__ == "__main__":
-    train()
+    test()
