@@ -18,7 +18,7 @@ deepspeed --num_gpus 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --save_strategy "steps" \
-    --save_steps 10 \
+    --save_steps 80 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
