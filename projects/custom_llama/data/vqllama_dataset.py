@@ -256,7 +256,7 @@ class VQDataCollator:
         text_input_ids = torch.stack(text_input_ids, dim=0)
         text_attention_mask = torch.stack(text_attention_mask, dim=0)
         text_labels = torch.stack(text_labels, dim=0)
-        import pdb; pdb.set_trace()
+
         # get padding mask
         if self.return_all_token_mask:
             padding_mask = ~(svg_tensors == self.pad_token_id)
