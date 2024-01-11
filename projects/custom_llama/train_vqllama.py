@@ -107,7 +107,7 @@ class CustomTrainier(Trainer):
             text_input_ids=inputs['text_input_ids'],
             text_attention_mask=inputs['text_attention_mask'],
             text_labels=inputs['text_labels'],
-            svg_ids=inputs['svg_path'],  # offline mode
+            svg_tensors=inputs['svg_path'],  # offline mode
             svg_padding_mask=inputs['svg_padding_mask'],
         )
         total_loss = outputs.pop("total_loss")

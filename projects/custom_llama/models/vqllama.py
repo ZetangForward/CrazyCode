@@ -69,7 +69,7 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_token_ids = svg_token_ids[0]  # first compress level
         else:  # offline mode
             svg_token_ids = svg_tensors
-        import pdb; pdb.set_trace()
+        
         compress_svg_max_length = svg_token_ids.size(1)
         # add svg end token id
         real_svg_lengths = svg_padding_mask.sum(dim=1)
@@ -135,7 +135,7 @@ class VQSVGLlama(LlamaForCausalLM):
                 svg_token_ids[:, 0].contiguous().view(-1), 
                 reduction="mean",
             )
-
+        import pdb; pdb.set_trace()
         if text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
