@@ -1,7 +1,7 @@
 deepspeed --num_gpus 16 \
     --num_nodes 4 \
     --master_addr worker-0 \
-    --master_port 7529 \
+    --master_port 7329 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \
@@ -10,7 +10,7 @@ deepspeed --num_gpus 16 \
     --num_train_epochs 100 \
     --model_max_length 1500 \
     --per_device_train_batch_size 64 \
-    --per_device_eval_batch_size 64 \
+    --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --save_strategy "steps" \
