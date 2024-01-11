@@ -6,8 +6,6 @@ from transformers import Trainer
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
-from models.vqvae import VQVAE
-import pytorch_lightning as pl
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
