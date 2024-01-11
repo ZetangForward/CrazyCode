@@ -152,10 +152,13 @@ class BasicDataset(Dataset):
 
 
 class OfflineBasicDataset(Dataset):
-
+    """
+    obtrain the data offline
+    
+    """
     PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
 
-    def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
+    def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -164,34 +167,7 @@ class OfflineBasicDataset(Dataset):
         self.max_text_length = max_text_length
         self.min_path_nums = min_path_nums
         self.max_path_nums = max_path_nums
-
-        content = self.pre_process(content)
-        if cluster_batch:
-            # first sort the dataset by length
-            print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
-            content = sorted(content, key=lambda x: x['mesh_data'].shape[0])
-            print_c("sort done !", color='magenta')
         self.content = content
-
-    def pre_process(self, dataset, min_length=1):   
-        # just prevent too short path
-        # length exceed max_seq_length will be cut off in __getitem__
-        print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
-        new_dataset = []
-        for item in dataset:
-            sample = item['mesh_data']
-            if sample is None:
-                continue
-            if sample[:7].equal(EDGE):
-                sample = sample[7:]
-            if min_length <= len(sample):
-                new_dataset.append(
-                    {
-                        'keywords': item['keywords'],
-                        'mesh_data': sample,
-                    }
-                )
-        return new_dataset
 
     def custom_command(self, svg_tensor):
         col1 = svg_tensor[:, 0]
@@ -205,7 +181,7 @@ class OfflineBasicDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.content[idx]
-        keywords, sample = item['keywords'], item['mesh_data']
+        keywords, sample = item['keywords'], item['zs']
         prompts = self.PROMPT_TEMPLATE.format(keywords=', '.join(keywords))
 
         sample = sample[:self.max_path_nums]  # prevent too long num path
