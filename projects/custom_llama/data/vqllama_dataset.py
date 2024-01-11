@@ -238,8 +238,6 @@ class VQDataCollator:
         text_attention_mask = [x['text_attention_mask'] for x in batch]
         text_labels = [x['text_labels'] for x in batch]
         svg_tensors = [x['svg_path'] for x in batch]
-            
-        bsz = len(text_input_ids)
         
         if self.cluster_batch:
             # find longest sequence
