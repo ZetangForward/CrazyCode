@@ -162,13 +162,20 @@ class VQSVGLlama(LlamaForCausalLM):
         outputs = self.model(
             input_ids=text_input_ids,
             past_key_values=past_key_values,
+            attention_mask=text_attention_mask,
             use_cache=True,
         )
         last_hidden_state = outputs.last_hidden_state
         past_key_values = outputs.past_key_values
+        text_width = text_input_ids.size(1)
         
-        generated_ids = [token.item() for token in text_input_ids]
+        generated_ids = [text_input_ids[:, i].unsqueeze(1) for i in range(text_width)]
         pos = 0
+        
+        # create svg_begin token id
+        svg_begin_token_ids = torch.empty(text_input_ids.size(0)).fill_(self.svg_begin_token_id).long().to(last_hidden_state.device)
+        
+        input_embedding = self.vqvae_embedding(svg_begin_token_ids)
         
         for _ in range(max_generate_length - 1):
             outputs = self.model(
