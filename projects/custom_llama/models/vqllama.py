@@ -25,6 +25,7 @@ class VQSVGLlama(LlamaForCausalLM):
         self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
         self.vqvae_head = nn.Linear(config.hidden_size, self.codebook_size)
 
+        self.post_init()
         if config.frozen_llm: 
             print_c("Attention! Part of the parameters are freezed!")
             self.requires_grad_ = False 
