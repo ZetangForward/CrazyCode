@@ -153,6 +153,8 @@ def auto_mkdir(dir_path):
     Args:
         dir_path (str): The path to the directory.
     """
+    if os.path.exists(dir_path):
+        print_c(f"{dir_path} already exists!")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
         print_c(f"{dir_path} not exist! --> Create dir {dir_path}")

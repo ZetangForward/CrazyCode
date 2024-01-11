@@ -13,7 +13,7 @@ deepspeed --num_gpus 16 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 64 \
+    --per_device_train_batch_size 68 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \

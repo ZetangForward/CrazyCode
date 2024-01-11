@@ -120,6 +120,7 @@ class PluginVQVAE(nn.Module):
         super().__init__()
         self.model = model
 
+
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, VQVAEConfig))
     model_args, data_args, training_args, vqvae_args = parser.parse_args_into_dataclasses()

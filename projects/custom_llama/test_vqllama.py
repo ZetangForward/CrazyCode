@@ -1,18 +1,15 @@
 import random
 import os
-from typing import List, Optional
-from torch.utils.data import DataLoader, Dataset
 import transformers
 from dataclasses import dataclass, field
-from transformers import Trainer
-from transformers.trainer_utils import EvalLoopOutput
+from tqdm import tqdm, trange
+from torch import Tensor
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
-from data.vqllama_dataset import VQDataCollator, VQLLaMAData
+from data.vqllama_dataset import VQLLaMAData
 from models.vqvae import VQVAE
 from train_vqllama import smart_tokenizer_and_embedding_resize
-from torch import Tensor
-from utils.visualize_svg import convert_svg
+from utils.visualize_svg import sanint_check_svg_tensor, convert_svg
 
 
 IGNORE_INDEX = -100
@@ -64,21 +61,67 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                 )
                 
                 for i, svg_token_ids in enumerate(post_processed_ids):
-                    decoded_svg_path = vqvae.decode(
+                    decoded_svg_path = vqvae.decode(  # L x l_bins ?
                         zs=svg_token_ids, start_level=0, start_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
-
+                    
+                    text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
+                    
                     cur_batch_res.append(
                         dict(
                             golden_svg_path = golden_svg_path,
                             generated_svg_path = decoded_svg_path,
-                            text_input_ids = text_input_ids,
+                            text = text,
+                            svg_token_ids = svg_token_ids,
                         )
                     )
+                    
             res.extend(cur_batch_res)
             pbar.update(1)
     return res
                     
+                    
+def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_background=False, save_intermediate_results=False) -> None:
+    
+    assert save_dir is not None, "save_dir must be specified!"
+    SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_single_image")) # save single image
+    SVG_PATH_SAVED_PATH = os.path.join(save_dir, "svg_paths.jsonl") # save svg path
+    
+    keys = ['generated_svg_path', 'golden_svg_path', 'text', 'svg_token_ids']
+    str_paths = []
+    all_image_paths = []
+    
+    for i in trange(len(res)):
+        generated_svg_path = res[i]['generated_svg_path']
+        golden_svg_path = res[i]['golden_svg_path']
+        text = res[i]['text']
 
+        predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
+        p_svg, p_svg_str = convert_svg(predict, True)
+        golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
+        g_svg, g_svg_str = convert_svg(golden, True)
+
+        str_paths.append({
+            "p_svg_str": p_svg_str,
+            "g_svg_str": g_svg_str,
+        })
+        
+        p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+        all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png")))
+    
+    auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
+    
+    for i, item in enumerate(res):
+        golden_svg_path = item['golden_svg_path']
+        generated_svg_path = item['generated_svg_path']
+        text_input_ids = item['text_input_ids']
+        
+        golden_svg_path.save_png(f"golden_{i}.png")
+        generated_svg_path.save_png(f"generated_{i}.png")
+        print(f"text input ids: {text_input_ids}")
+        print(f"golden svg path: {golden_svg_path}")
+        print(f"generated svg path: {generated_svg_path}")
+        print("=============================================")
+        
 
 def test():
     parser = transformers.HfArgumentParser((TestConfig))
