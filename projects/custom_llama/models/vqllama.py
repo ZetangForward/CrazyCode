@@ -159,6 +159,8 @@ class VQSVGLlama(LlamaForCausalLM):
     @torch.no_grad()
     def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, svg_tensors=None, max_generate_length=1024, **kwargs):
         
+        assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
+        
         outputs = self.model(
             input_ids=text_input_ids,
             past_key_values=past_key_values,
@@ -172,24 +174,24 @@ class VQSVGLlama(LlamaForCausalLM):
         generated_ids = [text_input_ids[:, i].unsqueeze(1) for i in range(text_width)]
         pos = 0
         
-        # create svg_begin token id
+        # create svg_begin token id and embeddings
         svg_begin_token_ids = torch.empty(text_input_ids.size(0)).fill_(self.svg_begin_token_id).long().to(last_hidden_state.device)
-        
-        input_embedding = self.vqvae_embedding(svg_begin_token_ids)
+        input_embeddings = self.vqvae_embedding(svg_begin_token_ids)
         
         for _ in range(max_generate_length - 1):
             outputs = self.model(
-                input_ids=pred_token_idx,
+                input_ids=None,
                 past_key_values=past_key_values,
+                inputs_embeds=input_embeddings, 
                 use_cache=True,
             )
             last_hidden_state = outputs.last_hidden_state
             past_key_values = outputs.past_key_values
-            text_logits = self.vqvae_head(last_hidden_state).float()
-            pred_token_idx = text_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
-            generated_ids.append(pred_token_idx.item())
+            pred_logits = self.vqvae_head(last_hidden_state).float()
+            pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
+            generated_ids.append(pred_svg_idx.item())
             
-            if pred_token_idx == self.tokenizer.eos_token_id:
+            if pred_svg_idx == self.tokenizer.eos_token_id:
                 break
             
         return generated_ids
