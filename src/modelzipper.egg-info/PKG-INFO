@@ -23,7 +23,7 @@ Requires-Dist: termcolor
 Requires-Dist: matplotlib
 Requires-Dist: pyyaml
 Requires-Dist: fire
-Requires-Dist: transformers==4.31.0
+Requires-Dist: transformers==4.33.3
 Requires-Dist: matplotlib
 Requires-Dist: gpustat
 Requires-Dist: pytz
