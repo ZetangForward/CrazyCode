@@ -148,7 +148,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         })
         
         p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-        all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png")))
+        all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
     
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
     
