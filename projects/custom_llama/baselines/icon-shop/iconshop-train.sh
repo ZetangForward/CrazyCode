@@ -8,7 +8,7 @@ deepspeed --num_gpus 8 \
     --data_path "/zecheng2/svg/icon-shop/meta_data" \
     --output_dir "/zecheng2/vqllama/baselines/iconshop" \
     --num_train_epochs 40 \
-    --model_max_length 1500 \
+    --model_max_length 1024 \
     --per_device_train_batch_size 18 \
     --per_device_eval_batch_size 18 \
     --gradient_accumulation_steps 1 \
