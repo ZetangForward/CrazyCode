@@ -245,8 +245,8 @@ class UnderstandingOfflineBasicDataset(Dataset):
             self.PROMPT_SUFFIX,
             return_tensors="pt",
         )
-        prompt_suffix_ids = prompt_suffix.input_ids[0]
-        prompt_suffix_attention_mask = prompt_suffix.attention_mask[0]
+        prompt_suffix_ids = prompt_suffix.input_ids[0][1:]
+        prompt_suffix_attention_mask = prompt_suffix.attention_mask[0][1:]
         
         response = self.tokenizer(
             response,

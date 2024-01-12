@@ -116,23 +116,7 @@ def train():
         padding_side="right",
         use_fast=True,
     )
-    
-    svg_data_module = VQLLaMAData(
-        llamaconfig, 
-        data_args.data_path, 
-        svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
-        tokenizer=llama_tokenizer, 
-        offline_mode=True,
-        task="understanding",
-    )
-
-    data_collator = UnderstandingDataCollator()
-
-    data_module = dict(
-        train_dataset=svg_data_module.train_dataset, 
-        eval_dataset=svg_data_module.valid_dataset, 
-        data_collator=data_collator
-    )
+    llama_tokenizer.add_eos_token = True
 
     svgllama = VQSVGLlamaUnderstanding.from_pretrained(
         model_args.model_name_or_path, 
@@ -151,6 +135,24 @@ def train():
         smart_tokenizer_and_embedding_resize(
             added_tokens, llama_tokenizer, svgllama
         )
+    
+    svg_data_module = VQLLaMAData(
+        llamaconfig, 
+        data_args.data_path, 
+        svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
+        tokenizer=llama_tokenizer, 
+        offline_mode=True,
+        task="understanding",
+    )
+
+    data_collator = UnderstandingDataCollator()
+
+    data_module = dict(
+        train_dataset=svg_data_module.train_dataset, 
+        eval_dataset=svg_data_module.valid_dataset, 
+        data_collator=data_collator
+    )
+
 
     svgllama.set_tokenizer(llama_tokenizer)
 
