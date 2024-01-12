@@ -1,12 +1,12 @@
 #!/bin/bash
 SESSION_NAME="SUWA"
-ROWS=4
-COLS=4
+ROWS=1
+COLS=3
 WINDOWS=1
  
 # 使用循环生成 commands 列表
 commands=()
-for i in $(seq 0 15); do
+for i in $(seq 0 2); do
   commands+=("echo worker-$i && ssh worker-$i")
   # commands+=("echo worker-$i && ssh -t worker-$i 'python'")
 done

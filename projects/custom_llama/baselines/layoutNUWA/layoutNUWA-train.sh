@@ -28,5 +28,3 @@ deepspeed --num_gpus 8 \
     --deepspeed "/workspace/zecheng/modelzipper/projects/custom_llama/configs/deepspeed/stage3.json" \
     --fp16 True \
     --remove_unused_columns False;
-
-
