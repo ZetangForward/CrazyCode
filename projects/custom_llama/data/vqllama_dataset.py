@@ -238,15 +238,15 @@ class UnderstandingOfflineBasicDataset(Dataset):
             self.PROMPT_PREFIX, 
             return_tensors="pt",
         )
-        prompt_prefix_ids = prompt_prefix.input_ids[0]
-        prompt_prefix_attention_mask = prompt_prefix.attention_mask[0]
+        prompt_prefix_ids = prompt_prefix.input_ids[0][:-1]
+        prompt_prefix_attention_mask = prompt_prefix.attention_mask[0][:-1]
 
         prompt_suffix = self.tokenizer(
             self.PROMPT_SUFFIX,
             return_tensors="pt",
         )
-        prompt_suffix_ids = prompt_suffix.input_ids[0][1:]
-        prompt_suffix_attention_mask = prompt_suffix.attention_mask[0][1:]
+        prompt_suffix_ids = prompt_suffix.input_ids[0][1:-1]
+        prompt_suffix_attention_mask = prompt_suffix.attention_mask[0][1:-1]
         
         response = self.tokenizer(
             response,
@@ -255,8 +255,8 @@ class UnderstandingOfflineBasicDataset(Dataset):
             max_length=self.max_text_length,
             return_tensors="pt",
         )
-        response_ids = response.input_ids[0]
-        response_attention_mask = response.attention_mask[0]
+        response_ids = response.input_ids[0][1:]
+        response_attention_mask = response.attention_mask[0][1:]
         response_labels = torch.where(
             response_ids != self.tokenizer.pad_token_id, response_ids, -100
         )
