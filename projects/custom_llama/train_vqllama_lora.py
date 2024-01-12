@@ -102,13 +102,7 @@ class CustomTrainier(Trainer):
     #     return loss.detach() / self.args.gradient_accumulation_steps
         
     def compute_loss(self, model, inputs, return_outputs=False):
-        outputs = model(
-            text_input_ids=inputs['text_input_ids'],
-            text_attention_mask=inputs['text_attention_mask'],
-            text_labels=inputs['text_labels'],
-            svg_tensors=inputs['svg_tensors'],  # offline mode
-            svg_padding_mask=inputs['svg_padding_mask'],
-        )
+        outputs = model(**inputs)
         total_loss = outputs.pop("total_loss")
         for key in outputs:
             outputs[key] = outputs[key].item()
@@ -202,8 +196,6 @@ def train():
 
     )
     svgllama = get_peft_model(svgllama, config)
-    
-    import pdb; pdb.set_trace()
     
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
