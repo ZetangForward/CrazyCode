@@ -4,8 +4,10 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_llama/version_${VERSION}"
 mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 8 \
-    --num_nodes 1 \
-    --hostfile configs/machine/hostfile_v64_sxm4 \
+    --num_nodes 3 \
+    --master_addr worker-0 \
+    --master_port 6329 \
+    --hostfile configs/machine/hostfile_v24 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
