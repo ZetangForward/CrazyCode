@@ -1,7 +1,7 @@
 deepspeed --num_gpus 8 \
     --num_nodes 1 \
     layoutNUWA/train.py \
-    --model_name_or_path "/zecheng2/vqllama/baselines/layoutNUWA/checkpoint-350" \
+    --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --resume_from_checkpoint "/zecheng2/vqllama/baselines/layoutNUWA/checkpoint-350" \
     --data_path "/zecheng2/svg/icon-shop/meta_data" \
     --output_dir "/zecheng2/vqllama/baselines/layoutNUWA" \
