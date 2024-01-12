@@ -8,7 +8,8 @@ deepspeed --num_gpus 16 \
     --master_port 6329 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
-    --model_name_or_path "/zecheng2/model_hub/Llama-2-7b-hf" \
+    --model_name_or_path "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
+    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
@@ -16,8 +17,9 @@ deepspeed --num_gpus 16 \
     --per_device_train_batch_size 68 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
-    --evaluation_strategy "epoch" \
+    --evaluation_strategy "steps" \
     --save_strategy "steps" \
+    --load_best_model_at_end True \
     --save_steps 80 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
