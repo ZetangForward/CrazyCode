@@ -12,12 +12,10 @@ deepspeed --num_gpus 8 \
     --per_device_train_batch_size 24 \
     --per_device_eval_batch_size 24 \
     --gradient_accumulation_steps 1 \
-    --evaluation_strategy "steps" \
-    --eval_steps 80 \
+    --evaluation_strategy "epoch" \
     --greater_is_better False \
-    --save_strategy "steps" \
+    --save_strategy "epoch" \
     --load_best_model_at_end True \
-    --save_steps 80 \
     --metric_for_best_model "loss" \
     --save_total_limit 10 \
     --learning_rate 3e-6 \
