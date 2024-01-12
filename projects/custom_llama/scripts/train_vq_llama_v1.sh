@@ -20,7 +20,7 @@ deepspeed --num_gpus 8 \
     --evaluation_strategy "steps" \
     --save_strategy "steps" \
     --load_best_model_at_end True \
-    --save_steps 80 \
+    --save_steps 40 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
