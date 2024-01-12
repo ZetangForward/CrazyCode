@@ -133,9 +133,9 @@ def train():
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     llamaconfig.frozen_llm = False
-    llamaconfig.max_text_length = 64
+    llamaconfig.max_text_length = 256
     llamaconfig.min_path_nums = 4
-    llamaconfig.max_path_nums = 512
+    llamaconfig.max_path_nums = 1024
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,

@@ -3,6 +3,7 @@ import sys
 import json
 import re 
 import random
+from typing import Any
 import torch  
 import torch.nn as nn 
 from transformers import PreTrainedTokenizer, LlamaConfig, LlamaForCausalLM  
@@ -166,13 +167,6 @@ class OfflineBasicDataset(Dataset):
         self.max_path_nums = max_path_nums
         self.content = content
 
-    def custom_command(self, svg_tensor):
-        col1 = svg_tensor[:, 0]
-        col1[col1 == 1] = 100
-        col1[col1 == 2] = 200
-        svg_tensor[:, 0] = col1
-        return svg_tensor
-
     def __len__(self):
         return len(self.content)
 
@@ -213,6 +207,118 @@ class OfflineBasicDataset(Dataset):
         }
 
 
+class UnderstandingOfflineBasicDataset(Dataset):
+    """
+    obtrain the data offline
+    
+    """
+    PROMPT_PREFIX = "Please generate few keywords to describe the following SVG:"
+    PROMPT_SUFFIX = "#begin:"
+    RESPONSE_TEMPLATE = "Here are some keywords: {keywords}"
+
+    def __init__(self, content, tokenizer, mode="train", max_svg_len=1024, max_text_length=64, svg_pad_token_id=0) -> None:
+        super().__init__()
+
+        self.tokenizer = tokenizer
+        self.mode = mode
+        self.max_text_length = max_text_length
+        self.max_svg_len = max_svg_len
+        self.content = content
+        self.svg_pad_token_id = svg_pad_token_id
+
+    def __len__(self):
+        return len(self.content)
+
+    def __getitem__(self, idx):
+        item = self.content[idx]
+        keywords, sample = item['keys'], item['zs']
+        response = self.RESPONSE_TEMPLATE.format(keywords=', '.join(keywords))
+
+        prompt_prefix = self.tokenizer(
+            self.PROMPT_PREFIX, 
+            return_tensors="pt",
+        )
+        prompt_prefix_ids = prompt_prefix.input_ids[0]
+        prompt_prefix_attention_mask = prompt_prefix.attention_mask[0]
+
+        prompt_suffix = self.tokenizer(
+            self.PROMPT_SUFFIX,
+            return_tensors="pt",
+        )
+        prompt_suffix_ids = prompt_suffix.input_ids[0]
+        prompt_suffix_attention_mask = prompt_suffix.attention_mask[0]
+        
+        response = self.tokenizer(
+            response,
+            padding="max_length", 
+            truncation=True, 
+            max_length=self.max_text_length,
+            return_tensors="pt",
+        )
+        response_ids = response.input_ids[0]
+        response_attention_mask = response.attention_mask[0]
+        response_labels = torch.where(
+            response_ids != self.tokenizer.pad_token_id, response_ids, -100
+        )
+
+        sample = sample[:self.max_svg_len]  # prevent too long num path
+        sample = pad_tensor(sample, self.max_svg_len, 0, self.svg_pad_token_id)
+        
+        # create svg_id attention mask
+        svg_attention_mask = (sample != self.svg_pad_token_id)
+
+        return {
+            "prompt_prefix_ids": prompt_prefix_ids,
+            "prompt_prefix_attention_mask": prompt_prefix_attention_mask,
+            "prompt_suffix_ids": prompt_suffix_ids,
+            "prompt_suffix_attention_mask": prompt_suffix_attention_mask,
+            "response_ids": response_ids,
+            "response_attention_mask": response_attention_mask,
+            "response_labels": response_labels,
+            "svg_tensors": sample.long(),
+            "svg_attention_mask": svg_attention_mask,
+        }
+
+
+class UnderstandingDataCollator:
+
+    def __call__(self, batch):
+        """
+        args:
+            batch - list of (tensor, label)
+        """
+        prompt_prefix_ids = [x['prompt_prefix_ids'] for x in batch]
+        prompt_prefix_attention_mask = [x['prompt_prefix_attention_mask'] for x in batch]
+        prompt_suffix_ids = [x['prompt_suffix_ids'] for x in batch]
+        prompt_suffix_attention_mask = [x['prompt_suffix_attention_mask'] for x in batch]
+        response_ids = [x['response_ids'] for x in batch]
+        response_attention_mask = [x['response_attention_mask'] for x in batch]
+        response_labels = [x['response_labels'] for x in batch]
+        svg_tensors = [x['svg_tensors'] for x in batch]
+        svg_attention_mask = [x['svg_attention_mask'] for x in batch]
+        
+        # pad according to max_len
+        svg_tensors = torch.stack(svg_tensors, dim=0).long()
+        prompt_prefix_ids = torch.stack(prompt_prefix_ids, dim=0)
+        prompt_prefix_attention_mask = torch.stack(prompt_prefix_attention_mask, dim=0)
+        prompt_suffix_ids = torch.stack(prompt_suffix_ids, dim=0)
+        prompt_suffix_attention_mask = torch.stack(prompt_suffix_attention_mask, dim=0)
+        response_ids = torch.stack(response_ids, dim=0)
+        response_attention_mask = torch.stack(response_attention_mask, dim=0)
+        response_labels = torch.stack(response_labels, dim=0)
+        svg_attention_mask = torch.stack(svg_attention_mask, dim=0)
+
+        return {
+            "prompt_prefix_ids": prompt_prefix_ids,
+            "prompt_prefix_attention_mask": prompt_prefix_attention_mask,
+            "prompt_suffix_ids": prompt_suffix_ids,
+            "prompt_suffix_attention_mask": prompt_suffix_attention_mask,
+            "response_ids": response_ids,
+            "response_attention_mask": response_attention_mask,
+            "response_labels": response_labels,
+            "svg_tensors": svg_tensors, 
+            "svg_attention_mask": svg_attention_mask,
+        }
 
 
 class VQDataCollator:
@@ -275,9 +381,10 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train"):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation"):  
         self.cfg = config
         self.tokenizer = tokenizer
+        self.task = task
         content = None
         if mode == "test":
             content = auto_read_data(vq_svg_file)
@@ -311,6 +418,14 @@ class VQLLaMAData:
                 max_text_length=self.cfg.max_text_length,
                 mode="train",
             )
+        elif self.task == "understanding":
+            return UnderstandingOfflineBasicDataset(
+                content=self.train_data,
+                tokenizer=self.tokenizer,
+                max_svg_len=self.cfg.max_path_nums,
+                max_text_length=self.cfg.max_text_length,
+                svg_pad_token_id=0,
+            )
         else:
             return BasicDataset(
                 content=self.train_data,
@@ -334,6 +449,14 @@ class VQLLaMAData:
                 svg_begin_token = self.svg_begin_token,
                 max_text_length=self.cfg.max_text_length,
                 mode="valid",
+            )
+        elif self.task == "understanding":
+            return UnderstandingOfflineBasicDataset(
+                content=self.valid_data,
+                tokenizer=self.tokenizer,
+                max_svg_len=self.cfg.max_path_nums,
+                max_text_length=self.cfg.max_text_length,
+                svg_pad_token_id=0,
             )
         else:
             return BasicDataset(
