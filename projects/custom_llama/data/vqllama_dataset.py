@@ -265,8 +265,9 @@ class UnderstandingOfflineBasicDataset(Dataset):
         sample = pad_tensor(sample, self.max_svg_len, 0, self.svg_pad_token_id)
         
         # create svg_id attention mask
-        svg_attention_mask = (sample != self.svg_pad_token_id)
-
+        svg_attention_mask = (sample != self.svg_pad_token_id).to(response_attention_mask.dtype)
+        import pdb; pdb.set_trace()
+        
         return {
             "prompt_prefix_ids": prompt_prefix_ids,
             "prompt_prefix_attention_mask": prompt_prefix_attention_mask,

@@ -4,8 +4,8 @@ import transformers
 from dataclasses import dataclass, field
 from transformers import Trainer
 from modelzipper.tutils import *
-from models.vqllama import VQSVGLlama
-from data.vqllama_dataset import VQDataCollator, VQLLaMAData
+from models.vqllama_understanding import VQSVGLlamaUnderstanding
+from data.vqllama_dataset import UnderstandingDataCollator, VQLLaMAData
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -87,35 +87,10 @@ class CustomTrainier(Trainer):
             **kwargs,
         )
         
-    # def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]):
-    #     if self.model.vqvae.model.training: # deepspeed will make vqvae training again
-    #         self.model.vqvae.model.eval()
-    #         self.model.vqvae.model.requires_grad_ = False
-        
-    #     inputs = self._prepare_inputs(inputs)
-    #     with self.compute_loss_context_manager():
-    #         loss = self.compute_loss(model, inputs)
-    #     if self.args.n_gpu > 1:
-    #         loss = loss.mean()  # mean() to average on multi-gpu parallel training
-    #     self.accelerator.backward(loss)
-    #     return loss.detach() / self.args.gradient_accumulation_steps
-        
     def compute_loss(self, model, inputs, return_outputs=False):
-        outputs = model(**inputs)
-        loss = None
+        loss = model(**inputs)
+        return loss
         
-        if self.model.training:
-            loss = outputs.pop("train_loss")
-        else:
-            loss = outputs.pop("eval_loss")
-            
-        for key in outputs:
-            outputs[key] = outputs[key].item()
-            
-        self.log(outputs)  # log other metrics
-        
-        return (loss, outputs) if return_outputs else loss 
-
 
 class PluginVQVAE(nn.Module):
     def __init__(self, model):
@@ -126,9 +101,6 @@ class PluginVQVAE(nn.Module):
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, VQVAEConfig))
     model_args, data_args, training_args, vqvae_args = parser.parse_args_into_dataclasses()
-    
-    # parsing vqvae_config:
-    vqvae_config = load_yaml_config(vqvae_args.config_path)
 
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
@@ -150,25 +122,21 @@ def train():
         data_args.data_path, 
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         tokenizer=llama_tokenizer, 
-        offline_mode=True
+        offline_mode=True,
+        task="understanding",
     )
 
-    data_collator = VQDataCollator(
-        max_svg_length=llamaconfig.max_path_nums,
-        offline_mode=True,
-        return_all_token_mask=True, # for offline setting
-    )
-    
+    data_collator = UnderstandingDataCollator()
+
     data_module = dict(
         train_dataset=svg_data_module.train_dataset, 
         eval_dataset=svg_data_module.valid_dataset, 
         data_collator=data_collator
     )
 
-    svgllama = VQSVGLlama.from_pretrained(
+    svgllama = VQSVGLlamaUnderstanding.from_pretrained(
         model_args.model_name_or_path, 
         config=llamaconfig, 
-        codebook_size=vqvae_config.vqvae.l_bins,
         cache_dir=training_args.cache_dir
     )
 
@@ -178,54 +146,17 @@ def train():
             "eos_token": DEFAULT_EOS_TOKEN,
             "bos_token": DEFAULT_BOS_TOKEN,
             "pad_token": DEFAULT_PAD_TOKEN,
-            "additional_special_tokens": [DEFAULT_SVG_BEGIN_TOKEN],
         }
         smart_tokenizer_and_embedding_resize(
             added_tokens, llama_tokenizer, svgllama
         )
 
-    svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
-    svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
 
-    ## init VQVAE
-    # block_kwargs = dict(
-    #     width=vqvae_config.vqvae_conv_block.width, 
-    #     depth=vqvae_config.vqvae_conv_block.depth, 
-    #     m_conv=vqvae_config.vqvae_conv_block.m_conv,
-    #     dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
-    #     dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
-    #     reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    # )
-    ## offline inference version
-    # vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    # plugin_vqvae = PluginVQVAE(vqvae)
-    # checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
-    # plugin_vqvae.load_state_dict(checkpoint['state_dict'])
-    # print_c("VQVAE loaded!", "green")
-    # svgllama.init_vqvae(plugin_vqvae)
-    
-    # count_parameters(svgllama)
 
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
-
-    # # init optimizer
-    # if svgllama.model_parallel:
-    #     all_params = [param for module in svgllama.modules() for param in module.parameters()]
-    # else:
-    #     all_params = svgllama.parameters()
-    
-    # trainable_params = [p for p in all_params if p.requires_grad]
-    # optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
-
-    # # init lr scheduler
-    # lr_scheduler = transformers.get_linear_schedule_with_warmup(
-    #     optimizer,
-    #     num_warmup_steps=training_args.warmup_steps,
-    #     num_training_steps=training_args.max_steps,
-    # )
 
     trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
     

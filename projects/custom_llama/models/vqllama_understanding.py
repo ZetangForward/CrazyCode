@@ -12,15 +12,11 @@ from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 
 
-class VQSVGLlamaUnderStanding(LlamaForCausalLM):  
-    def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_begin_token_id=None, vqvae=None, codebook_size=8192):  
-        super(VQSVGLlamaUnderStanding, self).__init__(config)
+class VQSVGLlamaUnderstanding(LlamaForCausalLM):  
+    def __init__(self, config, convert_token_weight=1.5, tokenizer=None, vqvae=None):  
+        super(VQSVGLlamaUnderstanding, self).__init__(config)
         self.tokenizer = tokenizer
-        self.svg_begin_token_id = svg_begin_token_id
-        self.vq_loss_weight = vq_loss_weight
         self.convert_token_weight = convert_token_weight
-        self.codebook_size = codebook_size + 1  # add one for svg end token
-        self.svg_end_token_id = codebook_size
         self.vqvae = vqvae
         self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
         self.vqvae_adapter = nn.Linear(config.hidden_size, config.hidden_size)
@@ -38,16 +34,13 @@ class VQSVGLlamaUnderStanding(LlamaForCausalLM):
         for param in self.vqvae.model.parameters():
             param.requires_grad = False
 
-    def add_svg_begin_token_id(self, svg_begin_token_id):
-        self.svg_begin_token_id = svg_begin_token_id
-
     def set_tokenizer(self, tokenizer):
         self.tokenizer = tokenizer
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
         
-    def forward(self, text_input_ids=None, text_attention_mask=None, response_ids=None, response_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
+    def forward(self, prompt_prefix_ids=None, prompt_prefix_attention_mask=None, prompt_suffix_ids=None, prompt_suffix_attention_mask=None, response_ids=None, response_attention_mask=None, response_labels=None, svg_tensors=None, svg_attention_mask=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
@@ -59,19 +52,18 @@ class VQSVGLlamaUnderStanding(LlamaForCausalLM):
         """
         # embedding text
         text_embedding_module = self.base_model.get_input_embeddings()
-        input_embeddings = text_embedding_module(text_input_ids)
+        prefix_embeddings = text_embedding_module(prompt_prefix_ids)
+        suffix_embeddings = text_embedding_module(prompt_suffix_ids)
         responese_embeddings = text_embedding_module(response_ids)
         
         svg_token_ids = svg_tensors
 
-        svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
-        svg_token_embeddings = self.vqvae_adapter(svg_token_embeddings) # Adapter svg tokens
+        svg_token_embeddings = self.vqvae_embedding(svg_token_ids)
+        svg_token_embeddings = self.vqvae_adapter(svg_token_embeddings) 
 
-        input_embeddings = torch.cat([input_embeddings, svg_token_embeddings, responese_embeddings], dim=1) # concate the text embedding and svg token embedding
-        svg_padding_mask = svg_padding_mask.to(text_attention_mask.dtype)  # prevent the type error
-        attention_masks = torch.cat([text_attention_mask, svg_padding_mask, response_attention_mask], dim=1) # concate the text attention mask and svg padding mask 
-
-        response_width = response_ids.size(1)
+        input_embeddings = torch.cat([prefix_embeddings, svg_token_embeddings, suffix_embeddings, responese_embeddings], dim=1) # concate the text embedding and svg token embedding
+        
+        attention_masks = torch.cat([prompt_prefix_attention_mask, svg_attention_mask, prompt_suffix_attention_mask, response_attention_mask], dim=1) # concate the text attention mask and svg padding mask 
 
         outputs = self.model(
             input_ids=None, 
@@ -80,13 +72,13 @@ class VQSVGLlamaUnderStanding(LlamaForCausalLM):
         )
         hidden_states = outputs[0]
 
-        # text modality, last token is svg special token
+        response_width = response_ids.size(1)
         text_logits = self.lm_head(hidden_states[:, -response_width:, :]).float()
         loss = None
-        if text_labels is not None:
+        if response_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
-            shift_labels = text_labels[..., 1:].contiguous() # last token is convert_token
+            shift_labels = response_labels[..., 1:].contiguous() # last token is convert_token
             # Flatten the tokens
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
