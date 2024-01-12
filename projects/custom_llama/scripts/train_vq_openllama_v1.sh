@@ -5,7 +5,7 @@ mkdir -p ${OUTPUT_DIR}
 deepspeed --num_gpus 4 \
     --num_nodes 16 \
     --master_addr worker-0 \
-    --master_port 6429 \
+    --master_port 6529 \
     --hostfile configs/machine/hostfile_v64 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_openllama/version_1/checkpoint-700" \
@@ -28,7 +28,7 @@ deepspeed --num_gpus 4 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
     --logging_steps 10 \
-    --dataloader_num_workers 32 \
+    --dataloader_num_workers 16 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \

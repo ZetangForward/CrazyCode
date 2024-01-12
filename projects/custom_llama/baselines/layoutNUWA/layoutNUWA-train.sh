@@ -10,16 +10,18 @@ deepspeed --num_gpus 8 \
     --per_device_train_batch_size 18 \
     --per_device_eval_batch_size 18 \
     --gradient_accumulation_steps 1 \
-    --evaluation_strategy "epoch" \
+    --evaluation_strategy "steps" \
     --greater_is_better False \
-    --save_strategy "epoch" \
+    --save_strategy "steps" \
+    --eval_steps 80 \
+    --save_steps 80 \
     --load_best_model_at_end True \
     --metric_for_best_model "loss" \
     --save_total_limit 5 \
     --learning_rate 3e-6 \
     --warmup_steps 20 \
     --logging_steps 10 \
-    --dataloader_num_workers 20 \
+    --dataloader_num_workers 16 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
