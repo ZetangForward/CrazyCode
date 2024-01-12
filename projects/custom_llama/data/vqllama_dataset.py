@@ -144,7 +144,7 @@ class BasicDataset(Dataset):
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
-            "svg_path": sample.long(),
+            "svg_tensors": sample.long(),
         }
 
 
@@ -209,7 +209,7 @@ class OfflineBasicDataset(Dataset):
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
-            "svg_path": sample.long(),
+            "svg_tensors": sample.long(),
         }
 
 
@@ -236,7 +236,7 @@ class VQDataCollator:
         text_input_ids = [x['text_input_ids'] for x in batch]
         text_attention_mask = [x['text_attention_mask'] for x in batch]
         text_labels = [x['text_labels'] for x in batch]
-        svg_tensors = [x['svg_path'] for x in batch]
+        svg_tensors = [x['svg_tensors'] for x in batch]
         
         if self.cluster_batch:
             # find longest sequence
@@ -267,7 +267,7 @@ class VQDataCollator:
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
-            "svg_path": svg_tensors, 
+            "svg_tensors": svg_tensors, 
             "svg_padding_mask": svg_padding_mask,
         }
 

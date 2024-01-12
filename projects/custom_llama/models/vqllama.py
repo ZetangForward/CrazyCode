@@ -52,7 +52,7 @@ class VQSVGLlama(LlamaForCausalLM):
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
-            svg_tensors: B x L x l_bins,
+            svg_tensors: B x L (x l_bins),  depend on offline or online mode
             svg_padding_mask: B x L,
         """
         bsz = text_input_ids.size(0)
@@ -91,7 +91,6 @@ class VQSVGLlama(LlamaForCausalLM):
             input_ids=None, 
             attention_mask=attention_masks,
             inputs_embeds=input_embeddings, 
-            **kwargs
         )
         hidden_states = outputs[0]
 

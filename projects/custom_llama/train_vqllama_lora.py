@@ -106,7 +106,7 @@ class CustomTrainier(Trainer):
             text_input_ids=inputs['text_input_ids'],
             text_attention_mask=inputs['text_attention_mask'],
             text_labels=inputs['text_labels'],
-            svg_tensors=inputs['svg_path'],  # offline mode
+            svg_tensors=inputs['svg_tensors'],  # offline mode
             svg_padding_mask=inputs['svg_padding_mask'],
         )
         total_loss = outputs.pop("total_loss")
@@ -203,6 +203,8 @@ def train():
     )
     svgllama = get_peft_model(svgllama, config)
     
+    import pdb; pdb.set_trace()
+    
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
@@ -224,7 +226,7 @@ def train():
     # )
 
     trainer = CustomTrainier(model=svgllama, tokenizer=llama_tokenizer, args=training_args, **data_module)
-    
+    trainer.model.print_trainable_parameters()
     svgllama.config.use_cache = False
 
     trainer.train()

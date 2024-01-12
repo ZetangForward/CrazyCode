@@ -16,6 +16,8 @@ deepspeed --num_gpus 1 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
+    --eval_steps 5 \
+    --greater_is_better False \
     --save_strategy "steps" \
     --load_best_model_at_end True \
     --save_steps 5 \
@@ -26,8 +28,7 @@ deepspeed --num_gpus 1 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
-    --gradient_checkpointing True \
-    --deepspeed configs/deepspeed/stage3.json \
+    --deepspeed configs/deepspeed/stage2.json \
     --fp16 True \
     --remove_unused_columns False \
     --config_path "configs/deepspeed/vqvae_config.yaml";
