@@ -140,7 +140,6 @@ def train():
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
     llamaconfig.frozen_llm = False
     llamaconfig.max_text_length = 64
-    llamaconfig.svg_token_dims = 4096
     llamaconfig.min_path_nums = 4
     llamaconfig.max_path_nums = 512
     
@@ -161,7 +160,6 @@ def train():
     )
 
     data_collator = VQDataCollator(
-        svg_pad_token_h=llamaconfig.svg_token_dims, 
         max_svg_length=llamaconfig.max_path_nums,
         offline_mode=True,
         return_all_token_mask=True, # for offline setting

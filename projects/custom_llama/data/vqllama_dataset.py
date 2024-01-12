@@ -220,9 +220,8 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, svg_pad_token_h, max_svg_length=1024, pad_token_id=0, cluster_batch=False, return_all_token_mask=False, offline_mode=True):
+    def __init__(self, max_svg_length=1024, pad_token_id=0, cluster_batch=False, return_all_token_mask=False, offline_mode=True):
         self.max_svg_length = max_svg_length
-        self.svg_pad_token_h = svg_pad_token_h
         self.pad_token_id = pad_token_id
         self.cluster_batch = cluster_batch
         self.return_all_token_mask = return_all_token_mask
