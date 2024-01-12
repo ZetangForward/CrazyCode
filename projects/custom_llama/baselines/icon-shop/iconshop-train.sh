@@ -17,10 +17,10 @@ deepspeed --num_gpus 8 \
     --save_strategy "epoch" \
     --load_best_model_at_end True \
     --metric_for_best_model "loss" \
-    --save_total_limit 10 \
+    --save_total_limit 5 \
     --learning_rate 3e-6 \
     --warmup_steps 20 \
-    --logging_steps 1 \
+    --logging_steps 10 \
     --dataloader_num_workers 20 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
