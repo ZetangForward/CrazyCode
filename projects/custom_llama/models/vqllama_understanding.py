@@ -47,31 +47,32 @@ class VQSVGLlamaUnderStanding(LlamaForCausalLM):
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
         
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, response_ids=None, response_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
             text_labels: B x L,
             svg_tensors: B x L (x l_bins),  depend on offline or online mode
             svg_padding_mask: B x L,
+            response_ids: B x L,
+            response_attention_mask: B x L,
         """
-        bsz = text_input_ids.size(0)
         # embedding text
-        text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(text_input_ids)
-        output_embeddings = text_embedding_module(response)
+        responese_embeddings = text_embedding_module(response_ids)
         
         svg_token_ids = svg_tensors
 
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
         svg_token_embeddings = self.vqvae_adapter(svg_token_embeddings) # Adapter svg tokens
 
-        
-        input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
+        input_embeddings = torch.cat([input_embeddings, svg_token_embeddings, responese_embeddings], dim=1) # concate the text embedding and svg token embedding
         svg_padding_mask = svg_padding_mask.to(text_attention_mask.dtype)  # prevent the type error
-        attention_masks = torch.cat([text_attention_mask, svg_padding_mask], dim=1) # concate the text attention mask and svg padding mask 
-        
+        attention_masks = torch.cat([text_attention_mask, svg_padding_mask, response_attention_mask], dim=1) # concate the text attention mask and svg padding mask 
+
+        response_width = response_ids.size(1)
+
         outputs = self.model(
             input_ids=None, 
             attention_mask=attention_masks,
@@ -80,12 +81,8 @@ class VQSVGLlamaUnderStanding(LlamaForCausalLM):
         hidden_states = outputs[0]
 
         # text modality, last token is svg special token
-        text_logits = self.lm_head(hidden_states[:, :text_width, :]).float()
-        # svg modality, first token is svg special token, last token should be svg end token
-        svg_pred = self.vqvae_head(hidden_states[:, text_width:, :]).float() 
-        
-        total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
-
+        text_logits = self.lm_head(hidden_states[:, -response_width:, :]).float()
+        loss = None
         if text_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
@@ -95,48 +92,9 @@ class VQSVGLlamaUnderStanding(LlamaForCausalLM):
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
-            text_loss = F.cross_entropy(shift_logits, shift_labels)
+            loss = F.cross_entropy(shift_logits, shift_labels)
 
-        if golden_svg_tokens is not None:
-            # Shift so that tokens < n predict n
-            shift_svg_logits = svg_pred[:, :-1, :].contiguous()
-            shift_golden_svg_tokens = golden_svg_tokens[:, 1:].contiguous()
-            shift_svg_logits = shift_svg_logits.view(-1, self.codebook_size)
-            shift_golden_svg_tokens = shift_golden_svg_tokens.view(-1)
-            svg_loss = F.cross_entropy(shift_svg_logits, shift_golden_svg_tokens)
-
-        if text_labels is not None and golden_svg_tokens is not None:  # convert token loss is be significant as vocabularies are different
-            bsz, _, dim_ = svg_pred.size()
-            # obtain the last text token logits
-            real_text_lengths = text_attention_mask.sum(dim=1)  
-            first_svg_token_logits = torch.zeros(bsz, 1, dim_).to(text_logits.device)
-            
-            for i in range(bsz):  # convert the last text token (<svg>) to the first svg token
-                first_svg_token_logits[i] = self.vqvae_head(hidden_states[i, real_text_lengths[i] - 1][None, ])
-
-            # calculate CE Loss for last text token -> first svg token
-            convert_token_loss = F.cross_entropy(
-                first_svg_token_logits.contiguous().view(-1, self.codebook_size), 
-                golden_svg_tokens[:, 0].contiguous().view(-1), 
-                reduction="mean",
-            )
-            
-        if text_loss is not None and svg_loss is not None:  
-            total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
-
-        metrics = dict(
-            text_loss=text_loss, 
-            svg_loss=svg_loss, 
-            convert_token_loss=convert_token_loss,
-        )
-        
-        if not self.training:
-            metrics['eval_loss'] = total_loss
-        else:
-            metrics['train_loss'] = total_loss
-        
-
-        return metrics
+        return loss
     
     @torch.no_grad()
     def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.LongTensor]:
