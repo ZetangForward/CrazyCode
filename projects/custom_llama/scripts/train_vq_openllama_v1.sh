@@ -2,11 +2,11 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/version_1"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 4 \
-    --num_nodes 16 \
+deepspeed --num_gpus 16 \
+    --num_nodes 4 \
     --master_addr worker-0 \
     --master_port 6529 \
-    --hostfile configs/machine/hostfile_v64 \
+    --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_openllama/version_1/checkpoint-700" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_openllama/version_1/checkpoint-700" \
@@ -14,7 +14,7 @@ deepspeed --num_gpus 4 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 72 \
+    --per_device_train_batch_size 84 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
