@@ -266,7 +266,6 @@ class UnderstandingOfflineBasicDataset(Dataset):
         
         # create svg_id attention mask
         svg_attention_mask = (sample != self.svg_pad_token_id).to(response_attention_mask.dtype)
-        import pdb; pdb.set_trace()
 
         return {
             "prompt_prefix_ids": prompt_prefix_ids,
