@@ -1,5 +1,8 @@
-deepspeed --num_gpus 8 \
-    --num_nodes 1 \
+deepspeed --num_gpus 4 \
+    --num_nodes 16 \
+    --master_addr worker-0 \
+    --master_port 6329 \
+    --hostfile configs/machine/hostfile_v64 \
     layoutNUWA/train.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --resume_from_checkpoint "/zecheng2/vqllama/baselines/layoutNUWA/checkpoint-350" \
