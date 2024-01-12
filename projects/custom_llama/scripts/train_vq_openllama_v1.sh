@@ -13,7 +13,7 @@ deepspeed --num_gpus 4 \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
-    --model_max_length 1500 \
+    --model_max_length 1024 \
     --per_device_train_batch_size 72 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
