@@ -9,8 +9,8 @@ deepspeed --num_gpus 8 \
     --output_dir "/zecheng2/vqllama/baselines/iconshop" \
     --num_train_epochs 60 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 24 \
-    --per_device_eval_batch_size 24 \
+    --per_device_train_batch_size 30 \
+    --per_device_eval_batch_size 30 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --greater_is_better False \
