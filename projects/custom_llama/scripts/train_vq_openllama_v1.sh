@@ -22,8 +22,8 @@ deepspeed --num_gpus 4 \
     --save_strategy "steps" \
     --load_best_model_at_end True \
     --metric_for_best_model "loss" \
-    --eval_steps 80 \
-    --save_steps 80 \
+    --eval_steps 100 \
+    --save_steps 100 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
