@@ -13,11 +13,12 @@ from modelzipper.tutils import *
 
 
 class VQSVGLlamaUnderstanding(LlamaForCausalLM):  
-    def __init__(self, config, convert_token_weight=1.5, tokenizer=None, vqvae=None):  
+    def __init__(self, config, codebook_size, convert_token_weight=1.5, tokenizer=None, vqvae=None):  
         super(VQSVGLlamaUnderstanding, self).__init__(config)
         self.tokenizer = tokenizer
         self.convert_token_weight = convert_token_weight
         self.vqvae = vqvae
+        self.codebook_size = codebook_size
         self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
         self.vqvae_adapter = nn.Linear(config.hidden_size, config.hidden_size)
 

@@ -137,7 +137,8 @@ def train():
     svgllama = VQSVGLlamaUnderstanding.from_pretrained(
         model_args.model_name_or_path, 
         config=llamaconfig, 
-        cache_dir=training_args.cache_dir
+        cache_dir=training_args.cache_dir,
+        codebook_size=8192,
     )
 
     if "llama" in model_args.model_name_or_path.lower():
