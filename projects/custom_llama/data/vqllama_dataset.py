@@ -267,7 +267,7 @@ class UnderstandingOfflineBasicDataset(Dataset):
         # create svg_id attention mask
         svg_attention_mask = (sample != self.svg_pad_token_id).to(response_attention_mask.dtype)
         import pdb; pdb.set_trace()
-        
+
         return {
             "prompt_prefix_ids": prompt_prefix_ids,
             "prompt_prefix_attention_mask": prompt_prefix_attention_mask,
@@ -409,7 +409,7 @@ class VQLLaMAData:
 
     @property
     def train_dataset(self) -> Dataset:
-        if self.offline_mode:
+        if self.offline_mode and self.task == "generation":
             return OfflineBasicDataset(
                 content=self.train_data,
                 min_path_nums=self.cfg.min_path_nums,
@@ -419,7 +419,7 @@ class VQLLaMAData:
                 max_text_length=self.cfg.max_text_length,
                 mode="train",
             )
-        elif self.task == "understanding":
+        elif self.offline_mode and self.task == "understanding":
             return UnderstandingOfflineBasicDataset(
                 content=self.train_data,
                 tokenizer=self.tokenizer,
@@ -441,7 +441,7 @@ class VQLLaMAData:
 
     @property
     def valid_dataset(self) -> Dataset:
-        if self.offline_mode:
+        if self.offline_mode and self.task == "generation":
             return OfflineBasicDataset(
                 content=self.valid_data,
                 min_path_nums=self.cfg.min_path_nums,
@@ -451,7 +451,7 @@ class VQLLaMAData:
                 max_text_length=self.cfg.max_text_length,
                 mode="valid",
             )
-        elif self.task == "understanding":
+        elif self.offline_mode and self.task == "understanding":
             return UnderstandingOfflineBasicDataset(
                 content=self.valid_data,
                 tokenizer=self.tokenizer,
