@@ -147,14 +147,7 @@ class VQSVGLlama(LlamaForCausalLM):
             convert_token_loss=convert_token_loss,
         )
 
-        if self.training:
-            return metrics
-        
-        return {
-            "logits": text_logits,
-            "hidden_states": outputs.hidden_states,
-            "attentions": outputs.attentions,
-        }
+        return metrics
     
     @torch.no_grad()
     def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.LongTensor]:
