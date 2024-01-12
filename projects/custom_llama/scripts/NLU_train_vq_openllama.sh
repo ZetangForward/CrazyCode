@@ -2,7 +2,7 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/understanding"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 1 \
+deepspeed --num_gpus 8 \
     --num_nodes 1 \
     train_vqllama_understanding.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
@@ -10,7 +10,7 @@ deepspeed --num_gpus 1 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 60 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 72 \
+    --per_device_train_batch_size 48 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
