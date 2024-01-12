@@ -101,13 +101,7 @@ class CustomTrainier(Trainer):
     #     return loss.detach() / self.args.gradient_accumulation_steps
         
     def compute_loss(self, model, inputs, return_outputs=False):
-        outputs = model(
-            text_input_ids=inputs['text_input_ids'],
-            text_attention_mask=inputs['text_attention_mask'],
-            text_labels=inputs['text_labels'],
-            svg_tensors=inputs['svg_path'],  # offline mode
-            svg_padding_mask=inputs['svg_padding_mask'],
-        )
+        outputs = model(**inputs)
         loss = None
         
         if self.model.training:
