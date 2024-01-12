@@ -21,13 +21,14 @@ deepspeed --num_gpus 8 \
     --eval_steps 80 \
     --greater_is_better False \
     --save_strategy "steps" \
+    --metric_for_best_model "loss" \
     --load_best_model_at_end True \
     --save_steps 80 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
     --logging_steps 5 \
-    --dataloader_num_workers 32 \
+    --dataloader_num_workers 20 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \

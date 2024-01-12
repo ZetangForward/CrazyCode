@@ -1,6 +1,6 @@
 import sys
 sys.path.append("/workspace/zecheng/modelzipper/projects/custom_llama/baselines")
-from custom_dataset import *
+from custom_dataset import IconshopDataset
 import copy
 import random
 from dataclasses import dataclass, field
@@ -183,6 +183,7 @@ class CustomTrainier(Trainer):
         )
         
         loss = outputs.loss
+
         return (loss, outputs) if return_outputs else loss 
 
               
@@ -210,11 +211,11 @@ def train():
         )
     tokenizer.pad_token_id = tokenizer.unk_token_id
 
-    train_file = os.path.join(data_args.data_path, "offline_750_train_v2.jsonl")
-    val_file = os.path.join(data_args.data_path, "offline_750_valid_v2.jsonl")
+    train_file = os.path.join(data_args.data_path, "offline_500_train.jsonl")
+    val_file = os.path.join(data_args.data_path, "offline_500_valid.jsonl")
     
-    train_dataset = OfflineDataset(training_args, train_file, tokenizer)
-    val_dataset = OfflineDataset(training_args, val_file, tokenizer)
+    train_dataset = IconshopDataset(training_args, train_file, tokenizer)
+    val_dataset = IconshopDataset(training_args, val_file, tokenizer)
 
     if training_args.local_rank == 0:
         print(len(train_dataset))
