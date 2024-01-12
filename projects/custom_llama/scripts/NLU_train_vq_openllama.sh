@@ -10,7 +10,7 @@ deepspeed --num_gpus 8 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 60 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 48 \
+    --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
@@ -23,7 +23,7 @@ deepspeed --num_gpus 8 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
-    --logging_steps 10 \
+    --logging_steps 1 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
