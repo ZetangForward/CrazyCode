@@ -3,10 +3,13 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/understanding"
 mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 8 \
-    --num_nodes 1 \
+    --num_nodes 3 \
+    --master_addr worker-0 \
+    --master_port 6329 \
+    --hostfile configs/machine/hostfile_v24 \
     train_vqllama_understanding.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
-    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_7.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 60 \
     --model_max_length 1500 \
