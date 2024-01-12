@@ -1,7 +1,7 @@
 deepspeed --num_gpus 8 \
     --num_nodes 3 \
     --master_addr worker-0 \
-    --master_port 6429 \
+    --master_port 6229 \
     --hostfile "/workspace/zecheng/modelzipper/projects/custom_llama/configs/machine/hostfile_v24" \
     icon-shop/train.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
