@@ -1,9 +1,9 @@
-VERSION=1
+VERSION=2
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_llama/version_${VERSION}"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 8 \
+deepspeed --num_gpus 1 \
     --num_nodes 1 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
@@ -23,7 +23,7 @@ deepspeed --num_gpus 8 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
     --logging_steps 5 \
-    --dataloader_num_workers 32 \
+    --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \

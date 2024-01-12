@@ -141,11 +141,16 @@ class VQSVGLlama(LlamaForCausalLM):
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
 
         metrics = dict(
-            total_loss=total_loss, 
             text_loss=text_loss, 
             svg_loss=svg_loss, 
             convert_token_loss=convert_token_loss,
         )
+        
+        if not self.training:
+            metrics['eval_loss'] = total_loss
+        else:
+            metrics['train_loss'] = total_loss
+        
 
         return metrics
     

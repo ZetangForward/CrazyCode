@@ -18,6 +18,8 @@ deepspeed --num_gpus 8 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
+    --eval_steps 80 \
+    --greater_is_better False \
     --save_strategy "steps" \
     --load_best_model_at_end True \
     --save_steps 80 \

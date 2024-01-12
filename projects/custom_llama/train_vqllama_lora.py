@@ -6,6 +6,7 @@ from transformers import Trainer
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
 from data.vqllama_dataset import VQDataCollator, VQLLaMAData
+from peft import get_peft_model, LoraConfig
 
 IGNORE_INDEX = -100
 DEFAULT_PAD_TOKEN = "<PAD>"
@@ -108,19 +109,11 @@ class CustomTrainier(Trainer):
             svg_tensors=inputs['svg_path'],  # offline mode
             svg_padding_mask=inputs['svg_padding_mask'],
         )
-        loss = None
-        
-        if self.model.training:
-            loss = outputs.pop("train_loss")
-        else:
-            loss = outputs.pop("eval_loss")
-            
+        total_loss = outputs.pop("total_loss")
         for key in outputs:
             outputs[key] = outputs[key].item()
-            
         self.log(outputs)  # log other metrics
-        
-        return (loss, outputs) if return_outputs else loss 
+        return (total_loss, outputs) if return_outputs else total_loss 
 
 
 class PluginVQVAE(nn.Module):
@@ -196,25 +189,20 @@ def train():
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
 
-    ## init VQVAE
-    # block_kwargs = dict(
-    #     width=vqvae_config.vqvae_conv_block.width, 
-    #     depth=vqvae_config.vqvae_conv_block.depth, 
-    #     m_conv=vqvae_config.vqvae_conv_block.m_conv,
-    #     dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
-    #     dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
-    #     reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    # )
-    ## offline inference version
-    # vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    # plugin_vqvae = PluginVQVAE(vqvae)
-    # checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
-    # plugin_vqvae.load_state_dict(checkpoint['state_dict'])
-    # print_c("VQVAE loaded!", "green")
-    # svgllama.init_vqvae(plugin_vqvae)
     
-    # count_parameters(svgllama)
+    # peft
+    config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        lora_dropout=0.05,
+        target_modules=["q_proj", "v_proj"],
+        bias="none",
+        task_type="CAUSAL_LM",
+        modules_to_save=["vqvae_embedding", "vqvae_head", "wte", "lm_head"]
 
+    )
+    svgllama = get_peft_model(svgllama, config)
+    
     # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
