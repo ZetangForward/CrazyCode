@@ -5,7 +5,7 @@ mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 1 \
     --num_nodes 1 \
-    train_vqllama.py \
+    train_vqllama_lora.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_llama/version_1/checkpoint-160" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
