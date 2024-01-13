@@ -30,7 +30,7 @@ class VQSVGLlama(LlamaForCausalLM):
 
         self.post_init()
         if config.frozen_llm: 
-            print_c("Attention! Part of the parameters are freezed!")
+            print_c("Attention! LLM is freezed!")
             self.base_model.requires_grad_ = False 
             self.lm_head.requires_grad_ = False
     
@@ -57,6 +57,7 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_tensors: B x L (x l_bins),  depend on offline or online mode
             svg_padding_mask: B x L,
         """
+        import pdb; pdb.set_trace()
         if self.config.frozen_llm:  # only calculate svg loss when freezen LLM
             self.base_model.requires_grad_ = False 
             self.lm_head.requires_grad_ = False

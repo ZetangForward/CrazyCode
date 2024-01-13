@@ -36,10 +36,8 @@ class TrainingArguments(transformers.TrainingArguments):
         default=512,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
-    mask_ratio: float = field(default=0.5)
-    n_mask: int = field(default=4)
-    hybrid: str = field(default="keywords")  # description, hybrid
-    is_augment: bool = field(default=False)
+    freezen_llm: bool = field(default=False)
+    
 
 
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
@@ -132,7 +130,7 @@ def train():
 
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
-    llamaconfig.frozen_llm = False
+    llamaconfig.frozen_llm = training_args.freezen_llm
     llamaconfig.max_text_length = 64
     llamaconfig.min_path_nums = 4
     llamaconfig.max_path_nums = 512
@@ -188,26 +186,6 @@ def train():
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
 
-    ## init VQVAE
-    # block_kwargs = dict(
-    #     width=vqvae_config.vqvae_conv_block.width, 
-    #     depth=vqvae_config.vqvae_conv_block.depth, 
-    #     m_conv=vqvae_config.vqvae_conv_block.m_conv,
-    #     dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
-    #     dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
-    #     reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    # )
-    ## offline inference version
-    # vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    # plugin_vqvae = PluginVQVAE(vqvae)
-    # checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
-    # plugin_vqvae.load_state_dict(checkpoint['state_dict'])
-    # print_c("VQVAE loaded!", "green")
-    # svgllama.init_vqvae(plugin_vqvae)
-    
-    # count_parameters(svgllama)
-
-    # Tell Trainer not to attempt DataParallel
     svgllama.is_parallelizable = True
     svgllama.model_parallel = True
 
