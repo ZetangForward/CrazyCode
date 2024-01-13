@@ -35,6 +35,7 @@ class TestConfig:
     num_beams: int = field(default=1)
     temperature: float = field(default=0.8)
     save_dir: str = field(default=None)
+    fp16: bool = field(default=True)
 
 
 class PluginVQVAE(nn.Module):
@@ -179,7 +180,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
 
 def test():
     parser = transformers.HfArgumentParser((TestConfig))
-    test_args = parser.parse_args_into_dataclasses()
+    test_args = parser.parse_args_into_dataclasses()[0]
     
     # parsing vqvae_config:
     vqvae_config = load_yaml_config(test_args.vqvae_config_path)

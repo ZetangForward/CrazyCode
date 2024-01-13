@@ -9,7 +9,7 @@ python test_vqllama.py \
     --save_dir "/zecheng2/vqllama/test_vqllama" \
     --max_generate_length 1500 \
     --predict_batch_size 16 \
-    --nworkers 0 \
+    --dataloader_num_workers 0 \
     --dataloader_num_workers 64 \
     --fp16 False \
     --vqvae_config_path "configs/deepspeed/vqvae_config.yaml" \
