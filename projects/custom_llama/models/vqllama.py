@@ -189,7 +189,6 @@ class VQSVGLlama(LlamaForCausalLM):
         input_embeddings = text_embedding_module(prev_svg_token_ids)
         
         for _ in range(max_generate_length - 1):
-            import pdb; pdb.set_trace()
             outputs = self.model(
                 input_ids=None,
                 past_key_values=past_key_values,
@@ -205,6 +204,7 @@ class VQSVGLlama(LlamaForCausalLM):
             else:
                 pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
             
+            import pdb; pdb.set_trace()
             # update eos_generated_mask, as some samples generate svg_eos_token
             eos_generated_mask |= (pred_svg_idx.squeeze(1) == self.svg_end_token_id)  
 
