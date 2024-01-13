@@ -36,6 +36,7 @@ class TestConfig:
     temperature: float = field(default=0.8)
     save_dir: str = field(default=None)
     fp16: bool = field(default=True)
+    model_max_length: int = field(default=1024)
 
 
 class PluginVQVAE(nn.Module):
