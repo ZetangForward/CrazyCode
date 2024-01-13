@@ -21,7 +21,7 @@ deepspeed --num_gpus 8 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
     --logging_steps 5 \
-    --dataloader_num_workers -1 \
+    --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
