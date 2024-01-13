@@ -10,6 +10,7 @@ python test_vqllama.py \
     --max_generate_length 1500 \
     --predict_batch_size 16 \
     --model_max_length 1024 \
+    --predict_batch_size 1 \
     --dataloader_num_workers 0 \
     --dataloader_num_workers 64 \
     --fp16 False \
