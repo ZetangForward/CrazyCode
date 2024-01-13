@@ -155,9 +155,9 @@ class DataCollatorForCM3(object):
         batch_label = torch.stack(batch_label, dim=0)
         
         return {
-            "batch_input_ids": batch_input_ids,
-            "batch_attn_mask": batch_attn_mask,
-            "batch_labels": batch_label,
+            "input_ids": batch_input_ids,
+            "attention_mask": batch_attn_mask,
+            "labels": batch_label,
         }
 
 class CustomTrainier(Trainer):
@@ -171,15 +171,17 @@ class CustomTrainier(Trainer):
             **kwargs,
         )
         
+    
+        
     def compute_loss(self, model, inputs, return_outputs=False):
-        input_ids = inputs.get("batch_input_ids")
-        batch_attention_mask = inputs.get("batch_attention_mask")
-        batch_labels = inputs.get("batch_labels")
+        input_ids = inputs.get("input_ids")
+        attention_mask = inputs.get("attention_mask")
+        labels = inputs.get("labels")
         
         outputs = model(
             input_ids=input_ids,
-            attention_mask=batch_attention_mask,
-            labels=batch_labels,
+            attention_mask=attention_mask,
+            labels=labels,
         )
         
         loss = outputs.loss
