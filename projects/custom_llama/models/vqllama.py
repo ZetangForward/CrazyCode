@@ -154,8 +154,8 @@ class VQSVGLlama(LlamaForCausalLM):
         return metrics
     
     @torch.no_grad()
-    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.LongTensor]:
-        
+    def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7, num_beams=1) -> List[torch.LongTensor]:
+        import pdb
         assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
         batch_size = text_input_ids.size(0)
@@ -193,7 +193,7 @@ class VQSVGLlama(LlamaForCausalLM):
             pred_logits = self.vqvae_head(last_hidden_state).float()
             
             if do_sample:
-                pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1, :], top_k=top_k, top_p=top_p, temperature=temperature)
+                pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1, :], top_k=top_k, top_p=top_p, temperature=temperature, num_samples=num_beams)
             else:
                 pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
             
