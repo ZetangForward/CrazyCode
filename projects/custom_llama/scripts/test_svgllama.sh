@@ -14,7 +14,7 @@ python test_vqllama.py \
     --dataloader_num_workers 0 \
     --fp16 False \
     --vqvae_config_path "configs/deepspeed/vqvae_config.yaml" \
-    --do_sample True \
+    --do_sample False \
     --top_p 0.9 \
     --top_k 40 \
     --num_beams 1 \
