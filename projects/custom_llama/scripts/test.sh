@@ -1,6 +1,6 @@
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/test"
 
-deepspeed --num_gpus 1 \
+deepspeed --num_gpus 8 \
     --num_nodes 1 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
@@ -21,7 +21,7 @@ deepspeed --num_gpus 1 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
     --logging_steps 5 \
-    --dataloader_num_workers 0 \
+    --dataloader_num_workers -1 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \

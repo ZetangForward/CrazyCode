@@ -57,7 +57,6 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_tensors: B x L (x l_bins),  depend on offline or online mode
             svg_padding_mask: B x L,
         """
-        import pdb; pdb.set_trace()
         if self.config.frozen_llm:  # only calculate svg loss when freezen LLM
             self.base_model.requires_grad_ = False 
             self.lm_head.requires_grad_ = False
@@ -146,15 +145,21 @@ class VQSVGLlama(LlamaForCausalLM):
                 golden_svg_tokens[:, 0].contiguous().view(-1), 
                 reduction="mean",
             )
+        
+        if self.config.frozen_llm:  # only calculate svg loss when freezen LLM
+            total_loss = svg_loss + convert_token_loss 
+            metrics = dict(
+                svg_loss=svg_loss, 
+                convert_token_loss=convert_token_loss,
+            )
             
-        if text_loss is not None and svg_loss is not None:  
+        elif text_loss is not None and svg_loss is not None:  
             total_loss = text_loss + self.vq_loss_weight * svg_loss + self.convert_token_weight * convert_token_loss    
-
-        metrics = dict(
-            text_loss=text_loss, 
-            svg_loss=svg_loss, 
-            convert_token_loss=convert_token_loss,
-        )
+            metrics = dict(
+                text_loss=text_loss, 
+                svg_loss=svg_loss, 
+                convert_token_loss=convert_token_loss,
+            )
         
         if not self.training:
             metrics['eval_loss'] = total_loss
