@@ -187,7 +187,7 @@ class VQSVGLlama(LlamaForCausalLM):
         
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(prev_svg_token_ids)
-        
+        import pdb; pdb.set_trace()
         for _ in range(max_generate_length - 1):
             outputs = self.model(
                 input_ids=None,
