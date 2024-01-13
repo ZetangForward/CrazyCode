@@ -1,5 +1,3 @@
-# NOTE: save too fast! try to "epoch" or increase the save_steps
-
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/version_2"
 
 mkdir -p ${OUTPUT_DIR}
@@ -23,8 +21,8 @@ deepspeed --num_gpus 16 \
     --save_strategy "steps" \
     --load_best_model_at_end True \
     --metric_for_best_model "loss" \
-    --eval_steps 100 \
-    --save_steps 100 \
+    --eval_steps 200 \
+    --save_steps 200 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \

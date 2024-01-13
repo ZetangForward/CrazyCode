@@ -8,7 +8,7 @@ deepspeed --num_gpus 8 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 2 \
+    --per_device_train_batch_size 72 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
