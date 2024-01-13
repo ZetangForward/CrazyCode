@@ -1,9 +1,9 @@
 version=$1
-epoch=$2
+ckpt=$2
 
 python test_vqllama.py \
     --version ${version} \
-    --epoch ${epoch} \
+    --ckpt ${ckpt} \
     --tokenier_config_path "/zecheng2/model_hub/Llama-2-7b-hf" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl" \
     --save_dir "/zecheng2/vqllama/test_vqllama" \

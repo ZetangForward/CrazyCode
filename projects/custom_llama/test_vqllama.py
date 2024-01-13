@@ -24,7 +24,7 @@ class TestConfig:
     vqvae_config_path: str = field(default=None)
     tokenier_config_path: str = field(default=None)
     version: int = field(default=None)
-    epoch: int = field(default=None)
+    ckpt: int = field(default=None)
     data_path: str = field(default=None)
     predict_batch_size: int = field(default=1)
     dataloader_num_workers: int = field(default=0)
@@ -187,8 +187,8 @@ def test():
 
     # parsing trained model path
     MODEL_DIR="/zecheng2/vqllama/vqllama_openllama"
-    MODEL_NAME_OR_PATH = os.path.join(MODEL_DIR, f"version_{test_args.version}/checkpoint-{test_args.epoch}")
-    SAVE_DIR = os.path.join(test_args.save_dir, f"version_{test_args.version}/checkpoint-{test_args.epoch}/test_results")
+    MODEL_NAME_OR_PATH = os.path.join(MODEL_DIR, f"version_{test_args.version}/checkpoint-{test_args.ckpt}")
+    SAVE_DIR = os.path.join(test_args.save_dir, f"version_{test_args.version}/checkpoint-{test_args.ckpt}/test_results")
     auto_mkdir(SAVE_DIR)
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
