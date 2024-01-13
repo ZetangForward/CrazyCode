@@ -140,7 +140,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     all_image_paths = []
     
     for i in trange(len(res)):
-        import pdb; pdb.set_trace()
+
         generated_svg_path = res[i]['generated_svg_path']
         golden_svg_path = res[i]['golden_svg_path']
         text = res[i]['text']
