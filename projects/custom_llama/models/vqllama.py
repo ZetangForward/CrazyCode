@@ -155,13 +155,13 @@ class VQSVGLlama(LlamaForCausalLM):
     
     @torch.no_grad()
     def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7, num_beams=1) -> List[torch.LongTensor]:
-        
-        # if self.svg_begin_token_id in text_input_ids:
-        #     svg_being_token_pos = text_input_ids == self.svg_begin_token_id
-        #     text_input_ids[svg_being_token_pos] = self.tokenizer.pad_token_id 
-        #     text_attention_mask[svg_being_token_pos] = 0
+       
+        if self.svg_begin_token_id in text_input_ids:
+            svg_being_token_pos = text_input_ids == self.svg_begin_token_id
+            text_input_ids[svg_being_token_pos] = self.tokenizer.pad_token_id 
+            text_attention_mask[svg_being_token_pos] = 0
             
-        # assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
+        assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
         batch_size = text_input_ids.size(0)
   
@@ -180,8 +180,16 @@ class VQSVGLlama(LlamaForCausalLM):
         
         generated_ids = [text_input_ids[:, i].unsqueeze(1) for i in range(text_width)]
         
+        # create svg_begin token id and embeddings
+        svg_begin_token_ids = torch.empty(text_input_ids.size(0)).fill_(self.svg_begin_token_id).long().to(last_hidden_state.device)
+        
+        prev_svg_token_ids = svg_begin_token_ids.unsqueeze(1)
+        
+        text_embedding_module = self.base_model.get_input_embeddings()
+        input_embeddings = text_embedding_module(prev_svg_token_ids)
+        
         for _ in range(max_generate_length - 1):
-            
+            import pdb; pdb.set_trace()
             outputs = self.model(
                 input_ids=None,
                 past_key_values=past_key_values,
@@ -205,7 +213,7 @@ class VQSVGLlama(LlamaForCausalLM):
             current_step_ids[~eos_generated_mask] = pred_svg_idx[~eos_generated_mask]  
             generated_ids.append(current_step_ids)  
             
-            if eos_generated_mask.all():  # all samples have generated eos_token, break
+            if eos_generated_mask.all():  # all samples have generated eos_token
                 break
             
             prev_svg_token_ids = current_step_ids
