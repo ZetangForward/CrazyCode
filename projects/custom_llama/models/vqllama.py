@@ -155,13 +155,13 @@ class VQSVGLlama(LlamaForCausalLM):
     
     @torch.no_grad()
     def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7, num_beams=1) -> List[torch.LongTensor]:
-        import pdb; pdb.set_trace()
+        
         if self.svg_begin_token_id in text_input_ids:
             svg_being_token_pos = text_input_ids == self.svg_begin_token_id
             text_input_ids[svg_being_token_pos] = self.tokenizer.pad_token_id 
             text_attention_mask[svg_being_token_pos] = 0
             
-        assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
+        # assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
         batch_size = text_input_ids.size(0)
   
