@@ -142,12 +142,13 @@ class BottleneckBlock(nn.Module):
         return x_l
 
     def decode(self, x_l):
+
         if x_l.ndim == 1:
-            x_l = x_l[None, :]
-            
+            x_l = x_l.unsqueeze(0)
+                
         N, T = x_l.shape
         width = self.emb_width
-
+        import pdb; pdb.set_trace()
         # Dequantise
         x_d = self.dequantise(x_l)
 

@@ -118,7 +118,12 @@ class BasicDataset(Dataset):
 
         sample = sample[:self.max_path_nums]  # prevent too long num path
         sample = self.custom_command(sample)
-
+        
+        # pad sample to the same length
+        svg_attention_mask = torch.cat([torch.ones(sample.size(0), dtype=torch.bool), torch.zeros(self.max_path_nums - sample.size(0), dtype=torch.bool)], dim=0)
+        sample = pad_tensor(sample, self.max_path_nums, 0, 0)
+        
+        
         # process the input keywords
         if self.svg_begin_token is not None:
             prompts = prompts + " " + self.svg_begin_token
@@ -146,6 +151,7 @@ class BasicDataset(Dataset):
             "text_attention_mask": text_attention_mask,
             "text_labels": text_labels,
             "svg_tensors": sample.long(),
+            "svg_attention_mask": svg_attention_mask,
         }
 
 

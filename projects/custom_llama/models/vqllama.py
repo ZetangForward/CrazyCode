@@ -166,7 +166,7 @@ class VQSVGLlama(LlamaForCausalLM):
         batch_size = text_input_ids.size(0)
   
         # initial eos_generated_mask to False for all samples as no sample has generated eos_token yet
-        eos_generated_mask = torch.zeros(batch_size, dtype=torch.bool)
+        eos_generated_mask = torch.zeros((batch_size, 1), dtype=torch.bool).to(text_input_ids.device)
         
         outputs = self.model(
             input_ids=text_input_ids,
@@ -200,16 +200,16 @@ class VQSVGLlama(LlamaForCausalLM):
             pred_logits = self.vqvae_head(last_hidden_state).float()
             
             if do_sample:
-                pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1, :], top_k=top_k, top_p=top_p, temperature=temperature, num_samples=num_beams)
+                pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1], top_k=top_k, top_p=top_p, temperature=temperature, num_samples=num_beams).view(batch_size, -1)
             else:
-                pred_svg_idx = pred_logits[:, -1, :].argmax(dim=-1).unsqueeze(1)
+                pred_svg_idx = pred_logits[:, -1].argmax(dim=-1).unsqueeze(1)
             
-            import pdb; pdb.set_trace()
             # update eos_generated_mask, as some samples generate svg_eos_token
-            eos_generated_mask |= (pred_svg_idx.squeeze(1) == self.svg_end_token_id)  
+            eos_generated_mask |= (pred_svg_idx == self.svg_end_token_id)  
 
             # add the predicted svg token embedding to input_embeddings according to pred_svg_idx
             current_step_ids = torch.full((batch_size, 1), self.svg_end_token_id, dtype=torch.long, device=last_hidden_state.device)  
+           
             current_step_ids[~eos_generated_mask] = pred_svg_idx[~eos_generated_mask]  
             generated_ids.append(current_step_ids)  
             
@@ -224,8 +224,8 @@ class VQSVGLlama(LlamaForCausalLM):
         post_processed_ids = []  # List[Tensor]
         
         for i in range(batch_size):
-            post_processed_ids.append(generated_ids[i, :generated_mask[i].sum()])
-            
+            post_processed_ids.append(generated_ids[i, text_width: generated_mask[i].sum()])
+
         return generated_ids, post_processed_ids
         
         

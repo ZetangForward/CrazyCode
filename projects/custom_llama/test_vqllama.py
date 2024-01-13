@@ -106,7 +106,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                 
                 for i, svg_token_ids in enumerate(post_processed_ids):
                     decoded_svg_path = vqvae.decode(  # L x l_bins ?
-                        zs=svg_token_ids, start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                        zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
                     
@@ -137,6 +137,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     all_image_paths = []
     
     for i in trange(len(res)):
+        import pdb; pdb.set_trace()
         generated_svg_path = res[i]['generated_svg_path']
         golden_svg_path = res[i]['golden_svg_path']
         text = res[i]['text']
@@ -205,7 +206,7 @@ def test():
     llamaconfig.max_text_length = 64
     llamaconfig.svg_token_dims = 4096
     llamaconfig.min_path_nums = 4
-    llamaconfig.max_path_nums = 512
+    llamaconfig.max_path_nums = 1200
     llamaconfig.predict_batch_size = test_args.predict_batch_size
     llamaconfig.dataloader_num_workers = test_args.dataloader_num_workers
     
