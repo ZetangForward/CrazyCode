@@ -1,3 +1,5 @@
+# NOTE: save too fast! try to "epoch" or increase the save_steps
+
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/version_1"
 
 mkdir -p ${OUTPUT_DIR}
