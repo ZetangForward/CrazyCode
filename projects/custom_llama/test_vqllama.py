@@ -114,7 +114,8 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                     
                     cur_batch_res.append(  # move to the CPU menory
                         dict(
-                            golden_svg_path = golden_svg_path.cpu(),
+                            golden_svg_path = golden_svg_path[i].cpu(),
+                            golden_svg_padding_mask = golden_svg_path_mask[i].cpu(),
                             generated_svg_path = decoded_svg_path.cpu(),
                             text = text,
                             svg_token_ids = svg_token_ids.cpu(),
@@ -156,6 +157,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         })
         
         p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+        g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
         all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
     
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
