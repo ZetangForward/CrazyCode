@@ -148,7 +148,6 @@ class BottleneckBlock(nn.Module):
                 
         N, T = x_l.shape
         width = self.emb_width
-        import pdb; pdb.set_trace()
         # Dequantise
         x_d = self.dequantise(x_l)
 

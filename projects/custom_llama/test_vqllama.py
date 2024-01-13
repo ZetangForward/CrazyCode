@@ -37,6 +37,7 @@ class TestConfig:
     save_dir: str = field(default=None)
     fp16: bool = field(default=True)
     model_max_length: int = field(default=1024)
+    inference_nums: int = field(default=1)
 
 
 class PluginVQVAE(nn.Module):
@@ -90,7 +91,8 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             cur_batch_res = []
             text_input_ids = batch_.get("text_input_ids")
             text_attention_mask = batch_.get("text_attention_mask")
-            golden_svg_path = batch_.get("svg_path")
+            golden_svg_path = batch_.get("svg_tensors")
+            golden_svg_path_mask = batch_.get("svg_attention_mask")
             
             text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
             text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
@@ -216,7 +218,8 @@ def test():
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         tokenizer=llama_tokenizer, 
         offline_mode=False,
-        mode="test"
+        mode="test",
+        inferece_nums=test_args.inference_nums,
     )
     
     predict_dataloader = svg_data_module.predict_dataloader()

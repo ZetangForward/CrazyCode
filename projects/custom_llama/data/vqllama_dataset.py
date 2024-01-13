@@ -387,13 +387,16 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation"):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1):  
         self.cfg = config
         self.tokenizer = tokenizer
         self.task = task
         content = None
         if mode == "test":
             content = auto_read_data(vq_svg_file)
+            if inferece_nums == -1:
+                inferece_nums = len(content)
+            content = content[:inferece_nums]
             print_c(f"num of testing data: {len(content)}", color='magenta')
             self.pred_data = content
         else:  # for training setting
