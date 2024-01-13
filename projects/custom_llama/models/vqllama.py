@@ -184,8 +184,9 @@ class VQSVGLlama(LlamaForCausalLM):
         svg_begin_token_ids = torch.empty(text_input_ids.size(0)).fill_(self.svg_begin_token_id).long().to(last_hidden_state.device)
         
         prev_svg_token_ids = svg_begin_token_ids.unsqueeze(1)
-        
+        import pdb; pdb.set_trace()
         for _ in range(max_generate_length - 1):
+            import pdb; pdb.set_trace()
             input_embeddings = self.vqvae_embedding(prev_svg_token_ids)
             outputs = self.model(
                 input_ids=None,
