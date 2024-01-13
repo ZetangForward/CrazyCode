@@ -56,6 +56,7 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_padding_mask: B x L,
         """
         bsz = text_input_ids.size(0)
+        
         # embedding text
         text_width = text_input_ids.size(1)
         text_embedding_module = self.base_model.get_input_embeddings()
@@ -100,7 +101,7 @@ class VQSVGLlama(LlamaForCausalLM):
         svg_pred = self.vqvae_head(hidden_states[:, text_width:, :]).float() 
         
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
-
+        import pdb; pdb.set_trace()
         if text_labels is not None:
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits

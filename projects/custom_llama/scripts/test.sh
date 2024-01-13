@@ -1,9 +1,6 @@
-VERSION=0
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/version_${VERSION}"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/test"
 
-mkdir -p ${OUTPUT_DIR}
-
-deepspeed --num_gpus 8 \
+deepspeed --num_gpus 1 \
     --num_nodes 1 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
@@ -11,8 +8,8 @@ deepspeed --num_gpus 8 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 72 \
-    --per_device_eval_batch_size 16 \
+    --per_device_train_batch_size 2 \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
     --eval_steps 80 \
@@ -24,7 +21,7 @@ deepspeed --num_gpus 8 \
     --learning_rate 3e-5 \
     --warmup_steps 20 \
     --logging_steps 5 \
-    --dataloader_num_workers 32 \
+    --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
