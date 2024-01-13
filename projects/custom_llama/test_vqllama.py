@@ -70,7 +70,7 @@ def interative_loop(model, image_save_root_dir, vqvae, tokenizer, max_generate_l
             )
             svg_token_ids = post_processed_ids[0]
             decoded_svg_path = vqvae.decode(  # L x l_bins ?
-                zs=svg_token_ids, start_level=0, start_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                zs=svg_token_ids, start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
         svg, svg_str = convert_svg(decoded_svg_path, True)
         whether_save_image = saint_check_input("Whether to save the image? (y/n)", ['y', 'n', 'Y', 'N'])
         if whether_save_image == 'y':
@@ -104,7 +104,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                 
                 for i, svg_token_ids in enumerate(post_processed_ids):
                     decoded_svg_path = vqvae.decode(  # L x l_bins ?
-                        zs=svg_token_ids, start_level=0, start_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                        zs=svg_token_ids, start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
                     
