@@ -130,36 +130,11 @@ class DataCollatorForSupervisedDataset(object):
         batch_label = torch.stack(batch_label, dim=0)
         
         return {
-            "batch_input_ids": batch_input_ids,
-            "batch_attn_mask": batch_attn_mask,
-            "batch_labels": batch_label,
-        }
-        
-@dataclass
-class DataCollatorForCM3(object):
-    """Collate examples for CM3 training objective."""
-
-    tokenizer: transformers.PreTrainedTokenizer
-
-    def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
-        
-        batch_input_ids, batch_attn_mask, batch_label = [], [], []
-        
-        for ins in instances:
-            batch_input_ids.append(ins["input_ids"])
-            batch_attn_mask.append(ins["attention_mask"])
-            batch_label.append(ins["labels"])
-            
-        batch_input_ids = torch.stack(batch_input_ids, dim=0)
-        batch_attn_mask = torch.stack(batch_attn_mask, dim=0)
-        batch_label = torch.stack(batch_label, dim=0)
-        
-        return {
             "input_ids": batch_input_ids,
             "attention_mask": batch_attn_mask,
             "labels": batch_label,
         }
-
+        
 class CustomTrainier(Trainer):
     def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
         super().__init__(
@@ -170,8 +145,6 @@ class CustomTrainier(Trainer):
             tokenizer=tokenizer,
             **kwargs,
         )
-        
-    
         
     def compute_loss(self, model, inputs, return_outputs=False):
         input_ids = inputs.get("input_ids")
