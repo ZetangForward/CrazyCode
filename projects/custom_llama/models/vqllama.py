@@ -15,6 +15,7 @@ from modelzipper.tutils import *
 class VQSVGLlama(LlamaForCausalLM):  
     def __init__(self, config, vq_loss_weight=2.0, convert_token_weight=1.5, tokenizer=None, svg_begin_token_id=None, vqvae=None, codebook_size=8192):  
         super(VQSVGLlama, self).__init__(config)
+        self.config = config
         self.tokenizer = tokenizer
         self.svg_begin_token_id = svg_begin_token_id
         self.vq_loss_weight = vq_loss_weight
@@ -22,15 +23,16 @@ class VQSVGLlama(LlamaForCausalLM):
         self.codebook_size = codebook_size + 1  # add one for svg end token
         self.svg_end_token_id = codebook_size
         self.vqvae = vqvae
+        self.up_adapter = nn.Linear(config.hidden_size, config.hidden_size)
+        self.down_adapter = nn.Linear(config.hidden_size, config.hidden_size)
         self.vqvae_embedding = nn.Embedding(self.codebook_size, config.hidden_size)
         self.vqvae_head = nn.Linear(config.hidden_size, self.codebook_size)
 
         self.post_init()
         if config.frozen_llm: 
             print_c("Attention! Part of the parameters are freezed!")
-            self.requires_grad_ = False 
-            self.input_adapter.requires_grad_ = True
-            self.output_adapter.requires_grad_ = True
+            self.base_model.requires_grad_ = False 
+            self.lm_head.requires_grad_ = False
     
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae
@@ -55,6 +57,10 @@ class VQSVGLlama(LlamaForCausalLM):
             svg_tensors: B x L (x l_bins),  depend on offline or online mode
             svg_padding_mask: B x L,
         """
+        if self.config.frozen_llm:  # only calculate svg loss when freezen LLM
+            self.base_model.requires_grad_ = False 
+            self.lm_head.requires_grad_ = False
+        
         bsz = text_input_ids.size(0)
         
         # embedding text
@@ -83,6 +89,7 @@ class VQSVGLlama(LlamaForCausalLM):
 
         golden_svg_tokens = torch.where(svg_padding_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
+        svg_token_embeddings = self.up_adapter(svg_token_embeddings) # up adapter
         
         input_embeddings = torch.cat([input_embeddings, svg_token_embeddings], dim=1) # concate the text embedding and svg token embedding
         svg_padding_mask = svg_padding_mask.to(text_attention_mask.dtype)  # prevent the type error
@@ -97,12 +104,14 @@ class VQSVGLlama(LlamaForCausalLM):
 
         # text modality, last token is svg special token
         text_logits = self.lm_head(hidden_states[:, :text_width, :]).float()
+        
         # svg modality, first token is svg special token, last token should be svg end token
-        svg_pred = self.vqvae_head(hidden_states[:, text_width:, :]).float() 
+        svg_output_hidden_states = self.down_adapter(hidden_states[:, text_width:, :])
+        svg_pred = self.vqvae_head(svg_output_hidden_states).float() 
         
         total_loss, text_loss, svg_loss, convert_token_loss = None, None, None, None
-        import pdb; pdb.set_trace()
-        if text_labels is not None:
+
+        if text_labels is not None and not self.config.frozen_llm:  # only calculate svg loss when freezen LLM
             # Shift so that tokens < n predict n
             shift_logits = text_logits[..., :-1, :].contiguous()  # last logits is convert_token logits
             shift_labels = text_labels[..., 1:].contiguous() # last token is convert_token
