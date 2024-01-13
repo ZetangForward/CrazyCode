@@ -207,6 +207,7 @@ def test():
     llamaconfig.min_path_nums = 4
     llamaconfig.max_path_nums = 512
     llamaconfig.predict_batch_size = test_args.predict_batch_size
+    llamaconfig.dataloader_num_workers = test_args.dataloader_num_workers
     
     svg_data_module = VQLLaMAData(
         llamaconfig, 
