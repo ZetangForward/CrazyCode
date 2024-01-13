@@ -206,6 +206,7 @@ def test():
     llamaconfig.svg_token_dims = 4096
     llamaconfig.min_path_nums = 4
     llamaconfig.max_path_nums = 512
+    llamaconfig.predict_batch_size = test_args.predict_batch_size
     
     svg_data_module = VQLLaMAData(
         llamaconfig, 
