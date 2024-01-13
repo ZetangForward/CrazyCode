@@ -9,6 +9,7 @@ python test_vqllama.py \
     --save_dir "/zecheng2/vqllama/test_vqllama" \
     --max_generate_length 1500 \
     --predict_batch_size 16 \
+    --model_max_length 1024 \
     --dataloader_num_workers 0 \
     --dataloader_num_workers 64 \
     --fp16 False \
