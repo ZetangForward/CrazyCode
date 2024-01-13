@@ -34,6 +34,7 @@ class TestConfig:
     top_k: int = field(default=40)
     num_beams: int = field(default=1)
     temperature: float = field(default=0.8)
+    save_dir: str = field(default=None)
 
 
 class PluginVQVAE(nn.Module):
@@ -127,6 +128,8 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_single_image")) # save single image
     SVG_PATH_SAVED_PATH = os.path.join(save_dir, "svg_paths.jsonl") # save svg path
     
+    auto_mkdir(SINGLE_IMAGE_SAVED_DIR)
+    
     keys = ['generated_svg_path', 'golden_svg_path', 'text', 'svg_token_ids']
     str_paths = []
     all_image_paths = []
@@ -182,8 +185,10 @@ def test():
     vqvae_config = load_yaml_config(test_args.vqvae_config_path)
 
     # parsing trained model path
-    SAVE_DIR="/zecheng2/vqllama/vqllama_llama"
-    MODEL_NAME_OR_PATH = os.path.join(SAVE_DIR, f"version_{test_args.version}/checkpoint-{test_args.epoch}")
+    MODEL_DIR="/zecheng2/vqllama/vqllama_openllama"
+    MODEL_NAME_OR_PATH = os.path.join(MODEL_DIR, f"version_{test_args.version}/checkpoint-{test_args.epoch}")
+    SAVE_DIR = os.path.join(test_args.save_dir, f"version_{test_args.version}/checkpoint-{test_args.epoch}/test_results")
+    auto_mkdir(SAVE_DIR)
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
@@ -274,7 +279,7 @@ def test():
     
     post_process(
         predicted_results, 
-        save_dir=test_args.save_image_dir, 
+        save_dir=SAVE_DIR, 
         generate_big_map=True, 
         add_background=False, 
         save_intermediate_results=False
