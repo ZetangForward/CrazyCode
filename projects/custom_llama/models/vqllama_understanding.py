@@ -1,14 +1,10 @@
 """
-Code for VQ-SVG-LLAMA
+Code for VQ-SVG-LLAMA-Understanding
 """
-import sys
-import random
 import torch  
 import torch.nn as nn 
 import torch.nn.functional as F
 from transformers import LlamaForCausalLM  
-from transformers.modeling_outputs import CausalLMOutputWithPast
-from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 
 
@@ -87,7 +83,8 @@ class VQSVGLlamaUnderstanding(LlamaForCausalLM):
             shift_labels = shift_labels.to(shift_logits.device)
             loss = F.cross_entropy(shift_logits, shift_labels)
 
-        return loss
+        output = (text_logits,) + outputs[1:]
+        return (loss,) + output if loss is not None else output
     
     @torch.no_grad()
     def generate(self, text_input_ids=None, text_attention_mask=None, past_key_values=None, max_generate_length=1024, do_sample=False, top_p=0.9, top_k=40, temperature=0.7) -> List[torch.LongTensor]:

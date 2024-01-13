@@ -88,8 +88,8 @@ class CustomTrainier(Trainer):
         )
         
     def compute_loss(self, model, inputs, return_outputs=False):
-        loss = model(**inputs)
-        return loss
+        loss, outputs = model(**inputs, return_outputs=return_outputs)
+        return (loss, outputs) if return_outputs else loss 
         
 
 class PluginVQVAE(nn.Module):
