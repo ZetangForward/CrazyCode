@@ -159,6 +159,7 @@ class VQSVGLlama(LlamaForCausalLM):
         if self.svg_begin_token_id in text_input_ids:
             svg_being_token_pos = text_input_ids == self.svg_begin_token_id
             text_input_ids[svg_being_token_pos] = self.tokenizer.pad_token_id 
+            text_attention_mask[svg_being_token_pos] = 0
             
         assert self.svg_begin_token_id not in text_input_ids, "You should not add svg_begin_token_id in text_input_ids, since it will automactically add svg_begin_token_id in the beginning of svg_tensors during the inference!"
         
