@@ -2,11 +2,11 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/version_2"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 4 \
-    --num_nodes 16 \
+deepspeed --num_gpus 16 \
+    --num_nodes 4 \
     --master_addr worker-0 \
-    --master_port 6429 \
-    --hostfile configs/machine/hostfile_v64 \
+    --master_port 6529 \
+    --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
