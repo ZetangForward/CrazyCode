@@ -309,36 +309,34 @@ class VQVAE(nn.Module):
         x_out, loss = None, None
         metrics = {}
         
-        if self.training:
-        
-            recons_loss = t.zeros(()).to(x.device)
-            x_target = x.float()
+        recons_loss = t.zeros(()).to(x.device)
+        x_target = x.float()
 
-            for level in reversed(range(self.levels)):  # attention: here utilize the reversed order
-                x_out = x_outs[level].permute(0, 2, 1).float()
-                this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
-                metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
-                recons_loss += this_recons_loss 
+        for level in reversed(range(self.levels)):  # attention: here utilize the reversed order
+            x_out = x_outs[level].permute(0, 2, 1).float()
+            this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
+            metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
+            recons_loss += this_recons_loss 
 
-            commit_loss = sum(commit_losses)
-            loss = self.recon * recons_loss + self.commit * commit_loss 
+        commit_loss = sum(commit_losses)
+        loss = self.recon * recons_loss + self.commit * commit_loss 
 
-            with t.no_grad():
-                l2_loss = _loss_fn("l2", x_target, x_out, self.cfg, padding_mask)
-                l1_loss = _loss_fn("l1", x_target, x_out, self.cfg, padding_mask)
+        with t.no_grad():
+            l2_loss = _loss_fn("l2", x_target, x_out, self.cfg, padding_mask)
+            l1_loss = _loss_fn("l1", x_target, x_out, self.cfg, padding_mask)
 
-            quantiser_metrics = average_metrics(quantiser_metrics)
+        quantiser_metrics = average_metrics(quantiser_metrics)
 
-            metrics.update(dict(
-                recons_loss=recons_loss,
-                l2_loss=l2_loss,
-                l1_loss=l1_loss,
-                # linf_loss=linf_loss,
-                commit_loss=commit_loss,
-                **quantiser_metrics))
+        metrics.update(dict(
+            recons_loss=recons_loss,
+            l2_loss=l2_loss,
+            l1_loss=l1_loss,
+            # linf_loss=linf_loss,
+            commit_loss=commit_loss,
+            **quantiser_metrics))
 
-            for key, val in metrics.items():
-                metrics[key] = val.detach()
+        for key, val in metrics.items():
+            metrics[key] = val.detach()
 
         if return_all_quantized_res:
             x_outs = [tmp.permute(0, 2, 1) for tmp in x_outs]
