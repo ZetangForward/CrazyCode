@@ -161,7 +161,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
     
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
-    
+    import pdb; pdb.set_trace()
     if generate_big_map:
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))

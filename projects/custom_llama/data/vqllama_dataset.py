@@ -160,7 +160,8 @@ class OfflineBasicDataset(Dataset):
     obtrain the data offline
     
     """
-    PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
+    # PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
+    PROMPT_TEMPLATE = "{keywords}"
 
     def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64) -> None:
         super().__init__()
