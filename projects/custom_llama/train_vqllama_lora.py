@@ -191,14 +191,14 @@ def train():
         target_modules=["q_proj", "v_proj"],
         bias="none",
         task_type="CAUSAL_LM",
-        modules_to_save=["vqvae_embedding", "vqvae_head", "wte", "lm_head"]
+        modules_to_save=["vqvae_embedding", "vqvae_head", "wte", "lm_head", "up_adapter", "down_adapter"]
 
     )
     svgllama = get_peft_model(svgllama, config)
     
     # Tell Trainer not to attempt DataParallel
-    svgllama.is_parallelizable = True
-    svgllama.model_parallel = True
+    # svgllama.is_parallelizable = True
+    # svgllama.model_parallel = True
 
     # # init optimizer
     # if svgllama.model_parallel:

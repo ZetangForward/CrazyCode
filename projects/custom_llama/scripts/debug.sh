@@ -1,7 +1,7 @@
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/test"
 
-deepspeed --num_gpus 1 \
-    --num_nodes 1 \
+torchrun --nproc_per_node=4 \
+    --nnodes=1 \
     train_vqllama_lora.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_7.pkl" \
@@ -25,7 +25,6 @@ deepspeed --num_gpus 1 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
-    --deepspeed configs/deepspeed/stage3.json \
     --fp16 True \
     --remove_unused_columns False \
     --config_path "configs/deepspeed/vqvae_config.yaml";
