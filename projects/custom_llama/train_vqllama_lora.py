@@ -103,11 +103,19 @@ class CustomTrainier(Trainer):
         
     def compute_loss(self, model, inputs, return_outputs=False):
         outputs = model(**inputs)
-        total_loss = outputs.pop("total_loss")
+        loss = None
+        
+        if self.model.training:
+            loss = outputs.pop("train_loss")
+        else:
+            loss = outputs.pop("eval_loss")
+            
         for key in outputs:
             outputs[key] = outputs[key].item()
+            
         self.log(outputs)  # log other metrics
-        return (total_loss, outputs) if return_outputs else total_loss 
+        
+        return (loss, outputs) if return_outputs else loss 
 
 
 class PluginVQVAE(nn.Module):
@@ -125,7 +133,7 @@ def train():
 
     # config 
     llamaconfig = transformers.LlamaConfig.from_pretrained(model_args.model_name_or_path)
-    llamaconfig.frozen_llm = False
+    llamaconfig.frozen_llm = True
     llamaconfig.max_text_length = 64
     llamaconfig.svg_token_dims = 4096
     llamaconfig.min_path_nums = 4
@@ -191,8 +199,7 @@ def train():
         target_modules=["q_proj", "v_proj"],
         bias="none",
         task_type="CAUSAL_LM",
-        modules_to_save=["vqvae_embedding", "vqvae_head", "wte", "lm_head", "up_adapter", "down_adapter"]
-
+        modules_to_save=["vqvae_embedding", "vqvae_head", "up_adapter", "down_adapter"]
     )
     svgllama = get_peft_model(svgllama, config)
     

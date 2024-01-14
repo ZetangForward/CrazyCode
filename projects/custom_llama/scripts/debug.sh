@@ -1,6 +1,6 @@
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/test"
 
-torchrun --nproc_per_node=4 \
+torchrun --nproc_per_node=8 \
     --nnodes=1 \
     train_vqllama_lora.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
@@ -8,7 +8,7 @@ torchrun --nproc_per_node=4 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 72 \
+    --per_device_train_batch_size 32 \
     --per_device_eval_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \

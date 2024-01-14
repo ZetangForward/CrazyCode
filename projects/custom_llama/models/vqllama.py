@@ -203,7 +203,7 @@ class VQSVGLlama(LlamaForCausalLM):
         
         text_embedding_module = self.base_model.get_input_embeddings()
         input_embeddings = text_embedding_module(prev_svg_token_ids)
-        import pdb; pdb.set_trace()
+
         for _ in range(max_generate_length - 1):
             outputs = self.model(
                 input_ids=None,
@@ -213,7 +213,8 @@ class VQSVGLlama(LlamaForCausalLM):
             )
             last_hidden_state = outputs.last_hidden_state
             past_key_values = outputs.past_key_values
-            pred_logits = self.vqvae_head(last_hidden_state).float()
+            pred_h = self.down_adapter(last_hidden_state)
+            pred_logits = self.vqvae_head(pred_h).float()
             
             if do_sample:
                 pred_svg_idx = top_k_top_p_sampling(pred_logits[:, -1], top_k=top_k, top_p=top_p, temperature=temperature, num_samples=num_beams).view(batch_size, -1)
@@ -234,6 +235,7 @@ class VQSVGLlama(LlamaForCausalLM):
             
             prev_svg_token_ids = current_step_ids
             input_embeddings = self.vqvae_embedding(prev_svg_token_ids)
+            input_embeddings = self.up_adapter(input_embeddings)
             
         generated_ids = torch.cat(generated_ids, dim=1)  # B x gen_length
         generated_mask = ~(generated_ids == self.svg_end_token_id)  # B x gen_length
