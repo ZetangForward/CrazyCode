@@ -33,6 +33,7 @@ class VQSVGLlama(LlamaForCausalLM):
             print_c("Attention! LLM is freezed!")
             self.base_model.requires_grad_ = False 
             self.lm_head.requires_grad_ = False
+            self.base_model.embed_tokens.requires_grad_ = True 
     
     def init_vqvae(self, vqvae):
         self.vqvae = vqvae
@@ -60,6 +61,7 @@ class VQSVGLlama(LlamaForCausalLM):
         if self.config.frozen_llm:  # only calculate svg loss when freezen LLM
             self.base_model.requires_grad_ = False 
             self.lm_head.requires_grad_ = False
+            self.base_model.embed_tokens.requires_grad_ = True
         
         bsz = text_input_ids.size(0)
         

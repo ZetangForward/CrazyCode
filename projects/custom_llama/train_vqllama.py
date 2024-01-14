@@ -39,7 +39,6 @@ class TrainingArguments(transformers.TrainingArguments):
     freezen_llm: bool = field(default=False)
     
 
-
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
     """Collects the state dict and dump to disk."""
     state_dict = trainer.model.state_dict()
@@ -148,7 +147,8 @@ def train():
         data_args.data_path, 
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         tokenizer=llama_tokenizer, 
-        offline_mode=True
+        offline_mode=True,
+        task="generation"
     )
 
     data_collator = VQDataCollator(
