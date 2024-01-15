@@ -26,6 +26,7 @@ class ModelArguments:
 class DataArguments:
     data_path: str = field(default=None, metadata={"help": "Path to the training data."})
     vq_svg_pad_file: str = field(default=None, metadata={"help": "Path to the vq svg pad file."})
+    add_eval: bool = field(default=True, metadata={"help": "Whether to add eval dataset."})
 
 
 @dataclass
@@ -148,7 +149,8 @@ def train():
         svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
         tokenizer=llama_tokenizer, 
         offline_mode=True,
-        task="generation"
+        task="generation",
+        add_eval=data_args.add_eval,
     )
 
     data_collator = VQDataCollator(
