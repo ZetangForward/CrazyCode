@@ -20,7 +20,7 @@
         "stage3_gather_16bit_weights_on_model_save": true
     },
     "fp16": {
-        "enabled": true,
+        "enabled": false,
         "auto_cast": false,
         "loss_scale": 0,
         "initial_scale_power": 32,
@@ -28,12 +28,24 @@
         "hysteresis": 2,
         "min_loss_scale": 1
     },
+    "optimizer": {
+        "type": "AdamW",
+        "params": {
+          "lr": "auto",
+          "betas": [
+            0.9,
+            0.999
+          ],
+          "eps": 1e-8,
+          "weight_decay": 0
+        }
+    },
     "scheduler": {
         "type": "WarmupLR",
         "params": {
-            "warmup_min_lr": 3e-6,
-            "warmup_max_lr": 3e-5,
-            "warmup_num_steps": 20
+            "warmup_min_lr": "auto",
+            "warmup_max_lr": "auto",
+            "warmup_num_steps": "auto"
         }
     },
     "gradient_accumulation_steps": "auto",
