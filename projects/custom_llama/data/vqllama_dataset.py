@@ -61,7 +61,8 @@ def pad_tensor(vec, pad, dim, pad_token_id):
 
 class BasicDataset(Dataset):
 
-    PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
+    # PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
+    PROMPT_TEMPLATE = "{keywords}"
 
     def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
         super().__init__()
