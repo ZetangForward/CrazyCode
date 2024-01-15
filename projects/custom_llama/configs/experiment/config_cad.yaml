@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 0
+JOB_ID: &JOB_ID 1
 EXP_NAME: &EXP_NAME "vqllama_quantizer_cad"
 
 hydra:
@@ -31,7 +31,7 @@ vqvae:
   downs_t: [1, 1]
   strides_t: [2, 2]
   emb_width: 4096
-  l_bins: 2048
+  l_bins: 3200  # 2048 first version
   l_mu: 0.99
   spectral: 0.0
   multispectral: 1.0

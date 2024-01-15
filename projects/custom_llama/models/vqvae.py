@@ -134,6 +134,7 @@ class VQVAE(nn.Module):
     def __init__(self, config, multipliers=None, **block_kwargs):
         super().__init__()
         self.cfg = config.vqvae
+        self.vocab_size = config.dataset.vocab_size
         self.commit = self.cfg.commit
         self.recon = self.cfg.recon
         self.spectral = self.cfg.spectral
@@ -273,7 +274,7 @@ class VQVAE(nn.Module):
         padding_mask: [B, L]
         """
         
-        x = self.normalize_func(x) # normalize to [-1, 1]
+        x = self.normalize_func(x, 0, self.vocab_size) # normalize to [-1, 1]
         # TODO: not sure whether to utilize float32
         # x_in = x.permute(0, 2, 1).float()  # x_in (32, 9, 256)
         x_in = x.permute(0, 2, 1)
@@ -341,7 +342,7 @@ class VQVAE(nn.Module):
         if return_all_quantized_res:
             x_outs = [tmp.permute(0, 2, 1) for tmp in x_outs]
             if denormalize:
-                x_outs = [self.denormalize_func(tmp) for tmp in x_outs]
+                x_outs = [self.denormalize_func(tmp, 0, self.vocab_size) for tmp in x_outs]
             return x_outs, zs[0], xs_quantised[0]
 
         return x_out, loss, metrics
