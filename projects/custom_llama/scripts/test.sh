@@ -8,7 +8,7 @@ deepspeed --num_gpus 4 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_openllama/version_3/checkpoint-2100" \
-    --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_8/epoch_84/inference_full_data_compress_1_snaps_0.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
@@ -24,7 +24,7 @@ deepspeed --num_gpus 4 \
     --save_steps 100 \
     --save_total_limit 10 \
     --learning_rate 3e-6 \
-    --warmup_steps 20 \
+    --warmup_steps 3 \
     --logging_steps 10 \
     --dataloader_num_workers 12 \
     --lr_scheduler_type "cosine" \
