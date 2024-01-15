@@ -91,7 +91,7 @@ def train():
     flant5config.max_text_length = 64
     flant5config.min_path_nums = 4
     flant5config.max_path_nums = 512
-    flant5config.config.use_cache = False
+    flant5config.use_cache = False
 
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
