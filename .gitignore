@@ -1,5 +1,5 @@
-projects/custom_llama/Logs
-projects/custom_llama/__pycache__
-projects/custom_llama/models/__pycache__
-projects/custom_llama/utils/__pycache__
-src/modelzipper/__pycache__
+./projects/custom_llama/Logs
+./projects/custom_llama/__pycache__
+./projects/custom_llama/models/__pycache__
+./projects/custom_llama/utils/__pycache__
+./src/modelzipper/__pycache__

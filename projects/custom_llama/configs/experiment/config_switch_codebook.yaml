@@ -4,7 +4,7 @@ EPOCH: &EPOCH 37
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer_testset"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
 SNAP_ID: &SNAP_ID 0
-TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
+TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/pkl_data/full_data_snaps/sub_full_data_${SNAP_ID}.pkl"
 
 hydra:
   job:
