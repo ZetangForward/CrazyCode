@@ -64,10 +64,10 @@ class CustomTrainier(Trainer):
         else:
             loss = outputs.pop("eval_loss")
             
-        for key in outputs:
-            outputs[key] = outputs[key].item()
+        # for key in outputs:
+        #     outputs[key] = outputs[key].item()
             
-        self.log(outputs)  # log other metrics
+        # self.log(outputs)  # log other metrics
         
         return (loss, outputs) if return_outputs else loss 
 
@@ -110,7 +110,7 @@ def train():
     )
 
     data_collator = VQDataCollator(
-        max_svg_length=flant5_tokenizer.max_path_nums,
+        max_svg_length=flant5config.max_path_nums,
         offline_mode=True,
         return_all_token_mask=True, # for offline setting
     )
