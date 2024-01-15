@@ -25,7 +25,7 @@ deepspeed --num_gpus 4 \
     --save_steps 300 \
     --save_total_limit 10 \
     --learning_rate 3e-5 \
-    --warmup_steps 20 \
+    --warmup_steps 3 \
     --logging_steps 1 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
