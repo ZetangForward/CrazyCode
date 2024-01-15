@@ -45,7 +45,7 @@
         "params": {
           "cycle_min_lr": 0,
           "cycle_max_lr": 3e-5,
-          "cycle_first_step_size": 30,
+          "cycle_first_step_size": 20,
           "cycle_second_step_size": 1570
         }
     },
