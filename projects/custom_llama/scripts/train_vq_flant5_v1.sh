@@ -5,7 +5,7 @@ mkdir -p ${OUTPUT_DIR}
 deepspeed --num_gpus 16 \
     --num_nodes 4 \
     --master_addr worker-0 \
-    --master_port 6668 \
+    --master_port 6568 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vq_seq2seq.py \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
@@ -13,7 +13,7 @@ deepspeed --num_gpus 16 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 512 \
-    --per_device_train_batch_size 52 \
+    --per_device_train_batch_size 54 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
