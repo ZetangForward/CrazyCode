@@ -13,7 +13,7 @@ deepspeed --num_gpus 4 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 70 \
+    --per_device_train_batch_size 24 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
@@ -31,8 +31,8 @@ deepspeed --num_gpus 4 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
-    --deepspeed configs/deepspeed/stage3.json \
-    --fp16 True \
+    --deepspeed configs/deepspeed/stage3_test.json \
+    --fp16 False \
     --remove_unused_columns False \
     --freezen_llm True \
     --config_path "configs/deepspeed/vqvae_config.yaml";
