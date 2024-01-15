@@ -1,4 +1,4 @@
-ckpt_path: "/zecheng2/vqllama/vqllama_quantizer/version_8/checkpoints/last.ckpt"
+ckpt_path: "/zecheng2/vqllama/vqllama_quantizer/version_12/checkpoints/last.ckpt"
 
 vqvae:
   levels: 2
