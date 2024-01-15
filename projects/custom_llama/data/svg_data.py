@@ -178,6 +178,7 @@ class SvgDataModule(pl.LightningDataModule):
             )
         else:
             self.svg_files = auto_read_data(self.cfg.train_data_path)
+            val_length = min(1000, len(self.svg_files) * 0.02)
             self.train_file = self.svg_files[:-1000]
             self.valid_file = self.svg_files[-1000:]
 
