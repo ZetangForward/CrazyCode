@@ -214,22 +214,6 @@ class VQSVGSeq2SeqModel(T5Model):
 
         return generated_ids, post_processed_ids
         
-        
-    def forward_svg_modal(self, input_ids, past_key_values):
-        svg_embeddings = self.svg_embedding(input_ids)
-        intermediate_states = self.model(
-                past_key_values=past_key_values,
-                inputs_embeds=svg_embeddings, 
-                output_attentions=True, 
-                output_hidden_states=True,
-                use_cache=True,
-            )
-        
-        hidden_states = intermediate_states.last_hidden_state
-        svg_logits = self.svg_lm_head(hidden_states).float()
-        svg_next_token_id = torch.argmax(svg_logits[:, -1, :], dim=-1).unsqueeze(1)
-        
-        return svg_next_token_id, intermediate_states.past_key_values
     
     @property
     def model_device(self):
