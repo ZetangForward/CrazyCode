@@ -13,7 +13,7 @@ deepspeed --num_gpus 16 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 6 \
+    --per_device_train_batch_size 70 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
@@ -30,7 +30,7 @@ deepspeed --num_gpus 16 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
-    --gradient_checkpointing False \
+    --gradient_checkpointing True \
     --deepspeed configs/deepspeed/stage3.json \
     --fp16 True \
     --remove_unused_columns False \
