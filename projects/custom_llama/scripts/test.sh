@@ -6,13 +6,13 @@ deepspeed --num_gpus 4 \
     --num_nodes 1 \
     --master_addr worker-2 \
     train_vqllama.py \
-    --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
+    --model_name_or_path "/zecheng2/vqllama/vqllama_openllama/version_3/checkpoint-2100" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_openllama/version_3/checkpoint-2100" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_8/epoch_84/inference_full_data_compress_1_snaps_0.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 32 \
+    --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
