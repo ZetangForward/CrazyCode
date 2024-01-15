@@ -13,7 +13,7 @@ from modelzipper.tutils import *
 
 class VQSVGSeq2SeqModel(T5Model):  
     def __init__(self, config, tokenizer=None, vqvae=None, codebook_size=8192):  
-        super(T5Model, self).__init__(config)
+        super(VQSVGSeq2SeqModel, self).__init__(config)
         self.config = config
         self.tokenizer = tokenizer
         self.codebook_size = codebook_size + 1  # add one for svg end token
@@ -25,8 +25,8 @@ class VQSVGSeq2SeqModel(T5Model):
         self.vqvae_head = nn.Linear(config.hidden_size, self.codebook_size)
 
         self.post_init()
+        
         if config.frozen_llm: 
-            import pdb; pdb.set_trace()
             print_c("Attention! encoder is freezed!")
             self.encoder.requires_grad_ = False # only freeze the encoder
             self.shared.requires_grad_ = False  # freeze the text embedding 
