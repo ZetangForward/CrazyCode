@@ -26,6 +26,7 @@ class VQSVGSeq2SeqModel(T5Model):
 
         self.post_init()
         if config.frozen_llm: 
+            import pdb; pdb.set_trace()
             print_c("Attention! encoder is freezed!")
             self.encoder.requires_grad_ = False # only freeze the encoder
             self.shared.requires_grad_ = False  # freeze the text embedding 

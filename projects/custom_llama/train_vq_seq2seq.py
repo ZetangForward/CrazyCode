@@ -110,7 +110,7 @@ def train():
     )
 
     data_collator = VQDataCollator(
-        max_svg_length=flant5_tokenizer.max_path_nums,
+        max_svg_length=flant5config.max_path_nums,
         offline_mode=True,
         return_all_token_mask=True, # for offline setting
     )
@@ -124,7 +124,7 @@ def train():
     SvgSeq2SeqModel = VQSVGSeq2SeqModel.from_pretrained(
         model_args.model_name_or_path, 
         config=flant5config,
-        codebook_size=vqvae_config.vqvae.l_bins,
+        codebook_size=flant5config.vqvae.l_bins,
         cache_dir=training_args.cache_dir,
         tokenizer=flant5_tokenizer,
     )

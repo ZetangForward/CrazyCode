@@ -1,3 +1,5 @@
+export CUDA_VISIBLE_DEVICES=2
+
 OUTPUT_DIR="/zecheng2/vqllama/vqllama_openllama/test"
 
 mkdir -p ${OUTPUT_DIR}
