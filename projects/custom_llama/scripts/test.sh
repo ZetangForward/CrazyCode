@@ -4,6 +4,7 @@ mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 4 \
     --num_nodes 1 \
+    --master_addr worker-2 \
     train_vqllama.py \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_openllama/version_3/checkpoint-2100" \
@@ -19,8 +20,8 @@ deepspeed --num_gpus 4 \
     --save_strategy "steps" \
     --load_best_model_at_end True \
     --metric_for_best_model "loss" \
-    --eval_steps 300 \
-    --save_steps 300 \
+    --eval_steps 100 \
+    --save_steps 100 \
     --save_total_limit 10 \
     --learning_rate 3e-6 \
     --warmup_steps 20 \
