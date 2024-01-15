@@ -150,8 +150,6 @@ def train():
     # )
 
     trainer = CustomTrainier(model=SvgSeq2SeqModel, tokenizer=flant5_tokenizer, args=training_args, **data_module)
-    
-    
 
     trainer.train()
     trainer.save_state()
