@@ -158,7 +158,6 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        import pdb; pdb.set_trace()
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True, denormalize=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
         # post_process_output = postprocess(output, batch['padding_mask'], self.cfg.experiment.path_interpolation)  # path interpolation
@@ -166,7 +165,6 @@ class Experiment(pl.LightningModule):
         
         standard_test_reconstruct = {
             "raw_predict": output,
-            "p_predict": post_process_output,
             "golden": golden,
         }
 
@@ -206,6 +204,7 @@ def main(config):
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
 
     m_predictions = merge_dicts(predictions)
+    auto_mkdir(config.experiment.prediction_save_path)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     b_t = time.time()
     auto_save_data(m_predictions, save_path)
