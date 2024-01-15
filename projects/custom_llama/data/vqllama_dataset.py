@@ -389,7 +389,7 @@ class VQDataCollator:
 
 
 class VQLLaMAData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1, add_eval=True):  
         self.cfg = config
         self.tokenizer = tokenizer
         self.task = task
@@ -408,11 +408,16 @@ class VQLLaMAData:
                 content = [item for sublist in raw_content for item in sublist]
             else: # directly read data from file
                 content = auto_read_data(vq_svg_file) ## Load VQSVG data
-            num_valid_data = min(int(len(content) * 0.1), 2048)
-            print_c(f"num of valid data: {num_valid_data}", color='magenta')
-            print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
-            self.valid_data = content[:num_valid_data]
-            self.train_data = content[num_valid_data:]
+            
+            if add_eval:  # add validation set
+                num_valid_data = min(int(len(content) * 0.01), 2048)
+                print_c(f"num of valid data: {num_valid_data}", color='magenta')
+                print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
+                self.valid_data = content[:num_valid_data]
+                self.train_data = content[num_valid_data:]
+            else:
+                self.train_data = content
+                self.valid_data = content  # fake validation set
         
         self.svg_begin_token = svg_begin_token
         self.offline_mode = offline_mode
