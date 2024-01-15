@@ -41,8 +41,6 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
 
 
-
-
 class CustomTrainier(Trainer):
     def __init__(self, model, args, train_dataset, eval_dataset, tokenizer, **kwargs):
         super().__init__(
@@ -64,19 +62,8 @@ class CustomTrainier(Trainer):
         else:
             loss = outputs.pop("eval_loss")
             
-        # for key in outputs:
-        #     outputs[key] = outputs[key].item()
-            
-        # self.log(outputs)  # log other metrics
-        
         return (loss, outputs) if return_outputs else loss 
-
-
-class PluginVQVAE(nn.Module):
-    def __init__(self, model):
-        super().__init__()
-        self.model = model
-
+    
 
 def train():
     parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments, VQVAEConfig))

@@ -30,7 +30,7 @@ deepspeed --num_gpus 16 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
-    --gradient_checkpointing False \
+    --gradient_checkpointing True \
     --deepspeed configs/deepspeed/stage3.json \
     --fp16 True \
     --remove_unused_columns False \
