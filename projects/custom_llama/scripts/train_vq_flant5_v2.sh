@@ -1,4 +1,4 @@
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_1"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_2"
 
 mkdir -p ${OUTPUT_DIR}
 
@@ -13,7 +13,7 @@ deepspeed --num_gpus 16 \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 4 \
+    --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
