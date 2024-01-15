@@ -144,7 +144,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         generated_svg_path = res[i]['generated_svg_path']
         golden_svg_path = res[i]['golden_svg_path']
         text = res[i]['text']
-
+    
         predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
         p_svg, p_svg_str = convert_svg(predict, True)
         golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
@@ -196,6 +196,9 @@ def test():
     MODEL_NAME_OR_PATH = os.path.join(MODEL_DIR, f"version_{test_args.version}/checkpoint-{test_args.ckpt}")
     SAVE_DIR = os.path.join(test_args.save_dir, f"version_{test_args.version}/checkpoint-{test_args.ckpt}/test_results")
     auto_mkdir(SAVE_DIR)
+    
+    # FIXME: change this path
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_openllama/version_3_aug/checkpoint-500"
     
     llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
