@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data"
-JOB_ID: &JOB_ID 8
-EPOCH: &EPOCH 84
+JOB_ID: &JOB_ID 12
+EPOCH: &EPOCH 37
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer_testset"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
 SNAP_ID: &SNAP_ID 0
@@ -32,7 +32,7 @@ vqvae:
   downs_t: [1, 1]
   strides_t: [2, 2]
   emb_width: 4096
-  l_bins: 8192
+  l_bins: 4096
   l_mu: 0.99
   spectral: 0.0
   multispectral: 1.0
