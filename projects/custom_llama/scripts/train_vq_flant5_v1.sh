@@ -1,18 +1,19 @@
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/test"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_1"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 1 \
-    --num_nodes 1 \
-    --master_addr worker-2 \
-    --master_port 6329 \
+deepspeed --num_gpus 16 \
+    --num_nodes 4 \
+    --master_addr worker-0 \
+    --master_port 6440 \
+    --hostfile configs/machine/hostfile_v64 \
     train_vq_seq2seq.py \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
-    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_7.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 8 \
+    --per_device_train_batch_size 64 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
@@ -23,9 +24,9 @@ deepspeed --num_gpus 1 \
     --eval_steps 300 \
     --save_steps 300 \
     --save_total_limit 10 \
-    --learning_rate 3e-5 \
+    --learning_rate 3e-6 \
     --warmup_steps 20 \
-    --logging_steps 10 \
+    --logging_steps 5 \
     --dataloader_num_workers 0 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \

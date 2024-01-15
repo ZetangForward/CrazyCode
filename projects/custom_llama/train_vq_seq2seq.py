@@ -64,10 +64,10 @@ class CustomTrainier(Trainer):
         else:
             loss = outputs.pop("eval_loss")
             
-        for key in outputs:
-            outputs[key] = outputs[key].item()
+        # for key in outputs:
+        #     outputs[key] = outputs[key].item()
             
-        self.log(outputs)  # log other metrics
+        # self.log(outputs)  # log other metrics
         
         return (loss, outputs) if return_outputs else loss 
 
