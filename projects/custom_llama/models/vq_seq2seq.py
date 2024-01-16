@@ -87,8 +87,8 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             hidden_states = hidden_states.to(self.decoder.first_device)
             if decoder_input_ids is not None:
                 decoder_input_ids = decoder_input_ids.to(self.decoder.first_device)
-            if text_attention_mask is not None:
-                text_attention_mask = text_attention_mask.to(self.decoder.first_device)
+            if attention_mask is not None:
+                attention_mask = attention_mask.to(self.decoder.first_device)
             if decoder_attention_mask is not None:
                 decoder_attention_mask = decoder_attention_mask.to(self.decoder.first_device)
         
@@ -113,7 +113,7 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
 
         golden_svg_tokens = torch.where(decoder_attention_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
-        decoder_attention_mask = decoder_attention_mask.to(text_attention_mask.dtype)  # prevent the type error
+        decoder_attention_mask = decoder_attention_mask.to(attention_mask.dtype)  # prevent the type error
         # decode svg tokens
         
         decoder_outputs = self.decoder(
@@ -121,7 +121,7 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             attention_mask=decoder_attention_mask,
             inputs_embeds=svg_token_embeddings,
             encoder_hidden_states=hidden_states,
-            encoder_attention_mask=text_attention_mask,
+            encoder_attention_mask=attention_mask,
             past_key_values=past_key_values,
             use_cache=use_cache,
             output_attentions=output_attentions,
