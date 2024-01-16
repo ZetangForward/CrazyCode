@@ -52,16 +52,10 @@ class CustomTrainier(Trainer):
             **kwargs,
         )
  
-        
     def compute_loss(self, model, inputs, return_outputs=False):
         outputs = model(**inputs)
         loss = None
-        
-        if self.model.training:
-            loss = outputs.pop("train_loss")
-        else:
-            loss = outputs.pop("eval_loss")
-            
+        loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
         return (loss, outputs) if return_outputs else loss 
     
 
