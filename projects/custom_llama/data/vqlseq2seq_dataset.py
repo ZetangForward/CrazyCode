@@ -366,11 +366,11 @@ class VQDataCollator:
             svg_padding_mask = torch.stack(svg_padding_mask, dim=0)
 
         return {
-            "text_input_ids": text_input_ids,
-            "text_attention_mask": text_attention_mask,
-            "text_labels": text_labels,
-            "svg_tensors": svg_tensors, 
-            "svg_padding_mask": svg_padding_mask,
+            "input_ids": text_input_ids,
+            "attention_mask": text_attention_mask,
+            "labels": text_labels,
+            "decoder_input_ids": svg_tensors, 
+            "decoder_attention_mask": svg_padding_mask,
         }
 
     def __call__(self, batch):

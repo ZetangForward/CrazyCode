@@ -46,11 +46,11 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
         return super().load_state_dict(state_dict, strict)
         
         
-    def forward(self, input_ids=None, attention_mask=None, decoder_input_ids=None, decoder_attention_mask=None, return_dict=None, encoder_outputs=None, past_key_values=None, output_attentions=None, output_hidden_states=None, use_cache=None, **kwargs): 
+    def forward(self, input_ids=None, attention_mask=None, decoder_input_ids=None, decoder_attention_mask=None, labels=None, return_dict=None, encoder_outputs=None, past_key_values=None, output_attentions=None, output_hidden_states=None, use_cache=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
-            text_labels: B x L,
+            labels: B x L,
             svg_tensors: B x L (x l_bins),  depend on offline or online mode
             svg_padding_mask: B x L,
         """
