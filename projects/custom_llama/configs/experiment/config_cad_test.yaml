@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 1
-EPOCH: &EPOCH 62
+JOB_ID: &JOB_ID 2
+EPOCH: &EPOCH 55
 EXP_NAME: &EXP_NAME "test_vqllama_quantize_cad"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer_cad/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/zecheng_cad/test_sample_200.pkl"
