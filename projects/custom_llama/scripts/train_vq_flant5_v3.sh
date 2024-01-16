@@ -2,8 +2,11 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 8 \
-    --num_nodes 1 \
+deepspeed --num_gpus 4 \
+    --num_nodes 16 \
+    --master_addr worker-0 \
+    --master_port 6668 \
+    --hostfile configs/machine/hostfile_v64 \
     train_vq_seq2seq.py \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/helpme.pkl" \
