@@ -192,9 +192,9 @@ def main(config):
     # set training dataset
 
     # sanity check
-    # snap_id = config.experiment.snap_id
-    # dataset_id = int(os.path.basename(config.dataset.test_data_path).split('.')[0].split('_')[-1])
-    # assert snap_id == dataset_id, f"dataset_id: {dataset_id} != snap_id: {snap_id}"
+    snap_id = config.experiment.snap_id
+    dataset_id = int(os.path.basename(config.dataset.test_data_path).split('.')[0].split('_')[-1])
+    assert snap_id == dataset_id, f"dataset_id: {dataset_id} != snap_id: {snap_id}"
     
     # load snap datasets
     data_module = SvgDataModule(config.dataset)
@@ -224,7 +224,6 @@ def main(config):
     )
 
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    import pdb; pdb.set_trace()
     # m_predictions = merge_dicts(predictions) # don't merge dicts
 
     save_path = os.path.join(config.experiment.prediction_save_path, f"inference_full_data_compress_{config.experiment.compress_level}_snaps_{snap_id}.pkl")
