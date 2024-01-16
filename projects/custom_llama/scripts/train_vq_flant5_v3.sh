@@ -11,7 +11,7 @@ deepspeed --num_gpus 4 \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/helpme.pkl" \
     --output_dir ${OUTPUT_DIR} \
-    --num_train_epochs 50 \
+    --num_train_epochs 30 \
     --model_max_length 512 \
     --per_device_train_batch_size 54 \
     --per_device_eval_batch_size 8 \
