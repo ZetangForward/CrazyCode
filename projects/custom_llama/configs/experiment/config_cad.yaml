@@ -11,7 +11,7 @@ hydra:
 
 dataset:
   train_data_path: "/zecheng2/svg/zecheng_cad/all_processed.pkl"
-  max_path_nums: 4096
+  max_path_nums: 2048
   min_path_nums: 4
   pad_token_id: 0
   train_batch_size: 32
