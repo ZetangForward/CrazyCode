@@ -45,7 +45,7 @@ class VQSVGSeq2SeqModel(T5Model):
         return super().load_state_dict(state_dict, strict)
         
         
-    def forward(self, text_input_ids=None, text_attention_mask=None, text_labels=None, svg_tensors=None, svg_padding_mask=None, return_dict=None, **kwargs): 
+    def forward(self, text_input_ids=None, text_attention_mask=None, svg_tensors=None, svg_padding_mask=None, return_dict=None, **kwargs): 
         """
             text_input_ids: B x L 
             text_attention_mask: B x L,
