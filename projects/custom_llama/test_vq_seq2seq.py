@@ -6,7 +6,7 @@ from tqdm import tqdm, trange
 from torch import Tensor
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
-from data.vqllama_dataset import VQLLaMAData
+from data.vqlseq2seq_dataset import VQDataCollator, VQSeq2SeqData
 from models.vqvae import VQVAE
 from train_vqllama import smart_tokenizer_and_embedding_resize
 from utils.visualize_svg import sanint_check_svg_tensor, convert_svg, merge_images
@@ -194,38 +194,38 @@ def test():
     vqvae_config = load_yaml_config(test_args.vqvae_config_path)
 
     # parsing trained model path
-    MODEL_DIR="/zecheng2/vqllama/vqllama_openllama"
+    MODEL_DIR="/zecheng2/vqllama/vqllama_flant5"
     MODEL_NAME_OR_PATH = os.path.join(MODEL_DIR, f"version_{test_args.version}/checkpoint-{test_args.ckpt}")
     SAVE_DIR = os.path.join(test_args.save_dir, f"version_{test_args.version}/checkpoint-{test_args.ckpt}/test_results")
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_openllama/version_3_aug/checkpoint-500"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug/checkpoint-23"
     
-    llama_tokenizer = transformers.AutoTokenizer.from_pretrained(
+    flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
         model_max_length=test_args.model_max_length,
         padding_side="right",
         use_fast=True,
     )
     
-    # model config 
-    llamaconfig = transformers.LlamaConfig.from_pretrained(MODEL_NAME_OR_PATH)
-    llamaconfig.frozen_llm = False
-    llamaconfig.max_text_length = 64
-    llamaconfig.svg_token_dims = 4096
-    llamaconfig.min_path_nums = 4
-    llamaconfig.max_path_nums = 1200
-    llamaconfig.predict_batch_size = test_args.predict_batch_size
-    llamaconfig.dataloader_num_workers = test_args.dataloader_num_workers
+    # config 
+    flant5config = transformers.AutoConfig.from_pretrained(MODEL_NAME_OR_PATH)
+    flant5config.frozen_llm = False
+    flant5config.max_text_length = 64
+    flant5config.min_path_nums = 4
+    flant5config.max_path_nums = 512
+    flant5config.use_cache = False
+    flant5config.predict_batch_size = test_args.predict_batch_size
+    flant5config.dataloader_num_workers = test_args.dataloader_num_workers
     
-    svg_data_module = VQLLaMAData(
-        llamaconfig, 
+    svg_data_module = VQSeq2SeqData(
+        flant5config, 
         test_args.data_path, 
-        svg_begin_token=DEFAULT_SVG_BEGIN_TOKEN, 
-        tokenizer=llama_tokenizer, 
+        tokenizer=flant5_tokenizer, 
         offline_mode=False,
         mode="test",
+        svg_begin_token = None,
         inferece_nums=test_args.inference_nums,
     )
     
@@ -233,24 +233,9 @@ def test():
 
     svgllama = VQSVGLlama.from_pretrained(
        MODEL_NAME_OR_PATH, 
-        config=llamaconfig, 
+        config=flant5config, 
         codebook_size=vqvae_config.vqvae.l_bins,
     )
-    
-    # add new tokens and resize embedding & LM head
-    added_tokens = {
-        "eos_token": DEFAULT_EOS_TOKEN,
-        "bos_token": DEFAULT_BOS_TOKEN,
-        "pad_token": DEFAULT_PAD_TOKEN,
-        "additional_special_tokens": [DEFAULT_SVG_BEGIN_TOKEN],
-    }
-    smart_tokenizer_and_embedding_resize(
-        added_tokens, llama_tokenizer, svgllama
-    )
-
-    svg_begin_token_id = llama_tokenizer.convert_tokens_to_ids(DEFAULT_SVG_BEGIN_TOKEN)
-    svgllama.add_svg_begin_token_id(svg_begin_token_id)
-    svgllama.set_tokenizer(llama_tokenizer)
 
     # init VQVAE
     block_kwargs = dict(
@@ -287,7 +272,7 @@ def test():
         model=svgllama, 
         vqvae=vqvae,
         dataloader=predict_dataloader, 
-        tokenizer=llama_tokenizer,
+        tokenizer=flant5_tokenizer,
         max_generate_length=test_args.max_generate_length,
         **sampling_strategy,
     )
