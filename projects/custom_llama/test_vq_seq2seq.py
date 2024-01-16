@@ -6,9 +6,8 @@ from tqdm import tqdm, trange
 from torch import Tensor
 from modelzipper.tutils import *
 from models.vqllama import VQSVGLlama
-from data.vqlseq2seq_dataset import VQDataCollator, VQSeq2SeqData
+from data.vqlseq2seq_dataset import VQSeq2SeqData
 from models.vqvae import VQVAE
-from train_vqllama import smart_tokenizer_and_embedding_resize
 from utils.visualize_svg import sanint_check_svg_tensor, convert_svg, merge_images
 
 IGNORE_INDEX = -100
