@@ -45,8 +45,8 @@
         "params": {
             "cycle_min_lr": 0,
             "cycle_max_lr": 5e-5,
-            "cycle_first_step_size": 200,
-            "cycle_second_step_size": 4000
+            "cycle_first_step_size": 500,
+            "cycle_second_step_size": 8000
         }
     },
     "gradient_accumulation_steps": "auto",
