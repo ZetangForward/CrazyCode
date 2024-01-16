@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from tqdm import tqdm, trange
 from torch import Tensor
 from modelzipper.tutils import *
-from models.vqllama import VQSVGLlama
+from models.vq_seq2seq import VQSVGSeq2SeqModel
 from data.vqlseq2seq_dataset import VQSeq2SeqData
 from models.vqvae import VQVAE
 from utils.visualize_svg import sanint_check_svg_tensor, convert_svg, merge_images
@@ -230,7 +230,7 @@ def test():
     
     predict_dataloader = svg_data_module.predict_dataloader()
 
-    svgllama = VQSVGLlama.from_pretrained(
+    svgllama = VQSVGSeq2SeqModel.from_pretrained(
        MODEL_NAME_OR_PATH, 
         config=flant5config, 
         codebook_size=vqvae_config.vqvae.l_bins,

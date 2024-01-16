@@ -88,7 +88,8 @@ def train():
         tokenizer=flant5_tokenizer, 
         offline_mode=True,
         task="generation",
-        svg_begin_token = None
+        svg_begin_token = None,
+        codebook_size = vqvae_config.vqvae.l_bins
     )
 
     data_collator = VQDataCollator(

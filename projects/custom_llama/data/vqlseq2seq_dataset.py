@@ -163,7 +163,7 @@ class OfflineBasicDataset(Dataset):
     # PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
     PROMPT_TEMPLATE = "{keywords}"
 
-    def __init__(self, content, tokenizer, mode="train", max_path_nums=None, max_text_length=64) -> None:
+    def __init__(self, content, tokenizer, mode="train", max_path_nums=None, max_text_length=64, codebook_size=4096) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -171,6 +171,7 @@ class OfflineBasicDataset(Dataset):
         self.max_text_length = max_text_length
         self.max_path_nums = max_path_nums
         self.content = content
+        self.codebook_size = codebook_size
 
     def __len__(self):
         return len(self.content)
@@ -179,7 +180,7 @@ class OfflineBasicDataset(Dataset):
         item = self.content[idx]
         keywords, sample = item['keys'], item['zs']
         prompts = self.PROMPT_TEMPLATE.format(keywords=', '.join(keywords))
-
+        sample = torch.cat([torch.tensor([self.codebook_size + 1]), sample], dim=0)  # add the begin token
         sample = sample[:self.max_path_nums]  # prevent too long num path
 
         seq_inputs = self.tokenizer(
@@ -194,7 +195,7 @@ class OfflineBasicDataset(Dataset):
         text_labels = torch.where(
             text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
         )
-            
+        
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
@@ -377,10 +378,11 @@ class VQDataCollator:
 
 
 class VQSeq2SeqData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1, codebook_size=4096):  
         self.cfg = config
         self.tokenizer = tokenizer
         self.task = task
+        self.codebook_size = codebook_size
         content = None
         if mode == "test":
             content = auto_read_data(vq_svg_file)

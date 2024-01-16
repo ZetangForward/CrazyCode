@@ -6,20 +6,21 @@ import random
 import torch  
 import torch.nn as nn 
 import torch.nn.functional as F
-from transformers import T5Model
+from transformers import T5Model, T5ForConditionalGeneration
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 from transformers.modeling_outputs import Seq2SeqLMOutput
 
 
-class VQSVGSeq2SeqModel(T5Model):  
-    def __init__(self, config, tokenizer=None, vqvae=None, codebook_size=8192):  
+class VQSVGSeq2SeqModel(T5ForConditionalGeneration):  
+    def __init__(self, config, tokenizer=None, vqvae=None, codebook_size=4096):  
         super(VQSVGSeq2SeqModel, self).__init__(config)
         self.config = config
         self.tokenizer = tokenizer
-        self.codebook_size = codebook_size + 1  # add one for svg end token
+        self.codebook_size = codebook_size + 2  # add one for svg end token
         self.svg_end_token_id = codebook_size
+        self.svg_begin_token_id = codebook_size + 1
         self.vqvae = vqvae
         
         # decoder
