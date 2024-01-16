@@ -80,7 +80,7 @@ def interative_loop(model, image_save_root_dir, vqvae, tokenizer, max_generate_l
             svg.save_png(os.path.join(image_save_root_dir, f"{save_file_name}.png"))
         
 
-def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, **kwargs) -> List[Tensor]:
+def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, decoder_input_ids=None, **kwargs) -> List[Tensor]:
     """
     For testing the whole dataset
     """
@@ -102,6 +102,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                     text_input_ids=text_input_ids,
                     text_attention_mask=text_attention_mask,
                     max_new_tokens=max_generate_length,
+                    decoder_input_ids=
                     **kwargs
                 )
                 
@@ -273,6 +274,7 @@ def test():
         dataloader=predict_dataloader, 
         tokenizer=flant5_tokenizer,
         max_generate_length=test_args.max_generate_length,
+        decoder_input_ids = vqvae_config.vqvae.l_bins + 1,
         **sampling_strategy,
     )
     
