@@ -116,7 +116,6 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                                 min_index = indices[0]  
                     if min_index is not None:  
                         svg_token_ids = svg_token_ids[:min_index]  
-                    print(svg_token_ids.max())
                     decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
@@ -170,16 +169,11 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
     
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
-    import pdb; pdb.set_trace()
+
     if generate_big_map:
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
-        p_svg_images = merge_images(
-            folder_path=SINGLE_IMAGE_SAVED_DIR, 
-            image_suffix='p_svg.png', 
-            num_images=500, 
-            save_dir=BIG_MAP_SAVED_DIR
-        )
+        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=500, save_dir=BIG_MAP_SAVED_DIR)
     import pdb; pdb.set_trace()
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")
