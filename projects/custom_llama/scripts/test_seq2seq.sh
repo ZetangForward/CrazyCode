@@ -8,9 +8,9 @@ python test_vq_seq2seq.py \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl" \
     --save_dir "/zecheng2/vqllama/test_vq_seq2seq" \
     --max_generate_length 64 \
-    --predict_batch_size 4 \
+    --predict_batch_size 12 \
     --model_max_length 512 \
-    --inference_nums 1000 \
+    --inference_nums 800 \
     --dataloader_num_workers 0 \
     --fp16 False \
     --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
