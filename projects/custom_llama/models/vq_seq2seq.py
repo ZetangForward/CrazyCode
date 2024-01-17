@@ -105,7 +105,7 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             if not self.training: # eval mode
                 if svg_token_ids[:, 0].sum() == 0: # remove the first text begin token
                     svg_token_ids = svg_token_ids[:, 1:]  
-        
+      
         compress_svg_max_length = svg_token_ids.size(1)
         golden_svg_tokens = None
         if self.training:  # training mode

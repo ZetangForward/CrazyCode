@@ -96,16 +96,22 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
             text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
             golden_svg_path = golden_svg_path.to(model.device) if golden_svg_path is not None else None
-            decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device).long() if decoder_input_ids is not None else None
+            
+            svg_decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device).long() if decoder_input_ids is not None else None
 
             with torch.no_grad():
-                outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=decoder_input_ids, use_cache=True, **kwargs)
+                outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=svg_decoder_input_ids, use_cache=True, **kwargs)
                 
-                import pdb; pdb.set_trace()
-                
-                for i, svg_token_ids in enumerate(post_processed_ids):
-                    decoded_svg_path = vqvae.decode(  # L x l_bins ?
-                        zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                for i, svg_token_ids in enumerate(outputs):
+                    ## sanint check
+                    if svg_token_ids[0] == 0:
+                        svg_token_ids = svg_token_ids[2:]
+                        indices = torch.where(svg_token_ids == 4098)[0] 
+                        if len(indices) > 0:    
+                            first_index = indices[0]  
+                            svg_token_ids = svg_token_ids[:first_index]  
+                            
+                    decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
                     
@@ -168,7 +174,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
             num_images=500, 
             save_dir=BIG_MAP_SAVED_DIR
         )
-        
+    import pdb; pdb.set_trace()
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")
         for i in trange(len(all_image_paths)):
