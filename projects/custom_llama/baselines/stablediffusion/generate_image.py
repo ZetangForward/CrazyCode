@@ -53,8 +53,10 @@ with tqdm(total=len(predict_datasets)) as pbar:
         text_input_ids = data['text_input_ids']
         text_attention_mask = data['text_attention_mask']
         keywords = flant5_tokenizer.decode(text_input_ids[0], skip_special_tokens=True)
+        if len(keywords) == 0:
+            continue
         text_prompt = PROMPT.format(keywords=keywords)
         image = pipeline(text_prompt).images[0]
-        print(keywords)
-        image.save(os.path.join(SAVE_DIR, keywords + ".png"))        
+        file_path = os.path.join(SAVE_DIR, keywords + ".png")
+        image.save(file_path)        
         pbar.update(1)
