@@ -173,7 +173,8 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     if generate_big_map:
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
-        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=500, save_dir=BIG_MAP_SAVED_DIR)
+        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
+        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
     
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")
@@ -201,7 +202,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-1800"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-2100"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,

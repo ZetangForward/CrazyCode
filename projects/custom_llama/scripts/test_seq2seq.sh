@@ -1,7 +1,7 @@
 version=$1
 ckpt=$2
 
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=2
 
 python test_vq_seq2seq.py \
     --version ${version} \
