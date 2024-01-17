@@ -99,13 +99,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device) if decoder_input_ids is not None else None
             import pdb; pdb.set_trace()
             with torch.no_grad():
-                outputs = model.generate(  # List[Tensor]
-                    text_input_ids=text_input_ids,
-                    text_attention_mask=text_attention_mask,
-                    max_new_tokens=max_generate_length,
-                    decoder_input_ids=decoder_input_ids,
-                    **kwargs
-                )
+                outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=decoder_input_ids, use_cache=True, **kwargs)
                 
                 import pdb; pdb.set_trace()
                 
@@ -201,7 +195,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/model_hub/flan-t5-xl"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-900"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,

@@ -58,7 +58,8 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             self.encoder.requires_grad_ = False # only freeze the encoder
             self.shared.requires_grad_ = False  # freeze the text embedding 
         
-        bsz = input_ids.size(0)
+        
+        bsz = decoder_input_ids.size(0)
         
         # embedding text
         # text_embeddings = self.shared(text_input_ids)
@@ -101,6 +102,12 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             svg_token_ids = svg_token_ids[0]  # first compress level
         else:  # offline mode
             svg_token_ids = decoder_input_ids
+            
+            import pdb; pdb.set_trace()
+            
+            if not self.training: # eval mode
+                if svg_token_ids[:, 0].sum() == 0: 
+                    svg_token_ids = svg_token_ids[:, 1:]  # remove the first token
         
         compress_svg_max_length = svg_token_ids.size(1)
         # add svg end token id
@@ -154,6 +161,8 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
                 encoder_outputs = (encoder_outputs,)
             output = (svg_logits,) + decoder_outputs[1:] + encoder_outputs
             return ((loss,) + output) if loss is not None else output
+        
+        import pdb; pdb.set_trace()
         
         return Seq2SeqLMOutput(
             loss=loss,
