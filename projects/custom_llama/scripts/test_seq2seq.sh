@@ -7,7 +7,7 @@ python test_vq_seq2seq.py \
     --version ${version} \
     --ckpt ${ckpt} \
     --tokenier_config_path "/zecheng2/model_hub/flan-t5-xl" \
-    --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_15_kwds_2000_samples.pkl" \
     --save_dir "/zecheng2/vqllama/test_vq_seq2seq" \
     --max_generate_length 64 \
     --predict_batch_size 24 \
