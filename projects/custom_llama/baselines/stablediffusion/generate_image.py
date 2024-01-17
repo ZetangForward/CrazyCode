@@ -1,15 +1,15 @@
 import torch
 from diffusers import StableDiffusionPipeline
 import sys
-sys.path.append('/workspace/zecheng/modelzipper/projects')
+sys.path.append('/workspace/zecheng/modelzipper/projects/custom_llama')
 from data.vqlseq2seq_dataset import VQDataCollator, VQSeq2SeqData
 import transformers
 from modelzipper.tutils import *
+from tqdm import tqdm
 
 
-
-pipe = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16)
-pipe = pipe.to("cuda")
+pipeline = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16)
+pipeline = pipeline.to("cuda")
 
 
 MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-1200"
@@ -41,12 +41,20 @@ svg_data_module = VQSeq2SeqData(
         inferece_nums=2000,
     )
 
-predict_dataset = svg_data_module.predict_dataset
+predict_datasets = svg_data_module.predict_dataset
 
-for data in predict_dataset:
-    
-    keywords = data['keywords']
-    
-    image = pipe(keywords).images[0]
+pipeline.set_progress_bar_config(leave=False)
 
-    import pdb; pdb.set_trace()
+SAVE_DIR = "/zecheng2/vqllama/baselines/stablediffusion"
+PROMPT = "Please generate a image in the icon format for me. here is the keywords: {keywords}"
+
+with tqdm(total=len(predict_datasets)) as pbar:
+    for data in predict_datasets:
+        text_input_ids = data['text_input_ids']
+        text_attention_mask = data['text_attention_mask']
+        keywords = flant5_tokenizer.decode(text_input_ids[0], skip_special_tokens=True)
+        text_prompt = PROMPT.format(keywords=keywords)
+        image = pipeline(text_prompt).images[0]
+        print(keywords)
+        image.save(os.path.join(SAVE_DIR, keywords + ".png"))        
+        pbar.update(1)
