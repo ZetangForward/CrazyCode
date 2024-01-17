@@ -1,0 +1,10 @@
+ModelZipper is ready for launch🚀 | Current Version🦄 >>> 0.2.6 <<< | AOE Time🕒 2024-01-17 19:14:15
+load config files from configs/deepspeed/vqvae_config_v2.yaml
+config loaded successfully!
+config: namespace(ckpt_path='/zecheng2/vqllama/vqllama_quantizer/version_12/checkpoints/last.ckpt', vqvae=namespace(levels=2, downs_t=[1, 1], strides_t=[2, 2], emb_width=4096, l_bins=4096, l_mu=0.99, spectral=0.0, multispectral=1.0, hvqvae_multipliers=[2, 1, 1], loss_fn='l2', dilation_growth_rate=1, use_nonrelative_specloss=True, use_bottleneck=True, commit=1.0, recon=1.0, linf_k=2048, use_modified_block=False), vqvae_conv_block=namespace(depth=4, width=512, m_conv=1.0, dilation_growth_rate=1, dilation_cycle=None, vqvae_reverse_decoder_dilation=True), dataset=namespace(max_path_nums=512, min_path_nums=4, pad_token_id=0, train_batch_size=128, val_batch_size=32, nworkers=16, pin_memory=False, x_channels=9, inference_mode=False, vocab_size=200, return_all_token_mask=False, num_bins=9, remove_redundant_col=False))
+
+/zecheng2/vqllama/test_vq_seq2seq/version_0/checkpoint-1/test_results already exists!
+begin to read data from /zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl ...
+num of testing data: 800
+begin to sanity check the dataset and conduct pre_process, num of samples: 800, it will take some time...
+begin to sanity check the dataset and conduct pre_process, num of samples: 800, it will take some time...
