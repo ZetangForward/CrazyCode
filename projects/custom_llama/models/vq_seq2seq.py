@@ -102,25 +102,23 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             svg_token_ids = svg_token_ids[0]  # first compress level
         else:  # offline mode
             svg_token_ids = decoder_input_ids
-            
-            import pdb; pdb.set_trace()
-            
             if not self.training: # eval mode
-                if svg_token_ids[:, 0].sum() == 0: 
-                    svg_token_ids = svg_token_ids[:, 1:]  # remove the first token
+                if svg_token_ids[:, 0].sum() == 0: # remove the first text begin token
+                    svg_token_ids = svg_token_ids[:, 1:]  
         
         compress_svg_max_length = svg_token_ids.size(1)
-        # add svg end token id
-        real_svg_lengths = decoder_attention_mask.sum(dim=1)
-
-        for i in range(bsz):
-            cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
-            svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
-            decoder_attention_mask[i, cur_padding_pos] = True
-
-        golden_svg_tokens = torch.where(decoder_attention_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
+        golden_svg_tokens = None
+        if self.training:  # training mode
+            # add svg end token id
+            real_svg_lengths = decoder_attention_mask.sum(dim=1)
+            for i in range(bsz):
+                cur_padding_pos = min(real_svg_lengths[i], compress_svg_max_length - 1)
+                svg_token_ids[i, cur_padding_pos] = self.svg_end_token_id
+                decoder_attention_mask[i, cur_padding_pos] = True
+            golden_svg_tokens = torch.where(decoder_attention_mask, svg_token_ids, -100).to(svg_token_ids.device).long()
         svg_token_embeddings = self.vqvae_embedding(svg_token_ids) # Encode svg tokens
-        decoder_attention_mask = decoder_attention_mask.to(attention_mask.dtype)  # prevent the type error
+        
+        # decoder_attention_mask = decoder_attention_mask.to(attention_mask.dtype)  # prevent the type error
         # decode svg tokens
         
         decoder_outputs = self.decoder(
@@ -161,8 +159,6 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
                 encoder_outputs = (encoder_outputs,)
             output = (svg_logits,) + decoder_outputs[1:] + encoder_outputs
             return ((loss,) + output) if loss is not None else output
-        
-        import pdb; pdb.set_trace()
         
         return Seq2SeqLMOutput(
             loss=loss,

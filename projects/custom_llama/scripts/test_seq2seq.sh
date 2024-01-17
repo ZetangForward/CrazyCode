@@ -7,9 +7,9 @@ python test_vq_seq2seq.py \
     --tokenier_config_path "/zecheng2/model_hub/flan-t5-xl" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl" \
     --save_dir "/zecheng2/vqllama/test_vq_seq2seq" \
-    --max_generate_length 1024 \
+    --max_generate_length 64 \
     --predict_batch_size 4 \
-    --model_max_length 1024 \
+    --model_max_length 512 \
     --inference_nums 4 \
     --dataloader_num_workers 0 \
     --fp16 False \

@@ -96,8 +96,8 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
             text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
             golden_svg_path = golden_svg_path.to(model.device) if golden_svg_path is not None else None
-            decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device) if decoder_input_ids is not None else None
-            import pdb; pdb.set_trace()
+            decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device).long() if decoder_input_ids is not None else None
+
             with torch.no_grad():
                 outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=decoder_input_ids, use_cache=True, **kwargs)
                 
