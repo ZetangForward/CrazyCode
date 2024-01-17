@@ -58,5 +58,5 @@ with tqdm(total=len(predict_datasets)) as pbar:
         text_prompt = PROMPT.format(keywords=keywords)
         image = pipeline(text_prompt).images[0]
         file_path = os.path.join(SAVE_DIR, keywords + ".png")
-        image.save(file_path)        
+        image.save(file_path)
         pbar.update(1)
