@@ -102,7 +102,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             with torch.no_grad():
                 outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=svg_decoder_input_ids, use_cache=True, **kwargs)
                 
-                token_ids_to_find = [4097, 4098]  
+                token_ids_to_find = [4097, 4096]  
                 
                 for i, svg_token_ids in enumerate(outputs):
                     ## sanint check
@@ -116,7 +116,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                                 min_index = indices[0]  
                     if min_index is not None:  
                         svg_token_ids = svg_token_ids[:min_index]  
-                            
+                    print(svg_token_ids.max())
                     decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
