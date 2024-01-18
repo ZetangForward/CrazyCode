@@ -378,7 +378,7 @@ class VQDataCollator:
 
 
 class VQSeq2SeqData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1, codebook_size=4096):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1, codebook_size=4096, val_data_num=2048):  
         self.cfg = config
         self.tokenizer = tokenizer
         self.task = task
@@ -398,7 +398,7 @@ class VQSeq2SeqData:
                 content = [item for sublist in raw_content for item in sublist]
             else: # directly read data from file
                 content = auto_read_data(vq_svg_file) ## Load VQSVG data
-            num_valid_data = min(int(len(content) * 0.1), 2048)
+            num_valid_data = min(int(len(content) * 0.1), val_data_num)
             print_c(f"num of valid data: {num_valid_data}", color='magenta')
             print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
             self.valid_data = content[:num_valid_data]

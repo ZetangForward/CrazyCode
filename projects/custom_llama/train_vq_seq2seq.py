@@ -91,7 +91,8 @@ def train():
         offline_mode=True,
         task="generation",
         svg_begin_token = None,
-        codebook_size = vqvae_config.vqvae.l_bins
+        codebook_size = vqvae_config.vqvae.l_bins,
+        val_data_num=0,
     )
 
     data_collator = VQDataCollator(
