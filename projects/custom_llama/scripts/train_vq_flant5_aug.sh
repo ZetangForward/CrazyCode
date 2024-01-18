@@ -1,16 +1,16 @@
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_2"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 4 \
-    --num_nodes 16 \
+deepspeed --num_gpus 8 \
+    --num_nodes 3 \
     --master_addr worker-0 \
-    --master_port 6341 \
-    --hostfile configs/machine/hostfile_v64 \
+    --master_port 6668 \
+    --hostfile configs/machine/hostfile_v24 \
     train_vq_seq2seq.py \
-    --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
-    --resume_from_checkpoint "" \
-    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer/version_8/epoch_84/inference_full_data_compress_1_snaps_merged.pkl" \
+    --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-3000" \
+    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-3000" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 512 \
@@ -25,15 +25,14 @@ deepspeed --num_gpus 4 \
     --eval_steps 300 \
     --save_steps 300 \
     --save_total_limit 10 \
-    --learning_rate 3e-5 \
-    --warmup_steps 3 \
+    --learning_rate 5e-5 \
+    --warmup_steps 20 \
     --logging_steps 1 \
     --dataloader_num_workers 0 \
-    --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
     --deepspeed configs/deepspeed/stage3_test.json \
     --fp16 False \
     --remove_unused_columns False \
     --freezen_llm True \
-    --config_path "configs/deepspeed/vqvae_config.yaml";
+    --config_path "configs/deepspeed/vqvae_config_v2.yaml";
