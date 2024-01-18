@@ -209,7 +209,9 @@ def train():
         padding_side="right",
         use_fast=True,
     )
-
+    flant5_tokenizer.pad_token = flant5_tokenizer.eos_token
+    
+    
     train_file = os.path.join(data_args.data_path, "offline_500_train.jsonl")
     val_file = os.path.join(data_args.data_path, "offline_500_valid.jsonl")
     
