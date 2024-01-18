@@ -194,42 +194,41 @@ def train():
     model = transformers.AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
     )
-    model.config.pad_token_id = 0
-
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
+    
+    # config 
+    flant5config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
+    flant5config.max_text_length = 64
+    flant5config.min_path_nums = 4
+    flant5config.max_path_nums = 512
+    flant5config.use_cache = False
+    
+    flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
-        model_max_length=training_args.model_max_length,
+        model_max_length=training_args.model_max_length,  # 512
         padding_side="right",
         use_fast=True,
     )
-    if tokenizer.pad_token is None:
-        smart_tokenizer_and_embedding_resize(
-            special_tokens_dict=dict(pad_token=DEFAULT_PAD_TOKEN),
-            tokenizer=tokenizer,
-            model=model,
-        )
-    tokenizer.pad_token_id = tokenizer.unk_token_id
 
     train_file = os.path.join(data_args.data_path, "offline_500_train.jsonl")
     val_file = os.path.join(data_args.data_path, "offline_500_valid.jsonl")
     
-    train_dataset = IconshopDataset(training_args, train_file, tokenizer)
-    val_dataset = IconshopDataset(training_args, val_file, tokenizer)
+    train_dataset = IconshopDataset(training_args, train_file, flant5_tokenizer)
+    val_dataset = IconshopDataset(training_args, val_file, flant5_tokenizer)
 
     if training_args.local_rank == 0:
         print(len(train_dataset))
         for index in random.sample(range(len(train_dataset)), 3):
             print(f"Sample {index} of the training set: {train_dataset[index]}.")
     
-    data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
+    data_collator = DataCollatorForSupervisedDataset(tokenizer=flant5_tokenizer)
     data_module = dict(train_dataset=train_dataset, eval_dataset=val_dataset, data_collator=data_collator)
 
     #Tell Trainer not to attempt DataParallel
     model.is_parallelizable = True
     model.model_parallel = True
 
-    trainer = CustomTrainier(model=model, tokenizer=tokenizer, args=training_args, **data_module)
+    trainer = CustomTrainier(model=model, tokenizer=flant5_tokenizer, args=training_args, **data_module)
     model.config.use_cache = False
 
     trainer.train()
