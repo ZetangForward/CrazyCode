@@ -8,8 +8,8 @@ deepspeed --num_gpus 8 \
     --master_port 6668 \
     --hostfile configs/machine/hostfile_v24 \
     train_vq_seq2seq_aug.py \
-    --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-3000" \
-    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-3000" \
+    --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-4200" \
+    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-4200" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/augment_stage2_data.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
@@ -23,7 +23,7 @@ deepspeed --num_gpus 8 \
     --learning_rate 5e-5 \
     --warmup_steps 20 \
     --logging_steps 1 \
-    --dataloader_num_workers 0 \
+    --dataloader_num_workers 12 \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
     --deepspeed configs/deepspeed/stage3.json \
