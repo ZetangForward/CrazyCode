@@ -92,6 +92,7 @@ def train():
         task="generation",
         svg_begin_token = None,
         codebook_size = vqvae_config.vqvae.l_bins,
+        val_data_num=0,
     )
 
     data_collator = VQDataCollator(
@@ -102,7 +103,7 @@ def train():
     
     data_module = dict(
         train_dataset=svg_data_module.train_dataset, 
-        eval_dataset=svg_data_module.valid_dataset, 
+        eval_dataset=svg_data_module.train_dataset, 
         data_collator=data_collator
     )
 
