@@ -26,7 +26,7 @@ deepspeed --num_gpus 8 \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
     --deepspeed "/workspace/zecheng/modelzipper/projects/custom_llama/configs/deepspeed/stage3.json" \
-    --fp16 True \
+    --fp16 False \
     --remove_unused_columns False;
 
 
