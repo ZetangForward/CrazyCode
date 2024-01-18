@@ -12,7 +12,7 @@ deepspeed --num_gpus 8 \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-4200" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/augment_stage2_data.pkl" \
     --output_dir ${OUTPUT_DIR} \
-    --num_train_epochs 20 \
+    --num_train_epochs 30 \
     --model_max_length 512 \
     --per_device_train_batch_size 54 \
     --per_device_eval_batch_size 8 \
