@@ -7,10 +7,10 @@ deepspeed --num_gpus 8 \
     --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
     --data_path "/zecheng2/svg/icon-shop/meta_data" \
     --output_dir "/zecheng2/vqllama/baselines/iconshop" \
-    --num_train_epochs 20 \
+    --num_train_epochs 10 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 20 \
-    --per_device_eval_batch_size 20 \
+    --per_device_train_batch_size 24 \
+    --per_device_eval_batch_size 24 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --greater_is_better False \
