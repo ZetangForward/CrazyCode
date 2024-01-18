@@ -18,8 +18,7 @@ deepspeed --num_gpus 8 \
     --per_device_eval_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
-    --save_strategy "steps" \
-    --save_steps 200 \
+    --save_strategy "epoch" \
     --save_total_limit 10 \
     --learning_rate 5e-5 \
     --warmup_steps 20 \
