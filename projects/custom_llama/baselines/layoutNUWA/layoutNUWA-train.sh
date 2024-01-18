@@ -10,8 +10,8 @@ deepspeed --num_gpus 8 \
     --output_dir "/zecheng2/vqllama/baselines/layoutNUWA" \
     --num_train_epochs 10 \
     --model_max_length 1500 \
-    --per_device_train_batch_size 16 \
-    --per_device_eval_batch_size 16 \
+    --per_device_train_batch_size 20 \
+    --per_device_eval_batch_size 20 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "steps" \
     --greater_is_better False \
