@@ -7,7 +7,7 @@ deepspeed --num_gpus 8 \
     --master_addr worker-0 \
     --master_port 6668 \
     --hostfile configs/machine/hostfile_v24 \
-    train_vq_seq2seq.py \
+    train_vq_seq2seq_aug.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-3000" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-3000" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/augment_stage2_data.pkl" \
