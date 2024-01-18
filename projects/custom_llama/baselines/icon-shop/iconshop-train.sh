@@ -27,7 +27,8 @@ deepspeed --num_gpus 8 \
     --gradient_checkpointing True \
     --deepspeed "/workspace/zecheng/modelzipper/projects/custom_llama/configs/deepspeed/stage3.json" \
     --fp16 False \
-    --remove_unused_columns False;
+    --remove_unused_columns False \
+    --freezen_llm True \
 
 
 
