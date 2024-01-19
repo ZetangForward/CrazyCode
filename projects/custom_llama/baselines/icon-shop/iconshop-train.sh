@@ -9,8 +9,8 @@ deepspeed --num_gpus 16 \
     --output_dir "/zecheng2/vqllama/baselines/iconshop" \
     --num_train_epochs 10 \
     --model_max_length 1024 \
-    --per_device_train_batch_size 12 \
-    --per_device_eval_batch_size 12 \
+    --per_device_train_batch_size 10 \
+    --per_device_eval_batch_size 10 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "epoch" \
     --greater_is_better False \
@@ -20,8 +20,8 @@ deepspeed --num_gpus 16 \
     --save_total_limit 5 \
     --learning_rate 3e-6 \
     --warmup_steps 20 \
-    --logging_steps 10 \
-    --dataloader_num_workers 20 \
+    --logging_steps 1 \
+    --dataloader_num_workers 12 \
     --lr_scheduler_type "cosine" \
     --report_to "tensorboard" \
     --gradient_checkpointing True \
