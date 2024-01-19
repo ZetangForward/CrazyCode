@@ -10,9 +10,9 @@ deepspeed --num_gpus 8 \
     train_vq_seq2seq_aug.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-5400" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-5400" \
-    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/augment_stage2_data.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/aug_stage2_pro_data.pkl" \
     --output_dir ${OUTPUT_DIR} \
-    --num_train_epochs 30 \
+    --num_train_epochs 50 \
     --model_max_length 512 \
     --per_device_train_batch_size 54 \
     --per_device_eval_batch_size 8 \
@@ -21,7 +21,7 @@ deepspeed --num_gpus 8 \
     --save_strategy "epoch" \
     --save_total_limit 10 \
     --learning_rate 5e-5 \
-    --warmup_steps 20 \
+    --warmup_steps 60 \
     --logging_steps 1 \
     --dataloader_num_workers 12 \
     --report_to "tensorboard" \
