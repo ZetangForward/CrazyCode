@@ -227,8 +227,8 @@ def train():
     data_module = dict(train_dataset=train_dataset, eval_dataset=val_dataset, data_collator=data_collator)
 
     #Tell Trainer not to attempt DataParallel
-    model.is_parallelizable = True
-    model.model_parallel = True
+    model.is_parallelizable = False
+    model.model_parallel = False
 
     trainer = CustomTrainier(model=model, tokenizer=flant5_tokenizer, args=training_args, **data_module)
     model.config.use_cache = False
