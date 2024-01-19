@@ -11,9 +11,32 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 import hydra  
 from data.svg_data import SvgDataModule
 from modelzipper.tutils import *
-from models.vqvae import VQVAE
+from models.lfq_model import LFQ
 from models.utils import *
 from vector_quantize_pytorch import ResidualLFQ
+
+
+def _loss_fn(loss_fn, x_target, x_pred, cfg, padding_mask=None):
+    if padding_mask is not None:
+        padding_mask = padding_mask.unsqueeze(-1).expand_as(x_target)
+        x_target = torch.where(padding_mask, x_target, torch.zeros_like(x_target)).to(x_pred.device)
+        x_pred = torch.where(padding_mask, x_pred, torch.zeros_like(x_pred)).to(x_pred.device)
+        mask_sum = padding_mask.sum()
+
+    if loss_fn == 'l1':
+        loss = torch.sum(torch.abs(x_pred - x_target)) / mask_sum
+    elif loss_fn == 'l2':
+        loss = torch.sum((x_pred - x_target) ** 2) / mask_sum
+    elif loss_fn == 'linf':
+        residual = ((x_pred - x_target) ** 2).reshape(x_target.shape[0], -1)
+        # only consider the residual of the padded part
+        masked_residual = torch.where(padding_mask.reshape(x_target.shape[0], -1), residual, torch.zeros_like(residual))
+        values, _ = torch.topk(masked_residual, cfg.linf_k, dim=1)
+        loss = torch.mean(values)
+    else:
+        assert False, f"Unknown loss_fn {loss_fn}"
+
+    return loss
 
 
 class Experiment(pl.LightningModule):
@@ -27,16 +50,17 @@ class Experiment(pl.LightningModule):
             self.hold_graph = self.params['retain_first_backpass']
         except:
             pass
+
         
-    
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
+
     def training_step(self, batch, batch_idx):
-        import pdb; pdb.set_trace()
         quantized, indices, commit_loss = self.forward(batch)
         quantized_out = self.model.get_output_from_indices(indices)
         
+        reconstruction_loss = _loss_fn('l2', batch['svg_path'], quantized_out, self.cfg, batch['padding_mask'])
         import pdb; pdb.set_trace()
         
         
@@ -90,12 +114,17 @@ def main(config):
         name=f"{config.experiment.exp_name}",
         version=config.experiment.version
     )
-
-    residual_lfq = ResidualLFQ(
-        dim = config.lfq.dim,
-        codebook_size = config.lfq.codebook_size,
-        num_quantizers = config.lfq.num_quantizers
+    
+    block_kwargs = dict(
+        width=config.vqvae_conv_block.width, 
+        depth=config.vqvae_conv_block.depth, 
+        m_conv=config.vqvae_conv_block.m_conv,
+        dilation_growth_rate=config.vqvae_conv_block.dilation_growth_rate,
+        dilation_cycle=config.vqvae_conv_block.dilation_cycle,
+        reverse_decoder_dilation=config.vqvae_conv_block.vqvae_reverse_decoder_dilation
     )
+
+    residual_lfq = LFQ(config, multipliers=None, **block_kwargs)
 
     experiment = Experiment(residual_lfq, config)
 
