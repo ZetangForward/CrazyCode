@@ -3,10 +3,10 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v1"
 mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 8 \
-    --num_nodes 8 \
-    --master_addr node-0 \
+    --num_nodes 3 \
+    --master_addr worker-0 \
     --master_port 5668 \
-    --hostfile configs/machine/hostfile_v64_sxm2 \
+    --hostfile configs/machine/hostfile_v24 \
     train_vq_seq2seq_aug.py \
     --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-5400" \
     --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-5400" \
