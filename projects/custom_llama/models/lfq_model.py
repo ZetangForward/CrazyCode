@@ -284,7 +284,7 @@ class LFQ(nn.Module):
         xs_quantised, commit_losses, zs = [], [], []
         for level in range(self.levels):
             quantized, indices, commit_loss = self.bottleneck(xs[level].permute(0, 2, 1))
-            xs_quantised.append(quantized)
+            xs_quantised.append(quantized.permute(0, 2, 1))
             commit_losses.append(commit_loss)
             zs.append(indices)
             # xs_quantised: [[32, 2048, 128], [32, 2048, 64], [32, 2048, 32]]
@@ -294,6 +294,7 @@ class LFQ(nn.Module):
         x_outs = []
         for level in range(self.levels):
             decoder = self.decoders[level]
+            import pdb; pdb.set_trace()
             x_out = decoder(xs_quantised[level:level+1], all_levels=False)
 
             # happens when deploying
