@@ -1,10 +1,10 @@
-deepspeed --num_gpus 8 \
-    --num_nodes 3 \
+deepspeed --num_gpus 16 \
+    --num_nodes 4 \
     --master_addr worker-0 \
     --master_port 6129 \
-    --hostfile "/workspace/zecheng/modelzipper/projects/custom_llama/configs/machine/hostfile_v24" \
+    --hostfile "/workspace/zecheng/modelzipper/projects/custom_llama/configs/machine/hostfile_v64_sxm4" \
     icon-shop/train.py \
-    --model_name_or_path "/zecheng2/model_hub/open_llama_3b_v2" \
+    --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
     --data_path "/zecheng2/svg/icon-shop/meta_data" \
     --output_dir "/zecheng2/vqllama/baselines/iconshop" \
     --num_train_epochs 10 \
