@@ -202,7 +202,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-2100"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug/checkpoint-702"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
@@ -225,10 +225,11 @@ def test():
         flant5config, 
         test_args.data_path, 
         tokenizer=flant5_tokenizer, 
-        offline_mode=False,
+        offline_mode=True,
         mode="test",
         svg_begin_token = None,
         inferece_nums=test_args.inference_nums,
+        use_custom_collate_fn=True,
     )
     
     predict_dataloader = svg_data_module.predict_dataloader()

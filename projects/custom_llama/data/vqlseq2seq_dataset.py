@@ -63,7 +63,7 @@ class BasicDataset(Dataset):
 
     PROMPT_TEMPLATE = "{keywords}"
 
-    def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False) -> None:
+    def __init__(self, content, tokenizer, svg_begin_token=None, mode="train", min_path_nums=None, max_path_nums=None, max_text_length=64, cluster_batch=False, saint_check=True) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -72,8 +72,8 @@ class BasicDataset(Dataset):
         self.max_text_length = max_text_length
         self.min_path_nums = min_path_nums
         self.max_path_nums = max_path_nums
-
-        content = self.pre_process(content)
+        if saint_check:
+            content = self.pre_process(content)
         if cluster_batch:
             # first sort the dataset by length
             print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
@@ -87,7 +87,13 @@ class BasicDataset(Dataset):
         print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
         new_dataset = []
         for item in dataset:
-            sample = item['mesh_data']
+            if 'keys' in item:
+                sample = item['keys']
+            elif 'mesh_data' in item:
+                sample = item['mesh_data']
+            else:
+                print(sample.keys())
+                raise ValueError("invalid dataset, check your keys")
             if sample is None:
                 continue
             if sample[:7].equal(EDGE):
@@ -378,7 +384,7 @@ class VQDataCollator:
 
 
 class VQSeq2SeqData:
-    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1, codebook_size=4096, val_data_num=2048):  
+    def __init__(self, config, vq_svg_file, svg_begin_token, tokenizer, offline_mode=True, mode="train", task="generation", inferece_nums=-1, codebook_size=4096, val_data_num=2048, use_custom_collate_fn=False):  
         self.cfg = config
         self.tokenizer = tokenizer
         self.task = task
@@ -406,7 +412,8 @@ class VQSeq2SeqData:
         
         self.svg_begin_token = svg_begin_token
         self.offline_mode = offline_mode
-
+        self.use_custom_collate_fn = use_custom_collate_fn
+        
     @property
     def train_dataset(self) -> Dataset:
         if self.offline_mode and self.task == "generation":
@@ -474,12 +481,11 @@ class VQSeq2SeqData:
         if self.offline_mode:
             return OfflineBasicDataset(
                 content=self.pred_data,
-                min_path_nums=self.cfg.min_path_nums,
                 max_path_nums=self.cfg.max_path_nums, 
                 tokenizer=self.tokenizer,
-                svg_begin_token = self.svg_begin_token,
                 max_text_length=self.cfg.max_text_length,
                 mode="test",
+                codebook_size=self.codebook_size,
             )
         else:
             return BasicDataset(
@@ -490,7 +496,8 @@ class VQSeq2SeqData:
                 svg_begin_token = self.svg_begin_token,
                 max_text_length=self.cfg.max_text_length,
                 mode="test",
-                cluster_batch=False
+                cluster_batch=False,
+                saint_check=False,
             )
             
             
@@ -501,6 +508,7 @@ class VQSeq2SeqData:
                 batch_size=self.cfg.predict_batch_size, 
                 num_workers=self.cfg.dataloader_num_workers, 
                 pin_memory=False, drop_last=False, shuffle=False,
+                collate_fn=VQDataCollator(self.cfg.max_path_nums, return_all_token_mask=True) if self.use_custom_collate_fn else None
             )
             
             
