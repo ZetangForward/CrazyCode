@@ -57,26 +57,12 @@ class Experiment(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        quantized, indices, commit_loss = self.forward(batch)
-        quantized_out = self.model.get_output_from_indices(indices)
-        
-        reconstruction_loss = _loss_fn('l2', batch['svg_path'], quantized_out, self.cfg, batch['padding_mask'])
-        import pdb; pdb.set_trace()
-        
-        
-        
+        _, loss_w, metrics = self.forward(batch)
         self.log("total_loss", loss_w, sync_dist=True, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
         return loss_w
 
-
     def validation_step(self, batch, batch_idx):
-        import pdb; pdb.set_trace()
-        quantized, indices, commit_loss = self.forward(batch)
-        quantized_out = self.model.get_output_from_indices(indices)
-        
-        import pdb; pdb.set_trace()
-        
         _, loss_w, _ = self.forward(batch)
         self.log("val_loss", loss_w, sync_dist=True, prog_bar=True)
 

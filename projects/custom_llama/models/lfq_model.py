@@ -288,13 +288,10 @@ class LFQ(nn.Module):
             commit_losses.append(commit_loss)
             zs.append(indices)
             # xs_quantised: [[32, 2048, 128], [32, 2048, 64], [32, 2048, 32]]
-        
-        import pdb; pdb.set_trace()
-        
+
         x_outs = []
         for level in range(self.levels):
             decoder = self.decoders[level]
-            import pdb; pdb.set_trace()
             x_out = decoder(xs_quantised[level:level+1], all_levels=False)
 
             # happens when deploying
@@ -317,7 +314,6 @@ class LFQ(nn.Module):
 
         for level in reversed(range(self.levels)):  # attention: here utilize the reversed order
             
-            import pdb; pdb.set_trace()
             x_out = x_outs[level].permute(0, 2, 1).float()
             this_recons_loss = _loss_fn(loss_fn, x_target, x_out, self.cfg, padding_mask)
             metrics[f'recons_loss_l{level + 1}'] = this_recons_loss
@@ -334,7 +330,6 @@ class LFQ(nn.Module):
             recons_loss=recons_loss,
             l2_loss=l2_loss,
             l1_loss=l1_loss,
-            # linf_loss=linf_loss,
             commit_loss=commit_loss,
         ))
 
