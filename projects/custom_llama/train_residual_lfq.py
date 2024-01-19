@@ -13,6 +13,8 @@ from data.svg_data import SvgDataModule
 from modelzipper.tutils import *
 from models.vqvae import VQVAE
 from models.utils import *
+from vector_quantize_pytorch import ResidualLFQ
+
 
 class Experiment(pl.LightningModule):
 
@@ -31,13 +33,26 @@ class Experiment(pl.LightningModule):
         return self.model(input['svg_path'], input['padding_mask'], **kwargs)
 
     def training_step(self, batch, batch_idx):
-        _, loss_w, metrics = self.forward(batch)
+        import pdb; pdb.set_trace()
+        quantized, indices, commit_loss = self.forward(batch)
+        quantized_out = self.model.get_output_from_indices(indices)
+        
+        import pdb; pdb.set_trace()
+        
+        
+        
         self.log("total_loss", loss_w, sync_dist=True, prog_bar=True)
         self.log_dict(metrics, sync_dist=True)
         return loss_w
 
 
     def validation_step(self, batch, batch_idx):
+        import pdb; pdb.set_trace()
+        quantized, indices, commit_loss = self.forward(batch)
+        quantized_out = self.model.get_output_from_indices(indices)
+        
+        import pdb; pdb.set_trace()
+        
         _, loss_w, _ = self.forward(batch)
         self.log("val_loss", loss_w, sync_dist=True, prog_bar=True)
 
@@ -63,7 +78,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs/experiment', config_name='default', version_base='1.1')
+@hydra.main(config_path='./configs/experiment', config_name='config_lfq', version_base='1.1')
 def main(config):
 
     print(config)
@@ -76,18 +91,13 @@ def main(config):
         version=config.experiment.version
     )
 
-    block_kwargs = dict(
-        width=config.vqvae_conv_block.width, 
-        depth=config.vqvae_conv_block.depth, 
-        m_conv=config.vqvae_conv_block.m_conv,
-        dilation_growth_rate=config.vqvae_conv_block.dilation_growth_rate,
-        dilation_cycle=config.vqvae_conv_block.dilation_cycle,
-        reverse_decoder_dilation=config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    residual_lfq = ResidualLFQ(
+        dim = config.lfq.dim,
+        codebook_size = config.lfq.codebook_size,
+        num_quantizers = config.lfq.num_quantizers
     )
 
-    vqvae = VQVAE(config, multipliers=None, **block_kwargs)
-
-    experiment = Experiment(vqvae, config)
+    experiment = Experiment(residual_lfq, config)
 
     trainer = pl.Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
@@ -110,7 +120,7 @@ def main(config):
         gradient_clip_val=1.5,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=True # for debugging
+        fast_dev_run=True # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)

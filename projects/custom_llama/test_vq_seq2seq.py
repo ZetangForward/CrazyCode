@@ -88,10 +88,15 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
     with tqdm(desc="Predicting", total=len(dataloader)) as pbar:
         for batch_ in dataloader:
             cur_batch_res = []
-            text_input_ids = batch_.get("text_input_ids")
-            text_attention_mask = batch_.get("text_attention_mask")
-            golden_svg_path = batch_.get("svg_tensors")
-            golden_svg_path_mask = batch_.get("svg_attention_mask")
+            # text_input_ids = batch_.get("text_input_ids")
+            # text_attention_mask = batch_.get("text_attention_mask")
+            # golden_svg_path = batch_.get("svg_tensors")
+            # golden_svg_path_mask = batch_.get("svg_attention_mask")
+            
+            text_input_ids = batch_.get("input_ids")
+            text_attention_mask = batch_.get("attention_mask")
+            golden_svg_path = batch_.get("decoder_input_ids")
+            golden_svg_path_mask = batch_.get("decoder_attention_mask")
             
             text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
             text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
@@ -155,17 +160,17 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     
         predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
         p_svg, p_svg_str = convert_svg(predict, True)
-        golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
-        g_svg, g_svg_str = convert_svg(golden, True)
+        # golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
+        # g_svg, g_svg_str = convert_svg(golden, True)
 
         str_paths.append({
             "text": text,
             "p_svg_str": p_svg_str,
-            "g_svg_str": g_svg_str,
+            # "g_svg_str": g_svg_str,
         })
         
         p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-        g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+        # g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
         all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
     
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
@@ -174,7 +179,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
         p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
-        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
+        # g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
     
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")
@@ -202,7 +207,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug/checkpoint-702"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-5100"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
