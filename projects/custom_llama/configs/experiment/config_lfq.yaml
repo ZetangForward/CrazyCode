@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 12
-EXP_NAME: &EXP_NAME "vqllama_quantizer"
+JOB_ID: &JOB_ID 0
+EXP_NAME: &EXP_NAME "vqllama_quantizer_lfq"
 
 hydra:
   job:
@@ -10,8 +10,8 @@ hydra:
     dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
-  # train_data_path: "/zecheng2/svg/icon-shop/pkl_data/full_data.pkl"
-  train_data_path: "/zecheng2/svg/icon-shop/pkl_data/full_data_snaps/sub_full_data_7.pkl"
+  train_data_path: "/zecheng2/svg/icon-shop/pkl_data/full_data.pkl"
+  # train_data_path: "/zecheng2/svg/icon-shop/pkl_data/full_data_snaps/sub_full_data_7.pkl"
   max_path_nums: 512
   min_path_nums: 4
   pad_token_id: 0
