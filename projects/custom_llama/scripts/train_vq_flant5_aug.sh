@@ -3,7 +3,7 @@ OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v1"
 mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 8 \
-    --num_nodes 3 \
+    --num_nodes 8 \
     --master_addr node-0 \
     --master_port 5668 \
     --hostfile configs/machine/hostfile_v64_sxm2 \
