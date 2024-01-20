@@ -320,9 +320,6 @@ def test():
         )
         print_c("begin to save predicted results", "magenta")
         auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
-        
-    
-    
     
 
 if __name__ == "__main__":
