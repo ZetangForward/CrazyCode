@@ -194,8 +194,8 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
         p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
-        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
-        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='r_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
+        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
+        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='r_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
     
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")
