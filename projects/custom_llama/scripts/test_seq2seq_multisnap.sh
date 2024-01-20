@@ -13,9 +13,9 @@ for i in {0..7}; do
         --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_data_long_seq_with_mesh.pkl" \
         --save_dir ${save_dir} \
         --max_generate_length 512 \
-        --predict_batch_size 8 \
+        --predict_batch_size 16 \
         --model_max_length 512 \
-        --inference_nums 48 \
+        --inference_nums -1 \
         --dataloader_num_workers 0 \
         --fp16 False \
         --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
