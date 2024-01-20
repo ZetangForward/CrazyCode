@@ -26,6 +26,7 @@ dataset:
   return_all_token_mask: False
   remove_redundant_col: False
   cluster_batch: True
+  vocab_size: 200
 
 vqvae:
   levels: 2

@@ -25,6 +25,7 @@ dataset:
   num_bins: 9
   remove_redundant_col: False  # remove the 2nd and 3rd coloumns
   cluster_batch: True
+  vocab_size: 200
 
 vqvae:
   levels: 2
