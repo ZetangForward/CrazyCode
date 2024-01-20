@@ -16,7 +16,7 @@ for i in {0..7}; do
         --predict_batch_size 24 \
         --model_max_length 512 \
         --inference_nums -1 \
-        --dataloader_num_workers 0 \
+        --dataloader_num_workers 2 \
         --fp16 False \
         --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
         --do_sample False \
