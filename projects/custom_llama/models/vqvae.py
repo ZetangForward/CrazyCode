@@ -101,8 +101,8 @@ def postprocess(x, padding_mask=None, path_interpolation=True):
         # replace the command value to 0, 1, 2
         full_x[:, :, 0][full_x[:, :, 0] == 100] = 1
         full_x[:, :, 0][full_x[:, :, 0] == 200] = 2
-        # remove the padding
-        full_x = remove_padding(full_x, padding_mask)
+        if padding_mask is not None: # remove the padding
+            full_x = remove_padding(full_x, padding_mask)
 
     return full_x
 
