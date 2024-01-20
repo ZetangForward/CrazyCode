@@ -134,7 +134,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                             generated_svg_path = decoded_svg_path.cpu(),
                             text = text,
                             svg_token_ids = svg_token_ids.cpu(),
-                            raw_data = raw_data.cpu(),
+                            raw_data = raw_data[i].cpu(),
                         )
                     )
                     

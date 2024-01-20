@@ -42,6 +42,8 @@ def pad_tensor_with_h(vec, pad_len, dim, pad_token_h):
         return:
             a new tensor padded to 'pad' in dimension 'dim'
         """
+        if len(vec) >= pad_len:
+            return vec[:pad_len]
         return torch.cat([vec, pad_token_h.repeat(pad_len - vec.size(dim), 1)], dim=dim)
 
 def pad_tensor(vec, pad, dim, pad_token_id):
@@ -388,7 +390,7 @@ class VQDataCollator:
 
         if self.mode == "test":
             mesh_data = [x['mesh_data'] for x in batch]
-            mesh_data = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), mesh_data))
+            mesh_data = list(map(lambda x: pad_tensor(x, 9012, 0, self.pad_token_id), mesh_data))
             return {
                 "input_ids": text_input_ids,
                 "attention_mask": text_attention_mask,
