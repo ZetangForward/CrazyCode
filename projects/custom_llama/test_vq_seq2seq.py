@@ -124,7 +124,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                                 min_index = indices[0]  
                     if min_index is not None:  
                         svg_token_ids = svg_token_ids[:min_index]  
-                    decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                    decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=False, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
                     
@@ -249,6 +249,61 @@ def test():
     
     vqvae = vqvae.half() if test_args.fp16 else vqvae
     
+    if test_args.do_inference:
+        ### Load T5 Model for inference
+        # config 
+        flant5config = transformers.AutoConfig.from_pretrained(MODEL_NAME_OR_PATH)
+        flant5config.frozen_llm = False
+        flant5config.max_text_length = 64
+        flant5config.min_path_nums = 4
+        flant5config.max_path_nums = 512
+        flant5config.use_cache = False
+        flant5config.predict_batch_size = test_args.predict_batch_size
+        flant5config.dataloader_num_workers = test_args.dataloader_num_workers
+    
+        svg_data_module = VQSeq2SeqData(
+            flant5config, 
+            test_args.data_path, 
+            tokenizer=flant5_tokenizer, 
+            offline_mode=True,
+            mode="test",
+            svg_begin_token = None,
+            inferece_nums=test_args.inference_nums,
+            use_custom_collate_fn=True,
+        )
+        
+        predict_dataloader = svg_data_module.predict_dataloader()
+
+        svgllama = VQSVGSeq2SeqModel.from_pretrained(
+        MODEL_NAME_OR_PATH, 
+            config=flant5config, 
+            codebook_size=vqvae_config.vqvae.l_bins,
+        )
+        
+        svgllama.eval().cuda()
+        svgllama = svgllama.half() if test_args.fp16 else svgllama
+    
+            
+        sampling_strategy = dict(
+            do_sample=test_args.do_sample,
+            temperature=test_args.temperature,
+            top_p=test_args.top_p,
+            top_k=test_args.top_k,
+            num_beams=test_args.num_beams,
+        )
+    
+        predicted_results = predict_loop(
+            model=svgllama, 
+            vqvae=vqvae,
+            dataloader=predict_dataloader, 
+            tokenizer=flant5_tokenizer,
+            max_generate_length=test_args.max_generate_length,
+            decoder_input_ids = vqvae_config.vqvae.l_bins + 1,
+            **sampling_strategy,
+        )
+        print_c("begin to save predicted results", "magenta")
+        auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
+    
     if test_args.do_raster:
         if predicted_results is None:
             predicted_results = []
@@ -264,62 +319,6 @@ def test():
             save_intermediate_results=False,
             decode_golden=True,
         )
-    
-    ### Load T5 Model for inference
-    # config 
-    flant5config = transformers.AutoConfig.from_pretrained(MODEL_NAME_OR_PATH)
-    flant5config.frozen_llm = False
-    flant5config.max_text_length = 64
-    flant5config.min_path_nums = 4
-    flant5config.max_path_nums = 512
-    flant5config.use_cache = False
-    flant5config.predict_batch_size = test_args.predict_batch_size
-    flant5config.dataloader_num_workers = test_args.dataloader_num_workers
-    
-    svg_data_module = VQSeq2SeqData(
-        flant5config, 
-        test_args.data_path, 
-        tokenizer=flant5_tokenizer, 
-        offline_mode=True,
-        mode="test",
-        svg_begin_token = None,
-        inferece_nums=test_args.inference_nums,
-        use_custom_collate_fn=True,
-    )
-    
-    predict_dataloader = svg_data_module.predict_dataloader()
-
-    svgllama = VQSVGSeq2SeqModel.from_pretrained(
-       MODEL_NAME_OR_PATH, 
-        config=flant5config, 
-        codebook_size=vqvae_config.vqvae.l_bins,
-    )
-    
-    svgllama.eval().cuda()
-    
-    svgllama = svgllama.half() if test_args.fp16 else svgllama
-  
-        
-    sampling_strategy = dict(
-        do_sample=test_args.do_sample,
-        temperature=test_args.temperature,
-        top_p=test_args.top_p,
-        top_k=test_args.top_k,
-        num_beams=test_args.num_beams,
-    )
-    
-    if test_args.do_inference:
-        predicted_results = predict_loop(
-            model=svgllama, 
-            vqvae=vqvae,
-            dataloader=predict_dataloader, 
-            tokenizer=flant5_tokenizer,
-            max_generate_length=test_args.max_generate_length,
-            decoder_input_ids = vqvae_config.vqvae.l_bins + 1,
-            **sampling_strategy,
-        )
-        print_c("begin to save predicted results", "magenta")
-        auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
     
 
 if __name__ == "__main__":
