@@ -37,6 +37,7 @@ class TestConfig:
     fp16: bool = field(default=True)
     model_max_length: int = field(default=1024)
     inference_nums: int = field(default=1)
+    decode_golden: bool = field(default=False)
 
 
 class PluginVQVAE(nn.Module):
@@ -159,23 +160,22 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         text = res[i]['text']
         
         ## decode golden
-        ### TODO : FIXME 这里还没写完
         if decode_golden:
-            golden_svg_path = vqvae.decode(zs=[golden_svg_path], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+            golden_svg_path = vqvae.decode(zs=[golden_svg_path[1:].cuda()], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
     
         predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
         p_svg, p_svg_str = convert_svg(predict, True)
-        # golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
-        # g_svg, g_svg_str = convert_svg(golden, True)
+        golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
+        g_svg, g_svg_str = convert_svg(golden, True)
 
         str_paths.append({
             "text": text,
             "p_svg_str": p_svg_str,
-            # "g_svg_str": g_svg_str,
+            "g_svg_str": g_svg_str,
         })
         
         p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-        # g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+        g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
         all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
     
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
@@ -184,7 +184,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
         p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
-        # g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
+        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
     
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")
@@ -212,7 +212,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-7500"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug_v2/checkpoint-448"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,

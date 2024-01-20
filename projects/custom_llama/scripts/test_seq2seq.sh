@@ -20,4 +20,5 @@ python test_vq_seq2seq.py \
     --top_p 0.9 \
     --top_k 40 \
     --num_beams 1 \
-    --temperature 0.8;
+    --temperature 0.8 \
+    --decode_golden True;
