@@ -207,7 +207,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-5100"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug/checkpoint-810"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
