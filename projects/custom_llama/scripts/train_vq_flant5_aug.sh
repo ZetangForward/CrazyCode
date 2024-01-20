@@ -15,7 +15,7 @@ deepspeed --num_gpus 16 \
     --num_train_epochs 100 \
     --model_max_length 512 \
     --per_device_train_batch_size 54 \
-    --per_device_eval_batch_size 4 \
+    --per_device_eval_batch_size 2 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "epoch" \
