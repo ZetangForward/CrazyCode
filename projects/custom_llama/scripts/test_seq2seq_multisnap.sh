@@ -1,6 +1,6 @@
 snap_id=$1
-ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5"
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v6/checkpoint-374"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_topp"
 LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs/multisnap_inference"
 
 mkdir -p ${LOG_OUTPUT}
@@ -22,7 +22,9 @@ for i in {0..7}; do
         --do_sample False \
         --top_p 0.9 \
         --top_k 40 \
+        --do_inference True \
+        --do_raster False \
         --num_beams 1 \
-        --temperature 0.8 \
+        --temperature 0.7 \
         --decode_golden True > ${LOG_OUTPUT}/inference_${i}.log 2>&1 &  
 done 

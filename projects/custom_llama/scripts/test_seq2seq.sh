@@ -16,11 +16,11 @@ python test_vq_seq2seq.py \
     --dataloader_num_workers 2 \
     --fp16 False \
     --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
-    --do_sample True \
+    --do_sample False \
     --top_p 0.9 \
     --top_k 40 \
     --num_beams 1 \
     --temperature 0.7 \
     --decode_golden True \
     --do_raster True \
-    --do_inference True;
+    --do_inference False;
