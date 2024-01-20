@@ -1,10 +1,10 @@
 SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 12
-EPOCH: &EPOCH 37
+JOB_ID: &JOB_ID 8
+EPOCH: &EPOCH 84
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
 TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
-
+TYPE: &TYPE "normal"
 
 hydra:
   job:
@@ -32,7 +32,7 @@ vqvae:
   downs_t: [1, 1]
   strides_t: [2, 2]
   emb_width: 4096
-  l_bins: 4096
+  l_bins: 8192
   l_mu: 0.99
   spectral: 0.0
   multispectral: 1.0
@@ -45,7 +45,7 @@ vqvae:
   recon: 1.0
   linf_k: 2048
   use_modified_block: False
-  
+
 vqvae_conv_block:
   depth: 4
   width: 512
@@ -53,10 +53,10 @@ vqvae_conv_block:
   dilation_growth_rate: 1
   dilation_cycle: null
   vqvae_reverse_decoder_dilation: True
-  
+
 experiment:
   ckeckpoint_path: ${CKPT_PATH}
-  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/epoch_${EPOCH}
+  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/epoch_${EPOCH}/${TYPE}
   exp_name: ${EXP_NAME}
   version: ${JOB_ID}
   device_num: 1

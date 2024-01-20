@@ -166,12 +166,14 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         outputs, _, _ = self.forward(batch, return_all_quantized_res=True, denormalize=True)
         output = outputs[self.cfg.experiment.compress_level - 1]
-        post_process_output = postprocess(output, batch['padding_mask'], self.cfg.experiment.path_interpolation)  # path interpolation
+        post_process_output1 = postprocess(output, batch['padding_mask'], True)  # path interpolation
+        post_process_output2 = postprocess(output, batch['padding_mask'], False)  # path interpolation
         golden = sanint_check_golden(batch['svg_path'])
         
         standard_test_reconstruct = {
             "raw_predict": output,
-            "p_predict": post_process_output,
+            "p_predict1": post_process_output1,
+            "p_predict1": post_process_output2,
             "golden": golden,
         }
 

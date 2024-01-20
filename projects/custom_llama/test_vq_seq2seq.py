@@ -138,7 +138,6 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                             raw_data = raw_data[i].cpu(),
                         )
                     )
-                    
             res.extend(cur_batch_res)
             pbar.update(1)
     return res
@@ -302,6 +301,7 @@ def test():
             decoder_input_ids = vqvae_config.vqvae.l_bins + 1,
             **sampling_strategy,
         )
+        print_c("begin to save predicted results", "magenta")
         auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
         
     

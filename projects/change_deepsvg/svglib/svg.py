@@ -395,7 +395,7 @@ class SVG:
 
         if do_display:
             src = clip if file_path is None else file_path
-            ipd.display(ipython_display(src, fps=24, rd_kwargs=dict(logger=None), autoplay=1, loop=1))
+            ipd.display(ipython_display(src, filetype='video', fps=24, rd_kwargs=dict(logger=None), autoplay=1, loop=1))
 
     def numericalize(self, n=256):
         self.normalize(viewbox=Bbox(n))
