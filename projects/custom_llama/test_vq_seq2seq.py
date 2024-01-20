@@ -140,7 +140,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
     return res
                     
                     
-def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_background=False, save_intermediate_results=False) -> None:
+def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_background=False, save_intermediate_results=False, vqvae=None, decode_golden=False) -> None:
     
     assert save_dir is not None, "save_dir must be specified!"
     SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_single_image")) # save single image
@@ -157,6 +157,11 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         generated_svg_path = res[i]['generated_svg_path']
         golden_svg_path = res[i]['golden_svg_path']
         text = res[i]['text']
+        
+        ## decode golden
+        ### TODO : FIXME 这里还没写完
+        if decode_golden:
+            golden_svg_path = vqvae.decode(zs=[golden_svg_path], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
     
         predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
         p_svg, p_svg_str = convert_svg(predict, True)
@@ -178,7 +183,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     if generate_big_map:
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
-        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
+        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
         # g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
     
     if add_background:
@@ -207,7 +212,7 @@ def test():
     auto_mkdir(SAVE_DIR)
     
     # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug/checkpoint-810"
+    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-7500"
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
@@ -288,10 +293,12 @@ def test():
     
     post_process(
         predicted_results, 
+        vqvae=vqvae,
         save_dir=SAVE_DIR, 
         generate_big_map=True, 
         add_background=False, 
-        save_intermediate_results=False
+        save_intermediate_results=False,
+        decode_golden=True,
     )
     
 

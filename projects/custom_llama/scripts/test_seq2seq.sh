@@ -12,7 +12,7 @@ python test_vq_seq2seq.py \
     --max_generate_length 64 \
     --predict_batch_size 24 \
     --model_max_length 512 \
-    --inference_nums 800 \
+    --inference_nums 2000 \
     --dataloader_num_workers 0 \
     --fp16 False \
     --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
