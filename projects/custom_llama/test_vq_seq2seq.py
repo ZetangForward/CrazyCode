@@ -98,6 +98,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             text_attention_mask = batch_.get("attention_mask")
             golden_svg_path = batch_.get("decoder_input_ids")
             golden_svg_path_mask = batch_.get("decoder_attention_mask")
+            raw_data = batch_.get("raw_data")
             
             text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
             text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
@@ -133,6 +134,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                             generated_svg_path = decoded_svg_path.cpu(),
                             text = text,
                             svg_token_ids = svg_token_ids.cpu(),
+                            raw_data = raw_data.cpu(),
                         )
                     )
                     
@@ -167,12 +169,20 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         p_svg, p_svg_str = convert_svg(predict, True)
         golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
         g_svg, g_svg_str = convert_svg(golden, True)
+        
 
         str_paths.append({
             "text": text,
             "p_svg_str": p_svg_str,
             "g_svg_str": g_svg_str,
         })
+        
+        if 'raw_data' in res[i]:
+            raw_data = res[i]['raw_data']
+            raw = sanint_check_svg_tensor(raw_data).squeeze(0)
+            r_svg, r_svg_str = convert_svg(raw, True)
+            str_paths[-1]["r_svg_str"] = r_svg_str
+            r_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
         
         p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
         g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
@@ -185,6 +195,7 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
         p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
         g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
+        g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='r_svg.png', num_images=300, save_dir=BIG_MAP_SAVED_DIR)
     
     if add_background:
         print_c(f"add background to {len(all_image_paths)} images", "magenta")

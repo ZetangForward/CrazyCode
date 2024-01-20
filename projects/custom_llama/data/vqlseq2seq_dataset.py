@@ -169,7 +169,7 @@ class OfflineBasicDataset(Dataset):
     # PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
     PROMPT_TEMPLATE = "{keywords}"
 
-    def __init__(self, content, tokenizer, mode="train", max_path_nums=None, max_text_length=64, codebook_size=4096) -> None:
+    def __init__(self, content, tokenizer, mode="train", max_path_nums=None, max_text_length=64, codebook_size=4096, have_mesh_data=False) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -202,6 +202,19 @@ class OfflineBasicDataset(Dataset):
             text_input_ids != self.tokenizer.pad_token_id, text_input_ids, -100
         )
         
+        if self.mode == "test":
+            mesh_data = item['mesh_data']
+            if mesh_data[:7].equal(EDGE):
+                mesh_data = mesh_data[7:]
+            
+            return {
+                "text_input_ids": text_input_ids,
+                "text_attention_mask": text_attention_mask,
+                "text_labels": text_labels,
+                "svg_tensors": sample.long(),
+                "mesh_data": mesh_data,
+            }
+            
         return {
             "text_input_ids": text_input_ids,
             "text_attention_mask": text_attention_mask,
@@ -329,12 +342,13 @@ class VQDataCollator:
     a variant of callate_fn that pads according to the longest sequence in
     a batch of sequences
     """
-    def __init__(self, max_svg_length=512, pad_token_id=0, cluster_batch=False, return_all_token_mask=False, offline_mode=True):
+    def __init__(self, max_svg_length=512, pad_token_id=0, cluster_batch=False, return_all_token_mask=False, offline_mode=True, mode="train"):
         self.max_svg_length = max_svg_length
         self.pad_token_id = pad_token_id
         self.cluster_batch = cluster_batch
         self.return_all_token_mask = return_all_token_mask
         self.offline_mode = offline_mode
+        self.mode = mode
 
     def pad_collate(self, batch):
         """
@@ -346,6 +360,7 @@ class VQDataCollator:
         text_labels = [x['text_labels'] for x in batch]
         svg_tensors = [x['svg_tensors'] for x in batch]
         
+            
         if self.cluster_batch:
             # find longest sequence
             max_len = max(map(lambda x: x.shape[0], svg_tensors))
@@ -371,6 +386,18 @@ class VQDataCollator:
             svg_padding_mask = list(map(lambda x: cal_compress_padding_mask(x), svg_padding_mask))
             svg_padding_mask = torch.stack(svg_padding_mask, dim=0)
 
+        if self.mode == "test":
+            mesh_data = [x['mesh_data'] for x in batch]
+            mesh_data = list(map(lambda x: pad_tensor(x, max_len, 0, self.pad_token_id), mesh_data))
+            return {
+                "input_ids": text_input_ids,
+                "attention_mask": text_attention_mask,
+                "labels": text_labels,
+                "decoder_input_ids": svg_tensors, 
+                "decoder_attention_mask": svg_padding_mask,
+                "raw_data": torch.stack(mesh_data, dim=0).long(),
+            }
+        
         return {
             "input_ids": text_input_ids,
             "attention_mask": text_attention_mask,
@@ -508,7 +535,7 @@ class VQSeq2SeqData:
                 batch_size=self.cfg.predict_batch_size, 
                 num_workers=self.cfg.dataloader_num_workers, 
                 pin_memory=False, drop_last=False, shuffle=False,
-                collate_fn=VQDataCollator(self.cfg.max_path_nums, return_all_token_mask=True) if self.use_custom_collate_fn else None
+                collate_fn=VQDataCollator(self.cfg.max_path_nums, return_all_token_mask=True, mode='test') if self.use_custom_collate_fn else None
             )
             
             
