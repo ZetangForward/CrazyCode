@@ -307,7 +307,7 @@ def test():
     if test_args.do_raster:
         if predicted_results is None:
             predicted_results = []
-            for id_ in range(1):
+            for id_ in range(8):
                 predicted_results.extend(auto_read_data(os.path.join(SAVE_DIR, f"snap_{id_}_results.pkl")))
             
         post_process(
