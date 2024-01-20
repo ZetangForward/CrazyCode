@@ -1,15 +1,15 @@
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v2"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v6"
 
 mkdir -p ${OUTPUT_DIR}
 
-deepspeed --num_gpus 8 \
-    --num_nodes 3 \
+deepspeed --num_gpus 16 \
+    --num_nodes 4 \
     --master_addr worker-0 \
     --master_port 5668 \
-    --hostfile configs/machine/hostfile_v24 \
+    --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vq_seq2seq_aug.py \
-    --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-7500" \
-    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-7500" \
+    --model_name_or_path "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100" \
+    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/aug_stage2_pro_data.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 100 \

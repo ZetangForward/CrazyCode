@@ -22,7 +22,6 @@ DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 class TestConfig:
     vqvae_config_path: str = field(default=None)
     tokenier_config_path: str = field(default=None)
-    version: int = field(default=None)
     ckpt: int = field(default=None)
     data_path: str = field(default=None)
     predict_batch_size: int = field(default=1)
@@ -38,7 +37,9 @@ class TestConfig:
     model_max_length: int = field(default=1024)
     inference_nums: int = field(default=1)
     decode_golden: bool = field(default=False)
-
+    do_raster: bool = field(default=False)
+    do_inference: bool = field(default=True)
+    snap_id: int = field(default=0)
 
 class PluginVQVAE(nn.Module):
     def __init__(self, model):
@@ -217,13 +218,10 @@ def test():
     vqvae_config = load_yaml_config(test_args.vqvae_config_path)
 
     # parsing trained model path
-    MODEL_DIR="/zecheng2/vqllama/vqllama_flant5"
-    MODEL_NAME_OR_PATH = os.path.join(MODEL_DIR, f"version_{test_args.version}/checkpoint-{test_args.ckpt}")
-    SAVE_DIR = os.path.join(test_args.save_dir, f"version_{test_args.version}/checkpoint-{test_args.ckpt}/test_results")
+    MODEL_NAME_OR_PATH = test_args.ckpt
+    SAVE_DIR = test_args.save_dir
     auto_mkdir(SAVE_DIR)
-    
-    # FIXME: change this path
-    MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_aug_v2/checkpoint-588"
+   
     
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
@@ -292,25 +290,36 @@ def test():
         num_beams=test_args.num_beams,
     )
     
-    predicted_results = predict_loop(
-        model=svgllama, 
-        vqvae=vqvae,
-        dataloader=predict_dataloader, 
-        tokenizer=flant5_tokenizer,
-        max_generate_length=test_args.max_generate_length,
-        decoder_input_ids = vqvae_config.vqvae.l_bins + 1,
-        **sampling_strategy,
-    )
+    predicted_results = None
     
-    post_process(
-        predicted_results, 
-        vqvae=vqvae,
-        save_dir=SAVE_DIR, 
-        generate_big_map=True, 
-        add_background=False, 
-        save_intermediate_results=False,
-        decode_golden=True,
-    )
+    if test_args.do_inference:
+        predicted_results = predict_loop(
+            model=svgllama, 
+            vqvae=vqvae,
+            dataloader=predict_dataloader, 
+            tokenizer=flant5_tokenizer,
+            max_generate_length=test_args.max_generate_length,
+            decoder_input_ids = vqvae_config.vqvae.l_bins + 1,
+            **sampling_strategy,
+        )
+        auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
+        
+    
+    if test_args.do_raster:
+        if predicted_results is None:
+            predicted_results = []
+            for id_ in range(8):
+                predicted_results.extend(auto_read_data(os.path.join(SAVE_DIR, f"snap_{id_}_results.pkl")))
+            
+        post_process(
+            predicted_results, 
+            vqvae=vqvae,
+            save_dir=SAVE_DIR, 
+            generate_big_map=True, 
+            add_background=False, 
+            save_intermediate_results=False,
+            decode_golden=True,
+        )
     
 
 if __name__ == "__main__":
