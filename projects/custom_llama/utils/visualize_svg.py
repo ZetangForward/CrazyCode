@@ -38,7 +38,7 @@ def convert_svg(t, colored=False):
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
     svg.numericalize(n=200)
     if colored:
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         svg = svg.normalize().split_paths().set_color("random")
     str_svg = svg.to_str()
     return svg, str_svg
@@ -119,49 +119,61 @@ def main(cl: int = 0, rd: str = None):
 
     DIRECT_GENERATE_BIG_MAP = True
     DIRECT_GENERATE_SINGLE_IMAGE = True
-    DIRECT_ADD_BACKGROUND = True
+    DIRECT_ADD_BACKGROUND = False
 
     all_image_paths = []
 
     if DIRECT_GENERATE_SINGLE_IMAGE:
         results = auto_read_data(FILE_PATH)
-        keys = ['raw_predict', 'p_predict', 'golden', 'zs', 'xs_quantised']
+        keys = ['raw_predict', 'p_predict1', 'p_predict2', 'golden', 'zs', 'xs_quantised']
         num_svgs = len(results[keys[0]])
         str_paths = []
         
         for i in trange(num_svgs):
             raw_predict = results['raw_predict'][i]
-            p_predict = results['p_predict'][i]
+            p_predict1 = results['p_predict1'][i]
+            p_predict2 = results['p_predict2'][i]
             golden = results['golden'][i]
 
-            p_predict = sanint_check_svg_tensor(p_predict).squeeze(0)
-            p_svg, p_svg_str = convert_svg(p_predict, True)
+            p_predict1 = sanint_check_svg_tensor(p_predict1).squeeze(0)
+            p_svg1, p_svg_str1 = convert_svg(p_predict1, True)
+            p_predict2 = sanint_check_svg_tensor(p_predict2).squeeze(0)
+            p_svg2, p_svg_str2 = convert_svg(p_predict2, True)
             golden = sanint_check_svg_tensor(golden).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
 
             str_paths.append({
-                "p_svg_str": p_svg_str,
+                "p_svg_str1": p_svg_str1,
+                "p_svg_str2": p_svg_str2,
                 "g_svg_str": g_svg_str,
             })
             
-            p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            p_svg1.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
+            p_svg2.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
             g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
-            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
             all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
 
         auto_save_data(str_paths, PATH_SAVED_PATH)
 
     if DIRECT_GENERATE_BIG_MAP:
-        p_svg_images = merge_images(
+        p_svg_images1 = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
-            image_suffix='p_svg.png', 
-            num_images=1000, 
+            image_suffix='p_svg1.png', 
+            num_images=2000, 
+            save_dir=BIG_MAP_SAVED_DIR
+        )
+        p_svg_images2 = merge_images(
+            folder_path=SINGLE_IMAGE_SAVED_DIR, 
+            image_suffix='p_svg2.png', 
+            num_images=2000, 
             save_dir=BIG_MAP_SAVED_DIR
         )
         g_svg_images = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='g_svg.png', 
-            num_images=1000, 
+            num_images=2000, 
             save_dir=BIG_MAP_SAVED_DIR
         )
 

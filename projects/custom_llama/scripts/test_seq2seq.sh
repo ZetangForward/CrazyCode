@@ -1,12 +1,9 @@
-snap_id=$1
-ckpt=$2
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
 save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5"
-
 
 export CUDA_VISIBLE_DEVICES=6
 
 python test_vq_seq2seq.py \
-    --snap_id ${snap_id} \
     --ckpt ${ckpt} \
     --tokenier_config_path "/zecheng2/model_hub/flan-t5-xl" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_data_long_seq_with_mesh.pkl" \
@@ -23,4 +20,6 @@ python test_vq_seq2seq.py \
     --top_k 40 \
     --num_beams 1 \
     --temperature 0.8 \
-    --decode_golden True;
+    --decode_golden True \
+    --do_raster True \
+    --do_inference False;

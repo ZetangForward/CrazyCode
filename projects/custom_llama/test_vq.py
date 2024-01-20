@@ -173,7 +173,7 @@ class Experiment(pl.LightningModule):
         standard_test_reconstruct = {
             "raw_predict": output,
             "p_predict1": post_process_output1,
-            "p_predict1": post_process_output2,
+            "p_predict2": post_process_output2,
             "golden": golden,
         }
 
