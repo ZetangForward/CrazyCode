@@ -22,7 +22,7 @@ DEFAULT_SVG_BEGIN_TOKEN = "<SVG>"
 class TestConfig:
     vqvae_config_path: str = field(default=None)
     tokenier_config_path: str = field(default=None)
-    ckpt: int = field(default=None)
+    ckpt: str = field(default=None)
     data_path: str = field(default=None)
     predict_batch_size: int = field(default=1)
     dataloader_num_workers: int = field(default=0)

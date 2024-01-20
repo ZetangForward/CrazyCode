@@ -1,13 +1,13 @@
 snap_id=$1
-ckpt=$2
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
 save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5"
 LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs/multisnap_inference"
 
 mkdir -p ${LOG_OUTPUT}
 
 for i in {0..7}; do  
-    CUDA_VISIBLE_DEVICES=6 python test_vq_seq2seq.py \
-        --snap_id ${snap_id} \
+    CUDA_VISIBLE_DEVICES=$i python test_vq_seq2seq.py \
+        --snap_id ${i} \
         --ckpt ${ckpt} \
         --tokenier_config_path "/zecheng2/model_hub/flan-t5-xl" \
         --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_data_long_seq_with_mesh.pkl" \
