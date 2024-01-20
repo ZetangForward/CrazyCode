@@ -220,8 +220,9 @@ def test():
     MODEL_NAME_OR_PATH = test_args.ckpt
     SAVE_DIR = test_args.save_dir
     auto_mkdir(SAVE_DIR)
-   
     
+    predicted_results = None
+   
     flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
         test_args.tokenier_config_path,
         model_max_length=test_args.model_max_length,
@@ -229,6 +230,42 @@ def test():
         use_fast=True,
     )
     
+    # init VQVAE
+    block_kwargs = dict(
+        width=vqvae_config.vqvae_conv_block.width, 
+        depth=vqvae_config.vqvae_conv_block.depth, 
+        m_conv=vqvae_config.vqvae_conv_block.m_conv,
+        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
+        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
+        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    )
+    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    plugin_vqvae = PluginVQVAE(vqvae)
+    checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
+    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
+    print_c("VQVAE loaded!", "green")
+    vqvae = plugin_vqvae.model
+    vqvae.eval().cuda()
+    
+    vqvae = vqvae.half() if test_args.fp16 else vqvae
+    
+    if test_args.do_raster:
+        if predicted_results is None:
+            predicted_results = []
+            for id_ in range(8):
+                predicted_results.extend(auto_read_data(os.path.join(SAVE_DIR, f"snap_{id_}_results.pkl")))
+            
+        post_process(
+            predicted_results, 
+            vqvae=vqvae,
+            save_dir=SAVE_DIR, 
+            generate_big_map=True, 
+            add_background=False, 
+            save_intermediate_results=False,
+            decode_golden=True,
+        )
+    
+    ### Load T5 Model for inference
     # config 
     flant5config = transformers.AutoConfig.from_pretrained(MODEL_NAME_OR_PATH)
     flant5config.frozen_llm = False
@@ -257,29 +294,11 @@ def test():
         config=flant5config, 
         codebook_size=vqvae_config.vqvae.l_bins,
     )
-
-    # init VQVAE
-    block_kwargs = dict(
-        width=vqvae_config.vqvae_conv_block.width, 
-        depth=vqvae_config.vqvae_conv_block.depth, 
-        m_conv=vqvae_config.vqvae_conv_block.m_conv,
-        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
-        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
-        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    )
-    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
-    plugin_vqvae = PluginVQVAE(vqvae)
-    checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
-    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
-    print_c("VQVAE loaded!", "green")
-    vqvae = plugin_vqvae.model
     
     svgllama.eval().cuda()
-    vqvae.eval().cuda()
     
-    if test_args.fp16:
-        svgllama = svgllama.half()
-        vqvae = vqvae.half()
+    svgllama = svgllama.half() if test_args.fp16 else svgllama
+  
         
     sampling_strategy = dict(
         do_sample=test_args.do_sample,
@@ -288,8 +307,6 @@ def test():
         top_k=test_args.top_k,
         num_beams=test_args.num_beams,
     )
-    
-    predicted_results = None
     
     if test_args.do_inference:
         predicted_results = predict_loop(
@@ -305,21 +322,7 @@ def test():
         auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
         
     
-    if test_args.do_raster:
-        if predicted_results is None:
-            predicted_results = []
-            for id_ in range(8):
-                predicted_results.extend(auto_read_data(os.path.join(SAVE_DIR, f"snap_{id_}_results.pkl")))
-            
-        post_process(
-            predicted_results, 
-            vqvae=vqvae,
-            save_dir=SAVE_DIR, 
-            generate_big_map=True, 
-            add_background=False, 
-            save_intermediate_results=False,
-            decode_golden=True,
-        )
+    
     
 
 if __name__ == "__main__":
