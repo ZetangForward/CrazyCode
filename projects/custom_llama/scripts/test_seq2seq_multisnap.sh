@@ -1,6 +1,6 @@
 snap_id=$1
-ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v6/checkpoint-374"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_topp"
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v7/checkpoint-220"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v7"
 LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs/multisnap_inference"
 
 mkdir -p ${LOG_OUTPUT}
@@ -13,7 +13,7 @@ for i in {0..7}; do
         --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps/long_test_split_${i}.pkl" \
         --save_dir ${save_dir} \
         --max_generate_length 512 \
-        --predict_batch_size 24 \
+        --predict_batch_size 20 \
         --model_max_length 512 \
         --inference_nums -1 \
         --dataloader_num_workers 2 \
