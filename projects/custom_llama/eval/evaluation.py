@@ -19,8 +19,8 @@ def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_proce
     """
     pred_image_features, golden_image_features = [], []
     for i in trange(len(pred_images)):
-        pred_image = preprocess(Image.open(pred_images[i])).unsqueeze(0).to(device)
-        golden_image = preprocess(Image.open(golden_images[i])).unsqueeze(0).to(device)
+        pred_image = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device)
+        golden_image = clip_process(Image.open(golden_images[i])).unsqueeze(0).to(device)
 
         pred_image_features.append(clip_model.encode_image(pred_image))
         golden_image_features.append(clip_model.encode_image(golden_image))
@@ -33,13 +33,17 @@ def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_proce
     return fid_metric.compute()
 
 
-def calculate_clip_core(clip_metric, imgs):
+def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
     """
         metric = CLIPScore(model_name_or_path="openai/clip-vit-base-patch16")
         score = metric(torch.randint(255, (3, 224, 224), generator=torch.manual_seed(42)), "a photo of a cat")
         score.detach()
     """
-    return clip_metric(imgs, "a photo of a cat")
+    avg_scores = []
+    for i in trange(len(pred_images)):
+        img = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device)
+        avg_scores.append(clip_metric(img, keywords_lst[i]))
+    return sum(avg_scores) / len(avg_scores)
 
 
 def calculate_clip_image_quality(quality_metric, imgs):
@@ -83,6 +87,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     fid_metric = FrechetInceptionDistance(feature=64)
     clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14")
+   
     quality_metric = CLIPImageQualityAssessment(prompts=("quality"))
     
     model, preprocess = clip.load("ViT-L/14", device=device)
