@@ -3,8 +3,8 @@ JOB_ID: &JOB_ID 8
 EPOCH: &EPOCH 84
 EXP_NAME: &EXP_NAME "test_vqllama_quantizer"
 CKPT_PATH: &CKPT_PATH "/zecheng2/vqllama/vqllama_quantizer/version_${JOB_ID}/checkpoints/vq-epoch=${EPOCH}.ckpt"
-TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
-TYPE: &TYPE "normal"
+TEST_DATA_PATH: &TEST_DATA_PATH "/zecheng2/svg/icon-shop/test_data_snaps/test_data_all_seq_with_mesh.pkl"
+TYPE: &TYPE "all"
 
 hydra:
   job:

@@ -1,4 +1,4 @@
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v7"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v8"
 
 mkdir -p ${OUTPUT_DIR}
 

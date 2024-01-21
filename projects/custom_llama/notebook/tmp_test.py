@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 from utils.visualize_svg import convert_svg
 
 VQVAE_CONFIG_PATH = "/workspace/zecheng/modelzipper/projects/custom_llama/configs/deepspeed/vqvae_config.yaml"
-DATA_PATH = "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl"
+DATA_PATH = "/zecheng2/svg/icon-shop/test_data_snaps/test_data_all_seq_with_mesh.pkl"
 
 content = auto_read_data(DATA_PATH)
 dataset = BasicDataset(dataset=content)

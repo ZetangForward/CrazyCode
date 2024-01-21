@@ -171,7 +171,7 @@ class OfflineBasicDataset(Dataset):
     # PROMPT_TEMPLATE = "Keywords: {keywords} #begin:"
     PROMPT_TEMPLATE = "{keywords}"
 
-    def __init__(self, content, tokenizer, mode="train", max_path_nums=None, max_text_length=64, codebook_size=4096, have_mesh_data=False) -> None:
+    def __init__(self, content, tokenizer, mode="train", max_path_nums=None, max_text_length=64, codebook_size=4096) -> None:
         super().__init__()
 
         self.tokenizer = tokenizer
