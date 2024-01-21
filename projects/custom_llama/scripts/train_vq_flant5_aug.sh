@@ -1,24 +1,26 @@
-OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v8"
+OUTPUT_DIR="/zecheng2/vqllama/vqllama_flant5/version_aug_v9"
 
 mkdir -p ${OUTPUT_DIR}
 
 deepspeed --num_gpus 16 \
-    --num_nodes 1 \
-    --master_addr worker-2 \
+    --num_nodes 4 \
+    --master_addr worker-0 \
+    --master_port 6668 \
+    --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vq_seq2seq_aug.py \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
     --resume_from_checkpoint "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100" \
-    --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_data_all_seq_with_mesh.pkl" \
+    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/augment_stage2_data_pro.pkl" \
     --output_dir ${OUTPUT_DIR} \
-    --num_train_epochs 10 \
+    --num_train_epochs 20 \
     --model_max_length 512 \
     --per_device_train_batch_size 25 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "epoch" \
-    --save_total_limit 10 \
-    --learning_rate 5e-5 \
+    --save_total_limit 20 \
+    --learning_rate 5e-6 \
     --warmup_steps 60 \
     --logging_steps 1 \
     --dataloader_num_workers 12 \
