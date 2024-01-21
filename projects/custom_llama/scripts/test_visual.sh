@@ -5,7 +5,7 @@ LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs/multisnap_
 mkdir -p ${LOG_OUTPUT}
 mkdir -p ${save_dir}
 
-for i in {1..7}; do  
+for i in {0..7}; do  
     CUDA_VISIBLE_DEVICES=$i python test_vq_seq2seq.py \
         --snap_id ${i} \
         --ckpt ${ckpt} \
