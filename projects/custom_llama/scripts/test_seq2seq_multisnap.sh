@@ -13,7 +13,7 @@ for i in {0..7}; do
         --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps_v2/long_test_split_${i}.pkl" \
         --save_dir ${save_dir} \
         --max_generate_length 512 \
-        --predict_batch_size 20 \
+        --predict_batch_size 24 \
         --model_max_length 512 \
         --inference_nums -1 \
         --dataloader_num_workers 2 \
