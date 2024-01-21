@@ -6,7 +6,7 @@ deepspeed --num_gpus 16 \
     --num_nodes 1 \
     --master_addr worker-2 \
     train_vq_seq2seq_aug.py \
-    --model_name_or_path "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100" \
+    --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
     --resume_from_checkpoint "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/test_data_all_seq_with_mesh.pkl" \
     --output_dir ${OUTPUT_DIR} \
