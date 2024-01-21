@@ -21,9 +21,8 @@ def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_proce
     """
     pred_image_features, golden_image_features = [], []
     for i in trange(len(pred_images)):
-        pred_image = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device)
-        golden_image = clip_process(Image.open(golden_images[i])).unsqueeze(0).to(device)
-
+        pred_image = clip_process(Image.open(pred_images[i])).to(device)
+        golden_image = clip_process(Image.open(golden_images[i])).to(device)
         pred_image_features.append(clip_model.encode_image(pred_image))
         golden_image_features.append(clip_model.encode_image(golden_image))
     
@@ -88,6 +87,7 @@ def calculate_hps(image_lst1, image_lst2, key_lst):
 if __name__ == "__main__":
     FILE_PATH = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v7/svg_paths.jsonl"
     data = auto_read_data(FILE_PATH)
+    # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     fid_metric = FrechetInceptionDistance(feature=64)  # 768
@@ -95,7 +95,13 @@ if __name__ == "__main__":
    
     quality_metric = CLIPImageQualityAssessment(prompts=("quality",))
     
-    model, preprocess = clip.load("ViT-L/14", device=device)
+    clip_model, clip_process = clip.load("ViT-L/14", device=device)
+    
+    pred_images = [item['p_svg_path'] for item in data]
+    reconstruction_images = [item['r_svg_path'] for item in data]
+    golden_images = [item['g_svg_path'] for item in data]
+    
+    fid_res = calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_process, device)
     
     import pdb; pdb.set_trace()
     # params = torch.load("path/to/hpc.pth")['state_dict']
