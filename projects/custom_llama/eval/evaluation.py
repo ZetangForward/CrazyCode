@@ -66,16 +66,16 @@ def calculate_edit(tokenizer, gen_svg_paths, golden_svg_paths):
     return sum(distance) / len(distance)
 
 
-def calculate_hps(image_lst1, image_lst2, key_lst):
+def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
    
-    image1 = preprocess(Image.open("image1.png")).unsqueeze(0).to(device)
-    image2 = preprocess(Image.open("image2.png")).unsqueeze(0).to(device)
+    image1 = clip_process(Image.open("image1.png")).unsqueeze(0).to(device)
+    image2 = clip_process(Image.open("image2.png")).unsqueeze(0).to(device)
     images = torch.cat([image1, image2], dim=0)
     text = clip.tokenize(["your prompt here"]).to(device)
 
     with torch.no_grad():
-        image_features = model.encode_image(images)
-        text_features = model.encode_text(text)
+        image_features = clip_model.encode_image(images)
+        text_features = clip_model.encode_text(text)
 
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
@@ -85,8 +85,21 @@ def calculate_hps(image_lst1, image_lst2, key_lst):
 
 
 if __name__ == "__main__":
-    FILE_PATH = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v7/svg_paths.jsonl"
+    
+    ## text VQ 
+    FILE_PATH = "/zecheng2/evaluation/test_vq/version_8/vq_test.pkl"
     data = auto_read_data(FILE_PATH)
+    
+    pi_res_len = [item['pi_res_len'] for item in data]
+    pc_res_len = [item['pc_res_len'] for item in data]
+    gt_res_len = [item['gt_res_len'] for item in data]
+    pi_res_str = [item['pi_res_str'] for item in data]
+    pc_res_str = [item['pc_res_str'] for item in data]
+    gt_str = [item['gt_str'] for item in data]
+    PI_RES_image_path = [item['PI_RES_image_path'] for item in data]
+    PC_RES_image_path = [item['PC_RES_image_path'] for item in data]
+    GT_image_path = [item['GT_image_path'] for item in data]
+    
     # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -97,16 +110,16 @@ if __name__ == "__main__":
     
     clip_model, clip_process = clip.load("ViT-L/14", device=device)
     
-    pred_images = [item['p_svg_path'] for item in data]
-    reconstruction_images = [item['r_svg_path'] for item in data]
-    golden_images = [item['g_svg_path'] for item in data]
+    # pred_images = [item['p_svg_path'] for item in data]
+    # reconstruction_images = [item['r_svg_path'] for item in data]
+    # golden_images = [item['g_svg_path'] for item in data]
     
-    fid_res = calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_process, device)
+    fid_res = calculate_fid(fid_metric, PI_RES_image_path, GT_image_path, clip_model, clip_process, device)
     
     import pdb; pdb.set_trace()
-    # params = torch.load("path/to/hpc.pth")['state_dict']
-    # model.load_state_dict(params)
+    clip_model2, _ = clip.load("ViT-L/14", device=device)
+    params = torch.load("path/to/hpc.pth")['state_dict']
+    clip_model2.load_state_dict(params)
     
-    
-    # hps_score = calculate_hps(image_lst1, image_lst2, key_lst)
+    hps_score = calculate_hps(image_lst1, image_lst2, key_lst)
 

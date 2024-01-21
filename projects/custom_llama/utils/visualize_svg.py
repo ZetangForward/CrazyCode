@@ -37,7 +37,6 @@ def convert_svg(t, colored=False):
     svg = SVGTensor.from_data(t)
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
     if colored:
-        # import pdb; pdb.set_trace()
         svg = svg.normalize().split_paths().set_color("random")
     str_svg = svg.numericalize(n=200).to_str()
     return svg, str_svg
