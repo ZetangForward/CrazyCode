@@ -8,8 +8,10 @@ import edit_distance
 import transformers
 from tqdm import trange
 from modelzipper.tutils import *
+import gc
 
 
+@torch.no_grad()
 def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_process, device):
     """
     a single tensor it should have shape (N, C, H, W). If a list of tensors, each tensor should have shape (C, H, W). C is the number of channels, H and W are the height and width of the image.
@@ -33,7 +35,7 @@ def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_proce
     fid_metric.update(pred_images, real=False)
     return fid_metric.compute()
 
-
+@torch.no_grad()
 def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
     """
         metric = CLIPScore(model_name_or_path="openai/clip-vit-base-patch16")
@@ -42,9 +44,10 @@ def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
     """
     avg_scores = []
     for i in trange(len(pred_images)):
-        import pdb; pdb.set_trace()
         img = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device).to(dtype=torch.uint8)
-        avg_scores.append(clip_metric(img, keywords_lst[i]))
+        clip_score = clip_metric(img, keywords_lst[i])
+        avg_scores.append(clip_score)
+        
     return sum(avg_scores) / len(avg_scores)
 
 
@@ -57,14 +60,16 @@ def calculate_clip_image_quality(quality_metric, imgs):
     """
     return quality_metric(imgs)
 
+
 def calculate_edit(tokenizer, gen_svg_paths, golden_svg_paths):
     preds = [tokenizer.tokenize(x) for x in gen_svg_paths]     
+    avg_str_prd_len = sum([len(x) for x in preds]) / len(preds)
     golden = [tokenizer.tokenize(x) for x in golden_svg_paths]      
     distance = []
     for i in trange(len(preds)):
         sm = edit_distance.SequenceMatcher(a=preds[i], b=golden[i])
         distance.append(sm.distance())
-    return sum(distance) / len(distance)
+    return sum(distance) / len(distance), avg_str_prd_len
 
 
 def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
@@ -82,7 +87,6 @@ def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
         hps = image_features @ text_features.T
-
 
 
 if __name__ == "__main__":
@@ -104,7 +108,7 @@ if __name__ == "__main__":
     
     # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device =  "cuda:1"
     fid_metric = FrechetInceptionDistance(feature=768).to(device)  # 768
     clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14").to(device)
    
@@ -117,11 +121,16 @@ if __name__ == "__main__":
     # golden_images = [item['g_svg_path'] for item in data]
     metrics = {}
     
-    PI_fid_res = calculate_fid(fid_metric, PI_RES_image_path, GT_image_path, clip_model, clip_process, device)
-    PC_fid_res = calculate_fid(fid_metric, PC_RES_image_path, GT_image_path, clip_model, clip_process, device)
+    metrics['pi_res_len'] = pi_res_len
+    metrics['pc_res_len'] = pc_res_len
+    metrics['gt_res_len'] = gt_res_len
+    
+    PI_fid_res = calculate_fid(fid_metric, PI_RES_image_path, GT_image_path, clip_model, clip_process, device).cpu()
+    PC_fid_res = calculate_fid(fid_metric, PC_RES_image_path, GT_image_path, clip_model, clip_process, device).cpu()
     
     metrics['PI_fid_res'] = PI_fid_res
     metrics['PC_fid_res'] = PC_fid_res
+    
     
     PI_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, PI_RES_image_path, keys)
     PC_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, PC_RES_image_path, keys)
@@ -129,12 +138,23 @@ if __name__ == "__main__":
     metrics['PI_CLIP_SCORE'] = PI_CLIP_SCORE
     metrics['PC_CLIP_SCORE'] = PC_CLIP_SCORE
     
+    # text metrics
+    t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
+    edit_score_pi, pi_str_len = calculate_edit(t5_tokenizer, pi_res_str, gt_str)
+    edit_score_pc, pc_str_len = calculate_edit(t5_tokenizer, pc_res_str, gt_str)
     
-    import pdb; pdb.set_trace()
+    metrics['edit_score_pi'] = edit_score_pi
+    metrics['edit_score_pc'] = edit_score_pc
+    metrics['pi_str_len'] = pi_str_len
+    metrics['pc_str_len'] = pc_str_len
     
+    print(metrics)
+    
+    exit()
     clip_model2, _ = clip.load("ViT-L/14", device=device)
-    params = torch.load("path/to/hpc.pth")['state_dict']
+    params = torch.load("/zecheng2/evaluation/hpc.pt")['state_dict']
     clip_model2.load_state_dict(params)
     
+    import pdb; pdb.set_trace()
     hps_score = calculate_hps(image_lst1, image_lst2, key_lst)
 

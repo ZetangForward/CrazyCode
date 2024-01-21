@@ -1,6 +1,6 @@
 snap_id=$1
-ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v8/checkpoint-5"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug/v8"
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/v8"
 LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs/multisnap_inference"
 
 mkdir -p ${LOG_OUTPUT}
