@@ -1,5 +1,5 @@
 projects/custom_llama/configs/experiment/config_subtask_8.yamlSAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
-JOB_ID: &JOB_ID 8
+JOB_ID: &JOB_ID 13
 EXP_NAME: &EXP_NAME "vqllama_quantizer"
 
 hydra:
@@ -31,7 +31,7 @@ vqvae:
   levels: 2
   downs_t: [1, 1]
   strides_t: [2, 2]
-  emb_width: 4096
+  emb_width: 512
   l_bins: 8192
   l_mu: 0.99
   spectral: 0.0
