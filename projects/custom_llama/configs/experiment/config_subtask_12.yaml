@@ -45,7 +45,6 @@ vqvae:
   linf_k: 2048
   use_modified_block: False
 
-  
 vqvae_conv_block:
   depth: 4
   width: 512

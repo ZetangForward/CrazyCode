@@ -1,6 +1,5 @@
 ckpt_path: "/zecheng2/vqllama/vqllama_quantizer/version_12/checkpoints/last.ckpt"
 
-
 vqvae:
   levels: 2
   downs_t: [1, 1]
