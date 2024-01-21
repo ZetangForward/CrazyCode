@@ -12,7 +12,7 @@ pipeline = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1
 pipeline = pipeline.to("cuda")
 
 
-MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-1200"
+MODEL_NAME_OR_PATH = "/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
     
 flant5_tokenizer = transformers.AutoTokenizer.from_pretrained(
     MODEL_NAME_OR_PATH,
@@ -35,7 +35,7 @@ svg_data_module = VQSeq2SeqData(
         flant5config, 
         "/zecheng2/svg/icon-shop/test_data_snaps/test_data_all_seq_with_mesh.pkl", 
         tokenizer=flant5_tokenizer, 
-        offline_mode=False,
+        offline_mode=True,
         mode="test",
         svg_begin_token = None,
         inferece_nums=2000,
@@ -49,15 +49,12 @@ SAVE_DIR = "/zecheng2/vqllama/baselines/stablediffusion/"
 PROMPT = "Please generate a image in the icon format for me. here is the keywords: {keywords}"
 
 with tqdm(total=len(predict_datasets)) as pbar:
-    for data in predict_datasets:
-        import pdb; pdb.set_trace()
-        text_input_ids = data['text_input_ids']
-        text_attention_mask = data['text_attention_mask']
-        keywords = flant5_tokenizer.decode(text_input_ids[0], skip_special_tokens=True)
+    for i, data in enumerate(predict_datasets):
+        keywords = flant5_tokenizer.decode(data['text_input_ids'], skip_special_tokens=True)
         if len(keywords) == 0:
             continue
         text_prompt = PROMPT.format(keywords=keywords)
         image = pipeline(text_prompt).images[0]
-        file_path = os.path.join(SAVE_DIR, keywords + ".png")
+        file_path = os.path.join(SAVE_DIR, f"{i}.png")
         image.save(file_path)
         pbar.update(1)
