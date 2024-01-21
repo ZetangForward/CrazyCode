@@ -56,7 +56,6 @@ def saint_check_input(prompt, input_lst):
             print(f"Invalid input. Please enter one of the following: {input_lst}") 
 
 
-
 def interative_loop(model, image_save_root_dir, vqvae, tokenizer, max_generate_length=1024, **kwargs):
     """
     For user interactive input
@@ -181,14 +180,21 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
             raw = sanint_check_svg_tensor(raw_data).squeeze(0)
             r_svg, r_svg_str = convert_svg(raw, True)
             str_paths[-1]["r_svg_str"] = r_svg_str
+            str_paths[-1]['r_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png")
             r_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
         
         p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
         g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
         all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-    
+        all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+        
+        str_paths[-1]['p_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png")
+        str_paths[-1]['g_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png")
+        
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
 
+    
     if generate_big_map:
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))

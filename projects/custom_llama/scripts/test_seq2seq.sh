@@ -22,5 +22,5 @@ python test_vq_seq2seq.py \
     --num_beams 1 \
     --temperature 0.7 \
     --decode_golden True \
-    --do_raster False \
-    --do_inference True;
+    --do_raster True \
+    --do_inference False;
