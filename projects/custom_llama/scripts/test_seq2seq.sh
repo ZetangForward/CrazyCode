@@ -1,5 +1,5 @@
-ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v6/checkpoint-374"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_topp"
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v7/checkpoint-220"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v7"
 
 export CUDA_VISIBLE_DEVICES=1
 
