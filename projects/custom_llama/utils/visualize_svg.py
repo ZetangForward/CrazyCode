@@ -71,8 +71,12 @@ def merge_images(
     for i in range(num_images):
         filename = f'{i}_{image_suffix}'
         image_path = os.path.join(folder_path, filename)
-        image = Image.open(image_path)
-        image_list.append(image)
+        try:
+            image = Image.open(image_path)
+            image_list.append(image)
+        except:
+            print_c(f"image {image_path} not found", "red")
+            continue
 
     sub_image_w = raw_image_size_w if raw_image_size_w is not None else image_list[0].size[0]
     sub_image_h = raw_image_size_h if raw_image_size_h is not None else image_list[0].size[1]
@@ -118,7 +122,7 @@ def main(cl: int = 0, rd: str = None):
     PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
 
     DIRECT_GENERATE_BIG_MAP = True
-    DIRECT_GENERATE_SINGLE_IMAGE = True
+    DIRECT_GENERATE_SINGLE_IMAGE = False
     DIRECT_ADD_BACKGROUND = False
 
     all_image_paths = []

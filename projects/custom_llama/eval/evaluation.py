@@ -7,6 +7,8 @@ from torchmetrics.multimodal import CLIPImageQualityAssessment
 import edit_distance
 import transformers
 from tqdm import trange
+from modelzipper.tutils import *
+
 
 def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_process, device):
     """
@@ -84,13 +86,18 @@ def calculate_hps(image_lst1, image_lst2, key_lst):
 
 
 if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    fid_metric = FrechetInceptionDistance(feature=64)
+    FILE_PATH = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v7/svg_paths.jsonl"
+    data = auto_read_data(FILE_PATH)
+    
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    fid_metric = FrechetInceptionDistance(feature=64)  # 768
     clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14")
    
-    quality_metric = CLIPImageQualityAssessment(prompts=("quality"))
+    quality_metric = CLIPImageQualityAssessment(prompts=("quality",))
     
     model, preprocess = clip.load("ViT-L/14", device=device)
+    
+    import pdb; pdb.set_trace()
     # params = torch.load("path/to/hpc.pth")['state_dict']
     # model.load_state_dict(params)
     
