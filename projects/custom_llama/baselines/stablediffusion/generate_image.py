@@ -2,7 +2,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 import sys
 sys.path.append('/workspace/zecheng/modelzipper/projects/custom_llama')
-from projects.custom_llama.data.vqseq2seq_dataset import VQDataCollator, VQSeq2SeqData
+from data.vqseq2seq_dataset import VQDataCollator, VQSeq2SeqData
 import transformers
 from modelzipper.tutils import *
 from tqdm import tqdm
@@ -33,7 +33,7 @@ flant5config.dataloader_num_workers = 0
 
 svg_data_module = VQSeq2SeqData(
         flant5config, 
-        "/zecheng2/svg/icon-shop/test_data_snaps/test_mesh_data_svg_convert_p.pkl", 
+        "/zecheng2/svg/icon-shop/test_data_snaps/test_data_all_seq_with_mesh.pkl", 
         tokenizer=flant5_tokenizer, 
         offline_mode=False,
         mode="test",
@@ -45,11 +45,12 @@ predict_datasets = svg_data_module.predict_dataset
 
 pipeline.set_progress_bar_config(leave=False)
 
-SAVE_DIR = "/zecheng2/vqllama/baselines/stablediffusion"
+SAVE_DIR = "/zecheng2/vqllama/baselines/stablediffusion/"
 PROMPT = "Please generate a image in the icon format for me. here is the keywords: {keywords}"
 
 with tqdm(total=len(predict_datasets)) as pbar:
     for data in predict_datasets:
+        import pdb; pdb.set_trace()
         text_input_ids = data['text_input_ids']
         text_attention_mask = data['text_attention_mask']
         keywords = flant5_tokenizer.decode(text_input_ids[0], skip_special_tokens=True)
