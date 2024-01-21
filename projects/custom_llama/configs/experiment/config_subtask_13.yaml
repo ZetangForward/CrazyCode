@@ -1,4 +1,4 @@
-projects/custom_llama/configs/experiment/config_subtask_8.yamlSAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
+SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
 JOB_ID: &JOB_ID 13
 EXP_NAME: &EXP_NAME "vqllama_quantizer"
 
@@ -71,6 +71,6 @@ experiment:
   lr_use_linear_decay: False
   lr_start_linear_decay: 0
   lr_use_cosine_decay: False
-  max_epoch: 150
+  max_epoch: 90
   device_num: 16
   node_num: 1
