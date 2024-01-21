@@ -311,11 +311,12 @@ def test():
         auto_save_data(predicted_results, os.path.join(SAVE_DIR, f"snap_{test_args.snap_id}_results.pkl"))
     
     if test_args.do_raster:
+        
         if predicted_results is None:
             predicted_results = []
             for id_ in range(8):
                 predicted_results.extend(auto_read_data(os.path.join(SAVE_DIR, f"snap_{id_}_results.pkl")))
-            
+        
         post_process(
             predicted_results, 
             vqvae=vqvae,
