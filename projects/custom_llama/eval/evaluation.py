@@ -23,14 +23,14 @@ def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_proce
     for i in trange(len(pred_images)):
         pred_image = clip_process(Image.open(pred_images[i])).to(device)
         golden_image = clip_process(Image.open(golden_images[i])).to(device)
-        pred_image_features.append(clip_model.encode_image(pred_image))
-        golden_image_features.append(clip_model.encode_image(golden_image))
+        pred_image_features.append(pred_image)
+        golden_image_features.append(golden_image)
     
-    imgs_dist1 = torch.stack(golden_image_features, dim=0)
-    imgs_dist2 = torch.stack(pred_image_features, dim=0)
+    pred_images = torch.stack(pred_image_features, dim=0).to(dtype=torch.uint8)
+    golden_images = torch.stack(golden_image_features, dim=0).to(dtype=torch.uint8)
     
-    fid_metric.update(imgs_dist1, real=True)  # N x C x W x H
-    fid_metric.update(imgs_dist2, real=False)
+    fid_metric.update(golden_images, real=True)  # N x C x W x H
+    fid_metric.update(pred_images, real=False)
     return fid_metric.compute()
 
 
@@ -42,7 +42,8 @@ def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
     """
     avg_scores = []
     for i in trange(len(pred_images)):
-        img = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device)
+        import pdb; pdb.set_trace()
+        img = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device).to(dtype=torch.uint8)
         avg_scores.append(clip_metric(img, keywords_lst[i]))
     return sum(avg_scores) / len(avg_scores)
 
@@ -90,6 +91,7 @@ if __name__ == "__main__":
     FILE_PATH = "/zecheng2/evaluation/test_vq/version_8/vq_test.pkl"
     data = auto_read_data(FILE_PATH)
     
+    keys = [item['keys'] for item in data]
     pi_res_len = [item['pi_res_len'] for item in data]
     pc_res_len = [item['pc_res_len'] for item in data]
     gt_res_len = [item['gt_res_len'] for item in data]
@@ -103,8 +105,8 @@ if __name__ == "__main__":
     # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    fid_metric = FrechetInceptionDistance(feature=64)  # 768
-    clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14")
+    fid_metric = FrechetInceptionDistance(feature=768).to(device)  # 768
+    clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14").to(device)
    
     quality_metric = CLIPImageQualityAssessment(prompts=("quality",))
     
@@ -113,10 +115,23 @@ if __name__ == "__main__":
     # pred_images = [item['p_svg_path'] for item in data]
     # reconstruction_images = [item['r_svg_path'] for item in data]
     # golden_images = [item['g_svg_path'] for item in data]
+    metrics = {}
     
-    fid_res = calculate_fid(fid_metric, PI_RES_image_path, GT_image_path, clip_model, clip_process, device)
+    PI_fid_res = calculate_fid(fid_metric, PI_RES_image_path, GT_image_path, clip_model, clip_process, device)
+    PC_fid_res = calculate_fid(fid_metric, PC_RES_image_path, GT_image_path, clip_model, clip_process, device)
+    
+    metrics['PI_fid_res'] = PI_fid_res
+    metrics['PC_fid_res'] = PC_fid_res
+    
+    PI_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, PI_RES_image_path, keys)
+    PC_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, PC_RES_image_path, keys)
+    
+    metrics['PI_CLIP_SCORE'] = PI_CLIP_SCORE
+    metrics['PC_CLIP_SCORE'] = PC_CLIP_SCORE
+    
     
     import pdb; pdb.set_trace()
+    
     clip_model2, _ = clip.load("ViT-L/14", device=device)
     params = torch.load("path/to/hpc.pth")['state_dict']
     clip_model2.load_state_dict(params)

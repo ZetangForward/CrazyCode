@@ -33,10 +33,12 @@ def sanint_check_svg_tensor(x):
         x = torch.cat((x[:, :, :1], x_0_y_0, x[:, :, 1:]), dim=2)
     return x
 
-def convert_svg(t, colored=False):
+def convert_svg(t, colored=False, save_path=None):
     svg = SVGTensor.from_data(t)
     svg = SVG.from_tensor(svg.data, viewbox=Bbox(200))
-    if colored:
+    if save_path is not None and colored:
+        svg.draw_colored(fill=True, file_path=save_path, do_display=False)
+    elif colored:
         svg = svg.normalize().split_paths().set_color("random")
     str_svg = svg.numericalize(n=200).to_str()
     return svg, str_svg

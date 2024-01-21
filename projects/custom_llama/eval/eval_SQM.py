@@ -81,25 +81,25 @@ for i in trange(200):
         cur_save_case['pc_res_len'] = PC_RES.size(0)
         cur_save_case['gt_res_len'] = dataset[i]['mesh_data'].size(0)
         
-        PI_RES_image, PI_RES_str = convert_svg(PI_RES, True)
-        PC_RES_image, PC_RES_str = convert_svg(PC_RES, True)
-        GOLDEN_image, GT_str = convert_svg(dataset[i]['mesh_data'], True)
+        PI_RES_IMAGE_PATH = os.path.join("/zecheng2/evaluation/test_vq/version_8/image", f"PI_{i}.png")
+        PC_RES_IMAGE_PATH = os.path.join("/zecheng2/evaluation/test_vq/version_8/image", f"PC_{i}.png")
+        GT_IMAGE_PATH = os.path.join("/zecheng2/evaluation/test_vq/version_8/image", f"GT_{i}.png")
+        
+        PI_RES_image, PI_RES_str = convert_svg(PI_RES, True, PI_RES_IMAGE_PATH)
+        PC_RES_image, PC_RES_str = convert_svg(PC_RES, True, PC_RES_IMAGE_PATH)
+        GOLDEN_image, GT_str = convert_svg(dataset[i]['mesh_data'], True, GT_IMAGE_PATH)
         
         cur_save_case['pi_res_str'] = PI_RES_image.numericalize(n=200).to_str()
         cur_save_case['pc_res_str'] = PC_RES_image.numericalize(n=200).to_str()
         cur_save_case['gt_str'] = GOLDEN_image.numericalize(n=200).to_str()
         
-        PI_RES_IMAGE_PATH = os.path.join("/zecheng2/evaluation/test_vq/version_8/image", f"PI_{i}.png")
-        PC_RES_IMAGE_PATH = os.path.join("/zecheng2/evaluation/test_vq/version_8/image", f"PC_{i}.png")
-        GT_IMAGE_PATH = os.path.join("/zecheng2/evaluation/test_vq/version_8/image", f"GT_{i}.png")
-        
         # PI_RES_image_b = add_background(PI_RES_image)
         # PC_RES_image_b = add_background(PC_RES_image)
         # GT_RES_image_b = add_background(GT_IMAGE_PATH)
         
-        PI_RES_image.save_png(PI_RES_IMAGE_PATH)
-        PC_RES_image.save_png(PC_RES_IMAGE_PATH)
-        GOLDEN_image.save_png(GT_IMAGE_PATH)
+        # PI_RES_image.save_png(PI_RES_IMAGE_PATH)
+        # PC_RES_image.save_png(PC_RES_IMAGE_PATH)
+        # GOLDEN_image.save_png(GT_IMAGE_PATH)
         
         cur_save_case['PI_RES_image_path'] = PI_RES_IMAGE_PATH
         cur_save_case['PC_RES_image_path'] = PC_RES_IMAGE_PATH
