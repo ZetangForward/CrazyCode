@@ -131,7 +131,6 @@ if __name__ == "__main__":
     metrics['PI_fid_res'] = PI_fid_res
     metrics['PC_fid_res'] = PC_fid_res
     
-    
     PI_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, PI_RES_image_path, keys)
     PC_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, PC_RES_image_path, keys)
     
