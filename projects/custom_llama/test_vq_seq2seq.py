@@ -6,7 +6,7 @@ from tqdm import tqdm, trange
 from torch import Tensor
 from modelzipper.tutils import *
 from models.vq_seq2seq import VQSVGSeq2SeqModel
-from projects.custom_llama.data.vqseq2seq_dataset import VQSeq2SeqData
+from data.vqseq2seq_dataset import VQSeq2SeqData
 from models.vqvae import VQVAE
 from utils.visualize_svg import sanint_check_svg_tensor, convert_svg, merge_images
 

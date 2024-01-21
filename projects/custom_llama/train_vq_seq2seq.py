@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from transformers import Trainer, T5Config
 from modelzipper.tutils import *
 from models.vq_seq2seq import VQSVGSeq2SeqModel
-from projects.custom_llama.data.vqseq2seq_dataset import VQDataCollator, VQSeq2SeqData
+from data.vqseq2seq_dataset import VQDataCollator, VQSeq2SeqData
 
 @dataclass
 class VQVAEConfig:
