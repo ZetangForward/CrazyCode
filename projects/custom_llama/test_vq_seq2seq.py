@@ -130,11 +130,10 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                     
                     cur_batch_res.append(  # move to the CPU menory
                         dict(
-                            golden_svg_path = golden_svg_path[i].cpu(),
-                            golden_svg_padding_mask = golden_svg_path_mask[i].cpu(),
+                            golden_svg_path = golden_svg_path[i][golden_svg_path_mask.sum():].cpu(),
                             generated_svg_path = decoded_svg_path.cpu(),
                             text = text,
-                            svg_token_ids = svg_token_ids.cpu(),
+                            # svg_token_ids = svg_token_ids.cpu(),
                             raw_data = raw_data[i].cpu(),
                         )
                     )

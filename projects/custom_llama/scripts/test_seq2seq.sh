@@ -5,7 +5,7 @@ export CUDA_VISIBLE_DEVICES=1
 
 python test_vq_seq2seq.py \
     --ckpt ${ckpt} \
-    --snap_id 0 \
+    --snap_id 7 \
     --tokenier_config_path "/zecheng2/model_hub/flan-t5-xl" \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps_v2/long_test_split_${snap_id}.pkl" \
     --save_dir ${save_dir} \
@@ -22,5 +22,5 @@ python test_vq_seq2seq.py \
     --num_beams 1 \
     --temperature 0.7 \
     --decode_golden True \
-    --do_raster False \
-    --do_inference True;
+    --do_raster True \
+    --do_inference False;
