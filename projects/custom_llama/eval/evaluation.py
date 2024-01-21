@@ -45,7 +45,7 @@ def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
     avg_scores = []
     for i in trange(len(pred_images)):
         img = clip_process(Image.open(pred_images[i])).unsqueeze(0).to(device).to(dtype=torch.uint8)
-        clip_score = clip_metric(img, keywords_lst[i])
+        clip_score = clip_metric(img, keywords_lst[i]).detach()
         avg_scores.append(clip_score)
         
     return sum(avg_scores) / len(avg_scores)
@@ -106,6 +106,10 @@ if __name__ == "__main__":
     PC_RES_image_path = [item['PC_RES_image_path'] for item in data]
     GT_image_path = [item['GT_image_path'] for item in data]
     
+    t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
+    p = [len(t5_tokenizer.tokenize(x)) for x in gt_str]
+    import pdb; pdb.set_trace()
+    
     # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
     device =  "cuda:1"
@@ -121,9 +125,9 @@ if __name__ == "__main__":
     # golden_images = [item['g_svg_path'] for item in data]
     metrics = {}
     
-    metrics['pi_res_len'] = pi_res_len
-    metrics['pc_res_len'] = pc_res_len
-    metrics['gt_res_len'] = gt_res_len
+    metrics['pi_res_len'] = sum(pi_res_len) / len(pi_res_len)
+    metrics['pc_res_len'] = sum(pc_res_len) / len(pc_res_len)
+    metrics['gt_res_len'] = sum(gt_res_len) / len(gt_res_len)
     
     PI_fid_res = calculate_fid(fid_metric, PI_RES_image_path, GT_image_path, clip_model, clip_process, device).cpu()
     PC_fid_res = calculate_fid(fid_metric, PC_RES_image_path, GT_image_path, clip_model, clip_process, device).cpu()

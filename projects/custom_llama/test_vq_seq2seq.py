@@ -125,7 +125,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                     if min_index is not None:  
                         svg_token_ids = svg_token_ids[:min_index]  
 
-                    decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=False, return_postprocess=True)[0]
+                    decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
 

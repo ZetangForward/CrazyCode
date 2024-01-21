@@ -1,7 +1,7 @@
 ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100_bs"
 snap_id=0
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 python test_vq_seq2seq.py \
     --ckpt ${ckpt} \
@@ -10,7 +10,7 @@ python test_vq_seq2seq.py \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps_v2/long_test_split_${snap_id}.pkl" \
     --save_dir ${save_dir} \
     --max_generate_length 512 \
-    --predict_batch_size 24 \
+    --predict_batch_size 4 \
     --model_max_length 512 \
     --inference_nums -1 \
     --dataloader_num_workers 0 \
@@ -19,8 +19,8 @@ python test_vq_seq2seq.py \
     --do_sample False \
     --top_p 0.9 \
     --top_k 40 \
-    --num_beams 1 \
+    --num_beams 4 \
     --temperature 0.7 \
     --decode_golden True \
-    --do_raster True \
-    --do_inference False;
+    --do_raster False \
+    --do_inference True;
