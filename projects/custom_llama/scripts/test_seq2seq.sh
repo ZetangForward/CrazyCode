@@ -1,6 +1,6 @@
 ckpt="/zecheng2/vqllama/vqllama_flant5/version_aug_v7/checkpoint-220"
 save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v7"
-snap_id=0
+snap_id=7
 export CUDA_VISIBLE_DEVICES=1
 
 python test_vq_seq2seq.py \
@@ -22,5 +22,5 @@ python test_vq_seq2seq.py \
     --num_beams 1 \
     --temperature 0.7 \
     --decode_golden True \
-    --do_raster True \
-    --do_inference False;
+    --do_raster False \
+    --do_inference True;

@@ -6,7 +6,7 @@ from tqdm import tqdm, trange
 from torch import Tensor
 from modelzipper.tutils import *
 from models.vq_seq2seq import VQSVGSeq2SeqModel
-from data.vqlseq2seq_dataset import VQSeq2SeqData
+from projects.custom_llama.data.vqseq2seq_dataset import VQSeq2SeqData
 from models.vqvae import VQVAE
 from utils.visualize_svg import sanint_check_svg_tensor, convert_svg, merge_images
 
@@ -100,6 +100,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             golden_svg_path = batch_.get("decoder_input_ids")
             golden_svg_path_mask = batch_.get("decoder_attention_mask")
             raw_data = batch_.get("raw_data")
+            raw_data_mask = ~(raw_data == 0).all(dim=2, keepdim=True)
             
             text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
             text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
@@ -127,14 +128,14 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                     decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=False, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
-                    
+
                     cur_batch_res.append(  # move to the CPU menory
                         dict(
-                            golden_svg_path = golden_svg_path[i][golden_svg_path_mask.sum():].cpu(),
+                            golden_svg_path = golden_svg_path[i][:golden_svg_path_mask[i].sum()].cpu(),
                             generated_svg_path = decoded_svg_path.cpu(),
                             text = text,
                             # svg_token_ids = svg_token_ids.cpu(),
-                            raw_data = raw_data[i].cpu(),
+                            raw_data = raw_data[i][:raw_data_mask[i].sum()].cpu(),
                         )
                     )
             res.extend(cur_batch_res)
@@ -159,7 +160,6 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
         generated_svg_path = res[i]['generated_svg_path']
         golden_svg_path = res[i]['golden_svg_path']
         text = res[i]['text']
-        
         ## decode golden
         if decode_golden:
             golden_svg_path = vqvae.decode(zs=[golden_svg_path[1:].cuda()], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]

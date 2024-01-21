@@ -2,7 +2,7 @@ import torch
 from diffusers import StableDiffusionPipeline
 import sys
 sys.path.append('/workspace/zecheng/modelzipper/projects/custom_llama')
-from data.vqlseq2seq_dataset import VQDataCollator, VQSeq2SeqData
+from projects.custom_llama.data.vqseq2seq_dataset import VQDataCollator, VQSeq2SeqData
 import transformers
 from modelzipper.tutils import *
 from tqdm import tqdm
