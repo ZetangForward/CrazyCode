@@ -156,42 +156,46 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     all_image_paths = []
     
     for i in trange(len(res)):
-
-        generated_svg_path = res[i]['generated_svg_path']
-        golden_svg_path = res[i]['golden_svg_path']
-        text = res[i]['text']
-        ## decode golden
-        if decode_golden:
-            golden_svg_path = vqvae.decode(zs=[golden_svg_path[1:].cuda()], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
-    
-        predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
-        p_svg, p_svg_str = convert_svg(predict, True)
-        golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
-        g_svg, g_svg_str = convert_svg(golden, True)
+        try:
+            generated_svg_path = res[i]['generated_svg_path']
+            golden_svg_path = res[i]['golden_svg_path']
+            text = res[i]['text']
+            ## decode golden
+            if decode_golden:
+                golden_svg_path = vqvae.decode(zs=[golden_svg_path[1:].cuda()], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
         
-
-        str_paths.append({
-            "text": text,
-            "p_svg_str": p_svg_str,
-            "g_svg_str": g_svg_str,
-        })
+            predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
+            p_svg, p_svg_str = convert_svg(predict, True)
+            golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
+            g_svg, g_svg_str = convert_svg(golden, True)
+            
+            str_paths.append({
+                "text": text,
+                "p_svg_str": p_svg_str,
+                "g_svg_str": g_svg_str,
+            })
+            
+            if 'raw_data' in res[i]:
+                raw_data = res[i]['raw_data']
+                raw = sanint_check_svg_tensor(raw_data).squeeze(0)
+                r_svg, r_svg_str = convert_svg(raw, True)
+                str_paths[-1]["r_svg_str"] = r_svg_str
+                str_paths[-1]['r_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png")
+                r_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
+                all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
+            
+            p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+            
+            str_paths[-1]['p_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png")
+            str_paths[-1]['g_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png")
         
-        if 'raw_data' in res[i]:
-            raw_data = res[i]['raw_data']
-            raw = sanint_check_svg_tensor(raw_data).squeeze(0)
-            r_svg, r_svg_str = convert_svg(raw, True)
-            str_paths[-1]["r_svg_str"] = r_svg_str
-            str_paths[-1]['r_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png")
-            r_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
-            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
-        
-        p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-        g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
-        all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
-        all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
-        
-        str_paths[-1]['p_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png")
-        str_paths[-1]['g_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png")
+        except Exception as e:
+            print_c(f"Error: {e}", "red")
+            print_c(f"Error in {i}", "red")
+            continue
         
     auto_save_data(str_paths, SVG_PATH_SAVED_PATH)
 
