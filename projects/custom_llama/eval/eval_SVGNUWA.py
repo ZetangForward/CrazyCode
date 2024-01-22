@@ -9,6 +9,8 @@ import transformers
 from tqdm import trange
 from modelzipper.tutils import *
 import gc
+from torchmetrics.text.rouge import ROUGEScore
+import numpy as np
 
 
 @torch.no_grad()
@@ -88,22 +90,83 @@ def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
 
         hps = image_features @ text_features.T
 
+def rouge_score(preds, golds, tokenizer):
+
+    rouge_results = {}
+    rouge1 =[]
+    rouge2 = []
+    rougeL = []
+    preds = [tokenizer.tokenize(x) for x in preds]
+    golds = [tokenizer.tokenize(x) for x in golds]
+    res = rougeScore(preds, golds)
+    
+    
+    # # for i in trange(len(preds)):
+    #     references = preds[i]
+    #     predictions = golds[i]
+    #     res = rougeScore(predictions, references)
+    rouge1.append(res["rouge1_fmeasure"])
+    rouge2.append(res["rouge2_fmeasure"])
+    rougeL.append(res["rougeL_fmeasure"])
+    rouge_results["rouge1"] = np.mean(rouge1)
+    rouge_results["rouge2"] = np.mean(rouge2)
+    rouge_results["rougeL"] = np.mean(rougeL)
+    return rouge_results
+
 
 if __name__ == "__main__":
-    
-    ## text VQ 
+    device =  "cuda:1"
     ROOT_DIR = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100"
     pred_res = []
-    for i in range(8):
+    for i in trange(8):
         cur_content = auto_read_data(os.path.join(ROOT_DIR, f"snap_{i}_results.pkl"))
         pred_res.extend(cur_content)
     
-    golden_svg_path = [item['golden_svg_path'] for item in pred_res]
-    generated_svg_path = [item['generated_svg_path'] for item in pred_res]
+    golden_svg_path = [len(item['golden_svg_path']) for item in pred_res]
+    generated_svg_path = [item['generated_svg_path'].size(0) for item in pred_res]
     text = [item['text'] for item in pred_res]
-    raw_data = [item['raw_data'] for item in pred_res]
-    
+    raw_data = [item['raw_data'].size(0) for item in pred_res]
+
     str_svg_path = auto_read_data(os.path.join(ROOT_DIR, "svg_paths.jsonl"))
+    
+    metrics = {}
+    
+    r_svg_path = [x['r_svg_path'] for x in str_svg_path]
+    p_svg_path = [x['p_svg_path'] for x in str_svg_path]
+    g_svg_path = [x['g_svg_path'] for x in str_svg_path]
+    r_svg_str = [x['r_svg_str'] for x in str_svg_path]
+    g_svg_str = [x['g_svg_str'] for x in str_svg_path]
+    p_svg_str = [x['p_svg_str'] for x in str_svg_path]
+    
+    ## cal nlp metrics
+    
+    rougeScore = ROUGEScore()
+    rougeScore.to(device)
+    import pdb; pdb.set_trace()
+    rouge_score = rouge_score(p_svg_str, r_svg_str)
+    metrics['rouge_score'] = rouge_score
+    
+    t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
+    edit_p, p_str_len = calculate_edit(t5_tokenizer, p_svg_str, r_svg_path)
+    metrics['edit_p'] = edit_p
+    metrics['p_str_len'] = p_str_len
+    metrics['svg_token_length'] = sum(generated_svg_path) / len(generated_svg_path)
+    
+    ## cal image metrics
+    fid_metric = FrechetInceptionDistance(feature=768).to(device)  # 768
+    clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14").to(device)
+    quality_metric = CLIPImageQualityAssessment(prompts=("quality",))
+    clip_model, clip_process = clip.load("ViT-L/14", device=device)
+    
+    PI_fid_res = calculate_fid(fid_metric, p_svg_path, r_svg_path, clip_model, clip_process, device).cpu()
+    metrics['PI_fid_res'] = PI_fid_res
+    
+    PI_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, p_svg_path, text)
+    metrics['PI_CLIP_SCORE'] = PI_CLIP_SCORE
+    
+    print(metrics)
+    
+    exit()
     
     pi_res_len = [item['pi_res_len'] for item in data]
     pc_res_len = [item['pc_res_len'] for item in data]
@@ -114,14 +177,11 @@ if __name__ == "__main__":
     PI_RES_image_path = [item['PI_RES_image_path'] for item in data]
     PC_RES_image_path = [item['PC_RES_image_path'] for item in data]
     GT_image_path = [item['GT_image_path'] for item in data]
-    
-    t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
-    p = [len(t5_tokenizer.tokenize(x)) for x in gt_str]
-    import pdb; pdb.set_trace()
+
     
     # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
-    device =  "cuda:1"
+    
     fid_metric = FrechetInceptionDistance(feature=768).to(device)  # 768
     clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14").to(device)
    

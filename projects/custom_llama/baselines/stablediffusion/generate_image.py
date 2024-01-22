@@ -58,3 +58,5 @@ with tqdm(total=len(predict_datasets)) as pbar:
         file_path = os.path.join(SAVE_DIR, f"{i}.png")
         image.save(file_path)
         pbar.update(1)
+        
+        import pdb; pdb.set_trace()
