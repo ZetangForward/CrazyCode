@@ -15,7 +15,7 @@ for i in {0..7}; do
         --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps_v3/long_test_split_${i}.pkl" \
         --save_dir ${save_dir} \
         --max_generate_length 512 \
-        --predict_batch_size 4 \
+        --predict_batch_size 24 \
         --model_max_length 512 \
         --inference_nums -1 \
         --dataloader_num_workers 0 \
@@ -26,7 +26,7 @@ for i in {0..7}; do
         --top_k 40 \
         --do_inference True \
         --do_raster False \
-        --num_beams 4 \
+        --num_beams 1 \
         --temperature 0.7 \
         --decode_golden True > ${LOG_OUTPUT}/inference_${i}.log 2>&1 &  
 done 
