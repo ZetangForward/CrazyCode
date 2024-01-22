@@ -100,7 +100,6 @@ def rouge_score(preds, golds, tokenizer):
     golds = [tokenizer.tokenize(x) for x in golds]
     res = rougeScore(preds, golds)
     
-    
     # # for i in trange(len(preds)):
     #     references = preds[i]
     #     predictions = golds[i]
