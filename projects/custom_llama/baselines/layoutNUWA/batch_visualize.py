@@ -65,6 +65,7 @@ if __name__ == "__main__":
         print_c("Output dir not exists, create one")
         os.makedirs(args.output_dir)
     
+    args.single_save = True  ## for sampling
     if args.single_save:
         print_c("Single save mode, save to {}".format(args.output_dir))
         
