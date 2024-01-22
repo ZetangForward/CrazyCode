@@ -68,15 +68,17 @@ def main(
         "Please specify a --output_dir, e.g. --output_dir='/path/to/output_dir/output_file'"
     )
     
+    device = 'cuda'
+    
     tokenizer = transformers.AutoTokenizer.from_pretrained(base_model)
-    model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
+    model = transformers.AutoModelForCausalLM.from_pretrained(
             base_model,
             load_in_8bit=False,
             torch_dtype=torch.float16,
         )
     
-    model.half()
     model.eval()
+    model = model.to(device)
     
     # unwind broken decapoda-research config
     # model.config.pad_token_id = tokenizer.pad_token_id = 0  # unk
@@ -87,7 +89,7 @@ def main(
         instruction,
         temperature=0.6,
         top_p=0.9,
-        num_beams=4,
+        num_beams=1,
         max_new_tokens=max_new_tokens,
         num_return_sequences=1,
         **kwargs,
