@@ -7,6 +7,7 @@ import json
 import re
 from transformers import GenerationConfig
 from tqdm import *
+from modelzipper.tutils import *
 
 def convert_svg_path(s):
     
@@ -68,11 +69,10 @@ def main(
     )
     
     tokenizer = transformers.AutoTokenizer.from_pretrained(base_model)
-    model = transformers.AutoModelForCausalLM.from_pretrained(
+    model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
             base_model,
             load_in_8bit=False,
             torch_dtype=torch.float16,
-            device_map="auto",
         )
     
     model.half()
@@ -114,25 +114,24 @@ def main(
             )
         return generation_output.sequences
     
-    with open(file_path, "r") as f:
-        content = [json.loads(line) for line in f]
+    # with open(file_path, "r") as f:
+    #     content = [json.loads(line) for line in f]
+    
+    content = auto_read_data(file_path)
     
     with open(output_file, "w") as f:
         with tqdm(total=len(content)) as pbar:
             for samples in content:
-                prompt = samples.get("compress_path").split("<svg>")[0].strip()
+                prompt = "Keywords: " + ', '.join(samples.get("keys")) + " #Begin:"
                 output = evaluate(prompt, num_beams=num_beams, max_new_tokens=max_new_tokens)
                 processed_res = []
                 for s in output:
                     processed_res.append(convert_svg_path(tokenizer.decode(s)))
-                golden_svg = samples.get("compress_path").split("Begin:")[-1].strip()
-                golden_svg = convert_svg_path(golden_svg)   
                 
                 tmp = {
-                    "golden_svg": golden_svg,
-                    "processed_res": processed_res,
+                    "processed_res": processed_res[0],
                     "prompt": prompt,
-                    "file_path": samples.get("file_path"),
+                    "keywords": samples.get("keys"),
                 }
                 pbar.update(1)
                 f.write(json.dumps(tmp) + "\n")
