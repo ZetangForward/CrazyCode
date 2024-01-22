@@ -1,5 +1,5 @@
 ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100_visual"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5_aug_v9"
 snap_id=0
 export CUDA_VISIBLE_DEVICES=1
 

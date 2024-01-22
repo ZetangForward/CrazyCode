@@ -9,7 +9,7 @@ import transformers
 from tqdm import trange
 from modelzipper.tutils import *
 import gc
-from torchmetrics.text.rouge import ROUGEScore
+from rouge import Rouge 
 import numpy as np
 
 
@@ -35,7 +35,8 @@ def calculate_fid(fid_metric, pred_images, golden_images, clip_model, clip_proce
     
     fid_metric.update(golden_images, real=True)  # N x C x W x H
     fid_metric.update(pred_images, real=False)
-    return fid_metric.compute()
+    score = fid_metric.compute().detach()
+    return score
 
 @torch.no_grad()
 def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
@@ -53,14 +54,19 @@ def calculate_clip_core(clip_process, clip_metric, pred_images, keywords_lst):
     return sum(avg_scores) / len(avg_scores)
 
 
-def calculate_clip_image_quality(quality_metric, imgs):
+def calculate_clip_image_quality(quality_metric, pred_images):
     """
         _ = torch.manual_seed(42)
         imgs = torch.randint(255, (2, 3, 224, 224)).float()
         metric = CLIPImageQualityAssessment(prompts=("quality"))
         metric(imgs)
     """
-    return quality_metric(imgs)
+    pred_image_features, golden_image_features = [], []
+    for i in trange(len(pred_images)):
+        pred_image = clip_process(Image.open(pred_images[i])).to(device)
+    pred_images = torch.stack(pred_image_features, dim=0).to(dtype=torch.uint8)
+    quality_score = quality_metric(pred_images)
+    return quality_score
 
 
 def calculate_edit(tokenizer, gen_svg_paths, golden_svg_paths):
@@ -90,30 +96,17 @@ def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
 
         hps = image_features @ text_features.T
 
-def rouge_score(preds, golds, tokenizer):
 
-    rouge_results = {}
-    rouge1 =[]
-    rouge2 = []
-    rougeL = []
-    preds = [tokenizer.tokenize(x) for x in preds]
-    golds = [tokenizer.tokenize(x) for x in golds]
-    res = rougeScore(preds, golds)
-    # # for i in trange(len(preds)):
-    #     references = preds[i]
-    #     predictions = golds[i]
-    #     res = rougeScore(predictions, references)
-    rouge1.append(res["rouge1_fmeasure"])
-    rouge2.append(res["rouge2_fmeasure"])
-    rougeL.append(res["rougeL_fmeasure"])
-    rouge_results["rouge1"] = np.mean(rouge1)
-    rouge_results["rouge2"] = np.mean(rouge2)
-    rouge_results["rougeL"] = np.mean(rougeL)
-    return rouge_results
+def cal_rouge(generated_svg_str, golden_svg_str):
+    rouge = Rouge()
+    generated_svg_str = [x[:5000] for x in generated_svg_str]
+    golden_svg_str = [x[:5000] for x in golden_svg_str]
+    scores = rouge.get_scores(generated_svg_str, golden_svg_str)
+    return scores
 
 
 if __name__ == "__main__":
-    device =  "cuda:1"
+    device =  "cuda:7"
     ROOT_DIR = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100"
     pred_res = []
     for i in trange(8):
@@ -135,30 +128,34 @@ if __name__ == "__main__":
     g_svg_str = [x['g_svg_str'] for x in str_svg_path]
     p_svg_str = [x['p_svg_str'] for x in str_svg_path]
     
-    ## cal nlp metrics
-    # t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
-    # edit_p, p_str_len = calculate_edit(t5_tokenizer, p_svg_str, r_svg_path)
-    # metrics['edit_p'] = edit_p
-    # metrics['p_str_len'] = p_str_len
-    # metrics['svg_token_length'] = sum(generated_svg_path) / len(generated_svg_path)
-        
-    # rougeScore = ROUGEScore(tokenizer=t5_tokenizer)
-    # rougeScore.to(device)
-    # import pdb; pdb.set_trace()
-    # rouge_score = rouge_score(p_svg_str, r_svg_str, t5_tokenizer)
-    # metrics['rouge_score'] = rouge_score
-    
-    ## cal image metrics
     fid_metric = FrechetInceptionDistance(feature=768).to(device)  # 768
     clip_metric = CLIPScore(model_name_or_path="openai/clip-vit-large-patch14").to(device)
     quality_metric = CLIPImageQualityAssessment(prompts=("quality",))
     clip_model, clip_process = clip.load("ViT-L/14", device=device)
     
-    PI_fid_res = calculate_fid(fid_metric, p_svg_path, r_svg_path, clip_model, clip_process, device).cpu()
+    import pdb; pdb.set_trace()
+    
+    ## cal nlp metrics
+    t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
+    edit_p, p_str_len = calculate_edit(t5_tokenizer, p_svg_str, r_svg_path)
+    metrics['edit_p'] = edit_p
+    metrics['p_str_len'] = p_str_len
+    metrics['svg_token_length'] = sum(generated_svg_path) / len(generated_svg_path)
+        
+    scores = cal_rouge(p_svg_str, r_svg_str)
+    metrics['rouge_scores'] = scores
+    
+    ## cal image metrics
+    
+    
+    PI_fid_res = calculate_fid(fid_metric, p_svg_path, r_svg_path, clip_model, clip_process, device)
     metrics['PI_fid_res'] = PI_fid_res
     
     PI_CLIP_SCORE = calculate_clip_core(clip_process, clip_metric, p_svg_path, text)
     metrics['PI_CLIP_SCORE'] = PI_CLIP_SCORE
+    
+    quality_score = calculate_clip_image_quality(quality_metric, p_svg_path)
+    metrics['quality_score'] = quality_score
     
     print(metrics)
     

@@ -41,6 +41,7 @@ class TestConfig:
     do_inference: bool = field(default=True)
     snap_id: int = field(default=0)
 
+
 class PluginVQVAE(nn.Module):
     def __init__(self, model):
         super().__init__()
@@ -56,29 +57,45 @@ def saint_check_input(prompt, input_lst):
             print(f"Invalid input. Please enter one of the following: {input_lst}") 
 
 
-def interative_loop(model, image_save_root_dir, vqvae, tokenizer, max_generate_length=1024, **kwargs):
+def interative_loop(model, image_save_root_dir, vqvae, tokenizer, max_generate_length=512, **kwargs):
     """
     For user interactive input
     """
-    input_text = None
+    input_text = "begin"
     while input_text.lower() not in ("q", "quit"):
         input_text = input("Please input text: (press q to quit)").strip()
-        input_ids = tokenizer(input_text, return_tensors="pt").input_ids
+        input_ids = tokenizer(input_text, return_tensors="pt").input_ids.squeeze(0)
         input_ids = input_ids.to(model.device)
+        svg_decoder_input_ids = torch.tensor([4097], dtype=input_ids.dtype, device=input_ids.device).unsqueeze(0)
         with torch.no_grad():
-            _, post_processed_ids = model.generate(  # List[Tensor]
-                text_input_ids=input_ids,
-                max_generate_length=max_generate_length,
-                **kwargs
+            outputs = model.generate(  # List[Tensor]
+                input_ids=input_ids, max_new_tokens=max_generate_length, decoder_input_ids=svg_decoder_input_ids, use_cache=True, **kwargs
             )
-            svg_token_ids = post_processed_ids[0]
-            decoded_svg_path = vqvae.decode(  # L x l_bins ?
-                zs=svg_token_ids, start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
-        svg, svg_str = convert_svg(decoded_svg_path, True)
+            svg_token_ids = outputs[0]
+            token_ids_to_find = [4097, 4096]
+            if svg_token_ids[0] == 0:
+                svg_token_ids = svg_token_ids[2:]
+            min_index = None  
+            for token_id in token_ids_to_find:  
+                indices = torch.where(svg_token_ids == token_id)[0]  
+                if len(indices) > 0:  
+                    if min_index is None or indices[0] < min_index:  
+                        min_index = indices[0]    
+                if min_index is not None:  
+                    svg_token_ids = svg_token_ids[:min_index]  
+                        
+            decoded_svg_path_pi = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+            decoded_svg_path_pc = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=False, return_postprocess=True)[0]
+           
+            svg_pi, svg_str = convert_svg(decoded_svg_path_pi, True)
+            svg_pc, svg_str = convert_svg(decoded_svg_path_pc, True)
+            
         whether_save_image = saint_check_input("Whether to save the image? (y/n)", ['y', 'n', 'Y', 'N'])
         if whether_save_image == 'y':
             save_file_name = input_text.replace(" ", "_")
-            svg.save_png(os.path.join(image_save_root_dir, f"{save_file_name}.png"))
+            svg_pi.save_png(os.path.join(image_save_root_dir, f"{save_file_name}-pi.png"))
+            svg_pc.save_png(os.path.join(image_save_root_dir, f"{save_file_name}-pc.png"))
+            
         
 
 def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, decoder_input_ids=None, **kwargs) -> List[Tensor]:
@@ -93,6 +110,64 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             # text_attention_mask = batch_.get("text_attention_mask")
             # golden_svg_path = batch_.get("svg_tensors")
             # golden_svg_path_mask = batch_.get("svg_attention_mask")
+            
+            text_input_ids = batch_.get("input_ids")
+            text_attention_mask = batch_.get("attention_mask")
+            golden_svg_path = batch_.get("decoder_input_ids")
+            golden_svg_path_mask = batch_.get("decoder_attention_mask")
+            raw_data = batch_.get("raw_data")
+            raw_data_mask = ~(raw_data == 0).all(dim=2, keepdim=True)
+            
+            text_input_ids = text_input_ids.to(model.device) if text_input_ids is not None else None
+            text_attention_mask = text_attention_mask.to(model.device) if text_attention_mask is not None else None
+            golden_svg_path = golden_svg_path.to(model.device) if golden_svg_path is not None else None
+            
+            svg_decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device).long() if decoder_input_ids is not None else None
+
+            with torch.no_grad():
+                outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=svg_decoder_input_ids, use_cache=True, **kwargs)
+                
+                token_ids_to_find = [4097, 4096]  
+                
+                for i, svg_token_ids in enumerate(outputs):
+                    ## sanint check
+                    if svg_token_ids[0] == 0:
+                        svg_token_ids = svg_token_ids[2:]
+                    min_index = None  
+                    for token_id in token_ids_to_find:  
+                        indices = torch.where(svg_token_ids == token_id)[0]  
+                        if len(indices) > 0:  
+                            if min_index is None or indices[0] < min_index:  
+                                min_index = indices[0]  
+                    if min_index is not None:  
+                        svg_token_ids = svg_token_ids[:min_index]  
+
+                    decoded_svg_path_pi = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                    decoded_svg_path_pc = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=False, return_postprocess=True)[0]
+                    
+                    text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
+                    cur_batch_res.append(  # move to the CPU menory
+                        dict(
+                            golden_svg_path = golden_svg_path[i][:golden_svg_path_mask[i].sum()].cpu(),
+                            generated_svg_path_pi = decoded_svg_path_pi.cpu(),
+                            generated_svg_path_pc = decoded_svg_path_pc.cpu(),
+                            text = text,
+                            raw_data = raw_data[i][:raw_data_mask[i].sum()].cpu(),
+                        )
+                    )
+            res.extend(cur_batch_res)
+            pbar.update(1)
+    return res
+
+
+def text_only_predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, decoder_input_ids=None, **kwargs) -> List[Tensor]:
+    """
+    For testing the whole dataset
+    """
+    res = []
+    with tqdm(desc="Predicting", total=len(dataloader)) as pbar:
+        for batch_ in dataloader:
+            cur_batch_res = []
             
             text_input_ids = batch_.get("input_ids")
             text_attention_mask = batch_.get("attention_mask")
@@ -277,7 +352,7 @@ def test():
         flant5config.use_cache = False
         flant5config.predict_batch_size = test_args.predict_batch_size
         flant5config.dataloader_num_workers = test_args.dataloader_num_workers
-    
+
         svg_data_module = VQSeq2SeqData(
             flant5config, 
             test_args.data_path, 
@@ -307,7 +382,12 @@ def test():
             top_k=test_args.top_k,
             num_beams=test_args.num_beams,
         )
-    
+
+        interative_loop(svgllama, "./", vqvae, flant5_tokenizer, max_generate_length=test_args.max_generate_length, **sampling_strategy)
+        
+        
+        exit()
+        
         predicted_results = predict_loop(
             model=svgllama, 
             vqvae=vqvae,
