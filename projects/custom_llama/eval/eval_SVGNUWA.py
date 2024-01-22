@@ -99,7 +99,6 @@ def rouge_score(preds, golds, tokenizer):
     preds = [tokenizer.tokenize(x) for x in preds]
     golds = [tokenizer.tokenize(x) for x in golds]
     res = rougeScore(preds, golds)
-    
     # # for i in trange(len(preds)):
     #     references = preds[i]
     #     predictions = golds[i]
@@ -127,7 +126,6 @@ if __name__ == "__main__":
     raw_data = [item['raw_data'].size(0) for item in pred_res]
 
     str_svg_path = auto_read_data(os.path.join(ROOT_DIR, "svg_paths.jsonl"))
-    
     metrics = {}
     
     r_svg_path = [x['r_svg_path'] for x in str_svg_path]
@@ -138,18 +136,17 @@ if __name__ == "__main__":
     p_svg_str = [x['p_svg_str'] for x in str_svg_path]
     
     ## cal nlp metrics
-    
-    rougeScore = ROUGEScore()
-    rougeScore.to(device)
-    import pdb; pdb.set_trace()
-    rouge_score = rouge_score(p_svg_str, r_svg_str)
-    metrics['rouge_score'] = rouge_score
-    
-    t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
-    edit_p, p_str_len = calculate_edit(t5_tokenizer, p_svg_str, r_svg_path)
-    metrics['edit_p'] = edit_p
-    metrics['p_str_len'] = p_str_len
-    metrics['svg_token_length'] = sum(generated_svg_path) / len(generated_svg_path)
+    # t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
+    # edit_p, p_str_len = calculate_edit(t5_tokenizer, p_svg_str, r_svg_path)
+    # metrics['edit_p'] = edit_p
+    # metrics['p_str_len'] = p_str_len
+    # metrics['svg_token_length'] = sum(generated_svg_path) / len(generated_svg_path)
+        
+    # rougeScore = ROUGEScore(tokenizer=t5_tokenizer)
+    # rougeScore.to(device)
+    # import pdb; pdb.set_trace()
+    # rouge_score = rouge_score(p_svg_str, r_svg_str, t5_tokenizer)
+    # metrics['rouge_score'] = rouge_score
     
     ## cal image metrics
     fid_metric = FrechetInceptionDistance(feature=768).to(device)  # 768
