@@ -125,16 +125,16 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
                     if min_index is not None:  
                         svg_token_ids = svg_token_ids[:min_index]  
 
-                    decoded_svg_path = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                    decoded_svg_path_pi = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
+                    decoded_svg_path_pc = vqvae.decode(zs=[svg_token_ids], start_level=0, end_level=1, padding_mask=None, path_interpolation=False, return_postprocess=True)[0]
                     
                     text = tokenizer.decode(text_input_ids[i], skip_special_tokens=True)
-
                     cur_batch_res.append(  # move to the CPU menory
                         dict(
                             golden_svg_path = golden_svg_path[i][:golden_svg_path_mask[i].sum()].cpu(),
-                            generated_svg_path = decoded_svg_path.cpu(),
+                            generated_svg_path_pi = decoded_svg_path_pi.cpu(),
+                            generated_svg_path_pc = decoded_svg_path_pc.cpu(),
                             text = text,
-                            # svg_token_ids = svg_token_ids.cpu(),
                             raw_data = raw_data[i][:raw_data_mask[i].sum()].cpu(),
                         )
                     )
@@ -151,27 +151,30 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     
     auto_mkdir(SINGLE_IMAGE_SAVED_DIR)
     
-    keys = ['generated_svg_path', 'golden_svg_path', 'text', 'svg_token_ids']
     str_paths = []
     all_image_paths = []
     
     for i in trange(len(res)):
         try:
-            generated_svg_path = res[i]['generated_svg_path']
+            generated_svg_path_pi = res[i]['generated_svg_path_pi']
+            generated_svg_path_pc = res[i]['generated_svg_path_pc']
             golden_svg_path = res[i]['golden_svg_path']
             text = res[i]['text']
             ## decode golden
             if decode_golden:
                 golden_svg_path = vqvae.decode(zs=[golden_svg_path[1:].cuda()], start_level=0, end_level=1, padding_mask=None, path_interpolation=True, return_postprocess=True)[0]
         
-            predict = sanint_check_svg_tensor(generated_svg_path).squeeze(0)
-            p_svg, p_svg_str = convert_svg(predict, True)
+            predict_pi = sanint_check_svg_tensor(generated_svg_path_pi).squeeze(0)
+            p_svg_pi, p_svg_str_pi = convert_svg(predict_pi, True)
+            predict_pc = sanint_check_svg_tensor(generated_svg_path_pc).squeeze(0)
+            p_svg_pc, p_svg_str_pc = convert_svg(predict_pc, True)
             golden = sanint_check_svg_tensor(golden_svg_path).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
             
             str_paths.append({
                 "text": text,
-                "p_svg_str": p_svg_str,
+                "p_svg_str_pi": p_svg_str_pi,
+                "p_svg_str_pc": p_svg_str_pc, 
                 "g_svg_str": g_svg_str,
             })
             
@@ -184,12 +187,15 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
                 r_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
                 all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_r_svg.png"))
             
-            p_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            p_svg_pi.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg_pi.png"))
+            p_svg_pc.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg_pc.png"))
             g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
-            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg_pi.png"))
+            all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg_pc.png"))
             all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
             
-            str_paths[-1]['p_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg.png")
+            str_paths[-1]['p_svg_path_pi'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg_pi.png")
+            str_paths[-1]['p_svg_path_pc'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg_pc.png")
             str_paths[-1]['g_svg_path'] = os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png")
         
         except Exception as e:
@@ -203,7 +209,8 @@ def post_process(res: List[Dict], save_dir=None, generate_big_map=True, add_back
     if generate_big_map:
         print_c("begin to generate big map", "magenta")
         BIG_MAP_SAVED_DIR = auto_mkdir(os.path.join(save_dir, "rendered_big_map"))
-        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
+        p_svg_images_pi = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg_pi.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
+        p_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='p_svg_pc.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
         g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='g_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
         g_svg_images = merge_images(folder_path=SINGLE_IMAGE_SAVED_DIR, image_suffix='r_svg.png', num_images=len(str_paths), save_dir=BIG_MAP_SAVED_DIR)
     
@@ -292,8 +299,7 @@ def test():
         
         svgllama.eval().cuda()
         svgllama = svgllama.half() if test_args.fp16 else svgllama
-    
-            
+          
         sampling_strategy = dict(
             do_sample=test_args.do_sample,
             temperature=test_args.temperature,

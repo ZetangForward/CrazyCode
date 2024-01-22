@@ -92,10 +92,19 @@ def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
 if __name__ == "__main__":
     
     ## text VQ 
-    FILE_PATH = "/zecheng2/evaluation/test_vq/version_8/vq_test.pkl"
-    data = auto_read_data(FILE_PATH)
+    ROOT_DIR = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100"
+    pred_res = []
+    for i in range(8):
+        cur_content = auto_read_data(os.path.join(ROOT_DIR, f"snap_{i}_results.pkl"))
+        pred_res.extend(cur_content)
     
-    keys = [item['keys'] for item in data]
+    golden_svg_path = [item['golden_svg_path'] for item in pred_res]
+    generated_svg_path = [item['generated_svg_path'] for item in pred_res]
+    text = [item['text'] for item in pred_res]
+    raw_data = [item['raw_data'] for item in pred_res]
+    
+    str_svg_path = auto_read_data(os.path.join(ROOT_DIR, "svg_paths.jsonl"))
+    
     pi_res_len = [item['pi_res_len'] for item in data]
     pc_res_len = [item['pc_res_len'] for item in data]
     gt_res_len = [item['gt_res_len'] for item in data]
