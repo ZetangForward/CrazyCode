@@ -41,19 +41,19 @@ svg_data_module = VQSeq2SeqData(
         inferece_nums=2000,
     )
 
-predict_datasets = svg_data_module.predict_dataset
+# predict_datasets = svg_data_module.predict_dataset
+predict_datasets = ['sunny, Cloud, weather', 'bulb', 'Vehicle Car', 'clock']
 
 pipeline.set_progress_bar_config(leave=False)
 
-SAVE_DIR = "/zecheng2/vqllama/baselines/stablediffusion/"
+# SAVE_DIR = "/zecheng2/vqllama/baselines/stablediffusion/"
+SAVE_DIR = "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/stablediffusion"
 PROMPT = "Please generate a image in the icon format for me. here is the keywords: {keywords}"
 
 with tqdm(total=len(predict_datasets)) as pbar:
     for i, data in enumerate(predict_datasets):
-        keywords = flant5_tokenizer.decode(data['text_input_ids'], skip_special_tokens=True)
-        if len(keywords) == 0:
-            continue
-        text_prompt = PROMPT.format(keywords=keywords)
+        # keywords = flant5_tokenizer.decode(data['text_input_ids'], skip_special_tokens=True)
+        text_prompt = PROMPT.format(keywords=data)
         image = pipeline(text_prompt).images[0]
         file_path = os.path.join(SAVE_DIR, f"{i}.png")
         image.save(file_path)
