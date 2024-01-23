@@ -101,7 +101,8 @@ def cal_rouge(generated_svg_str, golden_svg_str):
     rouge = Rouge()
     generated_svg_str = [x[:5000] for x in generated_svg_str]
     golden_svg_str = [x[:5000] for x in golden_svg_str]
-    scores = rouge.get_scores(generated_svg_str, golden_svg_str)
+    import pdb; pdb.set_trace()
+    scores = rouge.get_scores(generated_svg_str[:50], golden_svg_str[:50])
     return scores
 
 
@@ -135,6 +136,9 @@ if __name__ == "__main__":
     
     import pdb; pdb.set_trace()
     
+    scores = cal_rouge(p_svg_str, r_svg_str)
+    metrics['rouge_scores'] = scores
+    
     ## cal nlp metrics
     t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
     edit_p, p_str_len = calculate_edit(t5_tokenizer, p_svg_str, r_svg_path)
@@ -142,8 +146,7 @@ if __name__ == "__main__":
     metrics['p_str_len'] = p_str_len
     metrics['svg_token_length'] = sum(generated_svg_path) / len(generated_svg_path)
         
-    scores = cal_rouge(p_svg_str, r_svg_str)
-    metrics['rouge_scores'] = scores
+    
     
     ## cal image metrics
     

@@ -124,7 +124,7 @@ class SVG:
         # viewbox_list = list(map(float, svg_root.getAttribute("viewBox").split(" ")))
         viewbox_list = None
         if svg_root.hasAttribute('viewBox'):
-            viewbox = list(map(float, svg_root.getAttribute("viewBox").split(" ")))
+            viewbox_list = list(map(float, svg_root.getAttribute("viewBox").split(" ")))
         elif svg_root.hasAttribute('width') and svg_root.hasAttribute('height'):
             viewbox_list = [0, 0, float(svg_root.getAttribute("width")), float(svg_root.getAttribute("height"))]
         else:
