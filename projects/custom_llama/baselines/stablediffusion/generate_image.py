@@ -42,7 +42,7 @@ svg_data_module = VQSeq2SeqData(
     )
 
 # predict_datasets = svg_data_module.predict_dataset
-predict_datasets = ['sunny, Cloud, weather', 'bulb', 'Vehicle Car', 'clock']
+predict_datasets = [r"electronic, equipment, device, chip"]
 
 pipeline.set_progress_bar_config(leave=False)
 
@@ -55,7 +55,7 @@ with tqdm(total=len(predict_datasets)) as pbar:
         # keywords = flant5_tokenizer.decode(data['text_input_ids'], skip_special_tokens=True)
         text_prompt = PROMPT.format(keywords=data)
         image = pipeline(text_prompt).images[0]
-        file_path = os.path.join(SAVE_DIR, f"{i}.png")
+        file_path = os.path.join(SAVE_DIR, f"chip.png")
         image.save(file_path)
         pbar.update(1)
         
