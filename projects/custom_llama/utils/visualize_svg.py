@@ -25,8 +25,7 @@ def sanint_check_svg_tensor(x):
     if x.size(-1) == 9:
         x[:, :, 0][x[:, :, 0] == 100] = 1
         x[:, :, 0][x[:, :, 0] == 200] = 2
-    elif x.size(-1) == 7:https://vscode-remote+ssh-002dremote-002b7b22686f73744e616d65223a22504149227d.vscode-resource.vscode-cdn.net/workspace/zecheng/modelzipper/projects/custom_llama/notebook/main_image.png?version%3D1705936924027
-        # add two columns
+    elif x.size(-1) == 7:
         x_0_y_0 = torch.zeros((x.size(0), x.size(1), 2), dtype=x.dtype, device=x.device)
         x_0_y_0[:, 1:, 0] = x[:, :-1, -2]  # x_3 of the previous row
         x_0_y_0[:, 1:, 1] = x[:, :-1, -1]  # y_3 of the previous row

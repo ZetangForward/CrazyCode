@@ -92,23 +92,54 @@ def calculate_hps(image_lst1, image_lst2, key_lst, clip_model, clip_process,):
 if __name__ == "__main__":
     
     ## text VQ 
-    FILE_PATH = "/zecheng2/evaluation/test_vq/version_8/vq_test.pkl"
-    data = auto_read_data(FILE_PATH)
+    # FILE_PATH = "/zecheng2/evaluation/test_vq/version_8/vq_test.pkl"
+    # data = auto_read_data(FILE_PATH)
     
-    keys = [item['keys'] for item in data]
-    pi_res_len = [item['pi_res_len'] for item in data]
-    pc_res_len = [item['pc_res_len'] for item in data]
-    gt_res_len = [item['gt_res_len'] for item in data]
-    pi_res_str = [item['pi_res_str'] for item in data]
-    pc_res_str = [item['pc_res_str'] for item in data]
-    gt_str = [item['gt_str'] for item in data]
-    PI_RES_image_path = [item['PI_RES_image_path'] for item in data]
-    PC_RES_image_path = [item['PC_RES_image_path'] for item in data]
-    GT_image_path = [item['GT_image_path'] for item in data]
+    # keys = [item['keys'] for item in data]
+    # pi_res_len = [item['pi_res_len'] for item in data]
+    # pc_res_len = [item['pc_res_len'] for item in data]
+    # gt_res_len = [item['gt_res_len'] for item in data]
+    # pi_res_str = [item['pi_res_str'] for item in data]
+    # pc_res_str = [item['pc_res_str'] for item in data]
+    # gt_str = [item['gt_str'] for item in data]
+    # PI_RES_image_path = [item['PI_RES_image_path'] for item in data]
+    # PC_RES_image_path = [item['PC_RES_image_path'] for item in data]
+    # GT_image_path = [item['GT_image_path'] for item in data]
     
     t5_tokenizer = transformers.T5Tokenizer.from_pretrained("/zecheng2/model_hub/flan-t5-xl")
-    p = [len(t5_tokenizer.tokenize(x)) for x in gt_str]
-    import pdb; pdb.set_trace()
+    # p = [len(t5_tokenizer.tokenize(x)) for x in gt_str]
+    # import pdb; pdb.set_trace()
+    
+    LIVE_PNG_2 = [
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/stablediffusion/chip.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/stablediffusion/3.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/stablediffusion/0.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/stablediffusion/2.png",
+    ]
+    
+    LayoutNUWA_PNG = [
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/image4.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/image3.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/image0.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/image2.png",
+    ]
+
+    LIVE_PNG = [
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/chip.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/LIVE_clock_final.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/LIVE_cloud_final.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/LIVE_car_final.png",
+    ]
+
+    SVGNUWA_PNG = [
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/electronic, chip.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/clock_image_NUWASVG_5511.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/cloud_image_NUWASVG_5793.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/velcle_image_NUWASVG_300.png",
+    ]
+    
+    KEYS = ["Electrical Chip", "Clock", "Cloud", "Family Car"]
+    
     
     # dict_keys(['text', 'p_svg_str', 'g_svg_str', 'r_svg_str', 'r_svg_path', 'p_svg_path', 'g_svg_path'])
     
@@ -123,6 +154,14 @@ if __name__ == "__main__":
     # pred_images = [item['p_svg_path'] for item in data]
     # reconstruction_images = [item['r_svg_path'] for item in data]
     # golden_images = [item['g_svg_path'] for item in data]
+    
+    import pdb; pdb.set_trace()
+    
+    calculate_clip_core(clip_process, clip_metric,LIVE_PNG,KEYS) # 23.1125
+    calculate_clip_core(clip_process, clip_metric,LayoutNUWA_PNG,KEYS) # 21.8337
+    calculate_clip_core(clip_process, clip_metric,LIVE_PNG_2,KEYS) # 23.2657
+    calculate_clip_core(clip_process, clip_metric,SVGNUWA_PNG,KEYS)  # 24.6824
+    
     metrics = {}
     
     metrics['pi_res_len'] = sum(pi_res_len) / len(pi_res_len)
