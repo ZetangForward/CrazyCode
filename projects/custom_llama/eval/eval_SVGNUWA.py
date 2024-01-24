@@ -141,11 +141,14 @@ if __name__ == "__main__":
     device =  "cuda:7"
     ROOT_DIR = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100"
     pred_res = []
+    pred_tokens, golden_tokens = [], []
     for i in trange(1):
         cur_content = auto_read_data(os.path.join(ROOT_DIR, f"snap_{i}_results.pkl"))
         pred_res.extend(cur_content)
-        
-    outputs, raw_zs, raw_quantized_zs = plugin_vqvae.model.encode(cur_content[0]['generated_svg_path'].unsqueeze(0), 0, 1)
+        p_zs = plugin_vqvae.model.encode(cur_content[0]['generated_svg_path'].unsqueeze(0), 0, 1)
+        g_zs = plugin_vqvae.model.encode(cur_content[0]['raw_data'].unsqueeze(0), 0, 1)
+        pred_tokens.append(p_zs)
+        golden_tokens.append(g_zs)
     
     golden_svg_path = [len(item['golden_svg_path']) for item in pred_res]
     generated_svg_path = [item['generated_svg_path'].size(0) for item in pred_res]

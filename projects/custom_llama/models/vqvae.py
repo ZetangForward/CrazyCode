@@ -241,7 +241,7 @@ class VQVAE(nn.Module):
         for level in range(self.levels):
             x_out = self.encoders[level](x_in)
             xs.append(x_out[-1])
-        import pdb; pdb.set_trace()
+            
         zs = self.bottleneck.encode(xs[start_level:end_level])
         return zs
     
