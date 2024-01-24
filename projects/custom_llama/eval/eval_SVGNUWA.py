@@ -1,5 +1,7 @@
 import torch
 import clip
+import sys
+sys.path.append("/workspace/zecheng/modelzipper/projects/custom_llama")
 from PIL import Image
 from torchmetrics.multimodal.clip_score import CLIPScore
 from torchmetrics.image.fid import FrechetInceptionDistance
@@ -11,6 +13,7 @@ from modelzipper.tutils import *
 import gc
 from rouge import Rouge 
 import numpy as np
+from models.vqvae import VQVAE
 
 
 @torch.no_grad()
@@ -106,13 +109,43 @@ def cal_rouge(generated_svg_str, golden_svg_str):
     return scores
 
 
+class PluginVQVAE(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+
 if __name__ == "__main__":
+    
+    vqvae_config = load_yaml_config("/workspace/zecheng/modelzipper/projects/custom_llama/configs/deepspeed/vqvae_config_v2.yaml")
+    
+    # init VQVAE
+    block_kwargs = dict(
+        width=vqvae_config.vqvae_conv_block.width, 
+        depth=vqvae_config.vqvae_conv_block.depth, 
+        m_conv=vqvae_config.vqvae_conv_block.m_conv,
+        dilation_growth_rate=vqvae_config.vqvae_conv_block.dilation_growth_rate,
+        dilation_cycle=vqvae_config.vqvae_conv_block.dilation_cycle,
+        reverse_decoder_dilation=vqvae_config.vqvae_conv_block.vqvae_reverse_decoder_dilation
+    )
+    vqvae = VQVAE(vqvae_config, multipliers=None, **block_kwargs)
+    plugin_vqvae = PluginVQVAE(vqvae)
+    checkpoint = torch.load(vqvae_config.ckpt_path)  # load vqvae ckpt
+    plugin_vqvae.load_state_dict(checkpoint['state_dict'])
+    print_c("VQVAE loaded!", "green")
+    vqvae = plugin_vqvae.model
+    
+    vqvae.eval().cpu()
+
+    
     device =  "cuda:7"
     ROOT_DIR = "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100"
     pred_res = []
-    for i in trange(8):
+    for i in trange(1):
         cur_content = auto_read_data(os.path.join(ROOT_DIR, f"snap_{i}_results.pkl"))
         pred_res.extend(cur_content)
+        
+    outputs, raw_zs, raw_quantized_zs = plugin_vqvae.model.encode(cur_content[0]['generated_svg_path'].unsqueeze(0), 0, 1)
     
     golden_svg_path = [len(item['golden_svg_path']) for item in pred_res]
     generated_svg_path = [item['generated_svg_path'].size(0) for item in pred_res]
@@ -135,6 +168,8 @@ if __name__ == "__main__":
     clip_model, clip_process = clip.load("ViT-L/14", device=device)
     
     import pdb; pdb.set_trace()
+    
+    
     
     scores = cal_rouge(p_svg_str, r_svg_str)
     metrics['rouge_scores'] = scores
