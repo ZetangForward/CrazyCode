@@ -9,29 +9,30 @@ def filter_data(content):
     data_with_25_kwds = []
     data_with_30_kwds = []
 
-    with tqdm(total=len(content)) as pbar:
-        for i, sample in enumerate(content):
-            if len(sample['keys']) >= 30:
-                data_with_30_kwds.append(sample)
-            elif len(sample['keys']) >= 25:
-                data_with_25_kwds.append(sample)
-            elif len(sample['keys']) >= 20:
-                data_with_20_kwds.append(sample)
-            elif len(sample['keys']) >= 15:
-                data_with_15_kwds.append(sample)
-            elif len(sample['keys']) >= 10:
-                data_with_10_kwds.append(sample)
-            elif len(sample['keys']) >= 5:
-                data_with_5_kwds.append(sample)
-            pbar.update(1)
+    # with tqdm(total=len(content)) as pbar:
+    #     for i, sample in enumerate(content):
+    #         if len(sample['keys']) >= 30:
+    #             data_with_30_kwds.append(sample)
+    #         elif len(sample['keys']) >= 25:
+    #             data_with_25_kwds.append(sample)
+    #         elif len(sample['keys']) >= 20:
+    #             data_with_20_kwds.append(sample)
+    #         elif len(sample['keys']) >= 15:
+    #             data_with_15_kwds.append(sample)
+    #         elif len(sample['keys']) >= 10:
+    #             data_with_10_kwds.append(sample)
+    #         elif len(sample['keys']) >= 5:
+    #             data_with_5_kwds.append(sample)
+    #         pbar.update(1)
             
-    print(f"length of data_with_5_kwds: {len(data_with_5_kwds)}")
-    print(f"length of data_with_10_kwds: {len(data_with_10_kwds)}")
-    print(f"length of data_with_15_kwds: {len(data_with_15_kwds)}")
-    print(f"length of data_with_20_kwds: {len(data_with_20_kwds)}")
-    print(f"length of data_with_25_kwds: {len(data_with_25_kwds)}")
-    print(f"length of data_with_30_kwds: {len(data_with_30_kwds)}")
+    # print(f"length of data_with_5_kwds: {len(data_with_5_kwds)}")
+    # print(f"length of data_with_10_kwds: {len(data_with_10_kwds)}")
+    # print(f"length of data_with_15_kwds: {len(data_with_15_kwds)}")
+    # print(f"length of data_with_20_kwds: {len(data_with_20_kwds)}")
+    # print(f"length of data_with_25_kwds: {len(data_with_25_kwds)}")
+    # print(f"length of data_with_30_kwds: {len(data_with_30_kwds)}")
 
+    data_with_5_paths = []
     data_with_50_paths = []
     data_with_100_paths = []
     data_with_150_paths = []
@@ -53,8 +54,11 @@ def filter_data(content):
                 data_with_100_paths.append(sample)
             elif len(sample['zs']) >= 50:
                 data_with_50_paths.append(sample)
+            elif len(sample['zs']) >= 5:
+                data_with_5_paths.append(sample)
             pbar.update(1)
-            
+    
+    print(f"length of data_with_5_paths: {len(data_with_5_paths)}")
     print(f"length of data_with_50_paths: {len(data_with_50_paths)}")
     print(f"length of data_with_100_paths: {len(data_with_100_paths)}")
     print(f"length of data_with_150_paths: {len(data_with_150_paths)}")
@@ -62,9 +66,12 @@ def filter_data(content):
     print(f"length of data_with_250_paths: {len(data_with_250_paths)}")
     print(f"length of data_with_300_paths: {len(data_with_300_paths)}")
 
-    final_data = ...  # TODO
+    final_data = data_with_5_paths + data_with_50_paths + data_with_100_paths + data_with_150_paths + data_with_200_paths
     
-    assert NotImplementedError, "not implement yet"
+    final_data = list(filter(lambda x: len(x['keys']) >= 2, final_data))  # at least two keywords
+    return final_data
+
+    # assert NotImplementedError, "not implement yet"
 
 
 def main(rd):
