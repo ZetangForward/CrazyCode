@@ -125,9 +125,7 @@ def predict_loop(model, vqvae, dataloader, tokenizer, max_generate_length=1024, 
             svg_decoder_input_ids = torch.empty(golden_svg_path.size(0), 1).fill_(decoder_input_ids).to(model.device).long() if decoder_input_ids is not None else None
 
             with torch.no_grad():
-                b_t = time.time()
                 outputs = model.generate(input_ids=text_input_ids, attention_mask=text_attention_mask,max_new_tokens=max_generate_length, decoder_input_ids=svg_decoder_input_ids, use_cache=True, **kwargs)
-                print_c(f"batch time: {time.time() - b_t}", "green")
                 token_ids_to_find = [4097, 4096]  
                 
                 for i, svg_token_ids in enumerate(outputs):
