@@ -120,8 +120,8 @@ def main(cl: int = 0, rd: str = None):
     SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(SAVE_DIR, "single_image")) # save single image    
     PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
 
-    DIRECT_GENERATE_BIG_MAP = True
-    DIRECT_GENERATE_SINGLE_IMAGE = False
+    DIRECT_GENERATE_BIG_MAP = False
+    DIRECT_GENERATE_SINGLE_IMAGE = True
     DIRECT_ADD_BACKGROUND = False
 
     all_image_paths = []
@@ -132,8 +132,9 @@ def main(cl: int = 0, rd: str = None):
         num_svgs = len(results[keys[0]])
         # num_svgs = 2000
         str_paths = []
-
+        # special_lst = [815, 36, 196, 200, 1202]
         for i in trange(num_svgs):
+        # for i in special_lst:
             raw_predict = results['raw_predict'][i]
             p_predict1 = results['p_predict1'][i]
             p_predict2 = results['p_predict2'][i]
@@ -145,7 +146,12 @@ def main(cl: int = 0, rd: str = None):
             p_svg2, p_svg_str2 = convert_svg(p_predict2, True)
             golden = sanint_check_svg_tensor(golden).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
-
+            
+            ## tmp save
+            p_svg1.normalize().draw_colored(fill=True, file_path=f"/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/reconstruction/CL2/{i}_p_svg1.png")
+            p_svg2.normalize().draw_colored(fill=True, file_path=f"/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/reconstruction/CL2/{i}_p_svg2.png")
+            g_svg.normalize().draw_colored(fill=True, file_path=f"/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/reconstruction/CL2/{i}_g_svg.png")
+            
             str_paths.append({
                 "p_svg_str1": p_svg_str1,
                 "p_svg_str2": p_svg_str2,
