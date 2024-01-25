@@ -21,7 +21,7 @@ for i in {0..7}; do
         --dataloader_num_workers 0 \
         --fp16 False \
         --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
-        --do_sample False \
+        --do_sample True \
         --top_p 0.9 \
         --top_k 40 \
         --do_inference True \
