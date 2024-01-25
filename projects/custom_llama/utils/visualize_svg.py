@@ -165,19 +165,19 @@ def main(cl: int = 0, rd: str = None):
         p_svg_images1 = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='p_svg1.png', 
-            num_images=500, 
+            num_images=1999, 
             save_dir=BIG_MAP_SAVED_DIR
         )
         p_svg_images2 = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='p_svg2.png', 
-            num_images=500, 
+            num_images=1999, 
             save_dir=BIG_MAP_SAVED_DIR
         )
         g_svg_images = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='g_svg.png', 
-            num_images=500, 
+            num_images=1999, 
             save_dir=BIG_MAP_SAVED_DIR
         )
 
