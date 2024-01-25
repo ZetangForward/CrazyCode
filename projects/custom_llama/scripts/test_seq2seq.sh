@@ -10,7 +10,7 @@ python test_vq_seq2seq.py \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps_v3/long_test_split_${snap_id}.pkl" \
     --save_dir ${save_dir} \
     --max_generate_length 512 \
-    --predict_batch_size 1 \
+    --predict_batch_size 4 \
     --model_max_length 512 \
     --inference_nums -1 \
     --dataloader_num_workers 0 \
