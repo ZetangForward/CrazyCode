@@ -53,7 +53,7 @@ class BasicDataset(Dataset):
             if min_length <= len(sample):
                 new_dataset.append(
                     {
-                        'keywords': item['keys'],
+                        'keywords': item['keywords'],
                         'mesh_data': sample,
                     }
                 )
