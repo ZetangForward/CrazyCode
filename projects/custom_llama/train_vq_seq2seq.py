@@ -116,7 +116,7 @@ def train():
     )
 
     if training_args.init_decoder:
-        SvgSeq2SeqModel.int_decoder()
+        SvgSeq2SeqModel.init_decoder()
 
     SvgSeq2SeqModel.is_parallelizable = False
     SvgSeq2SeqModel.model_parallel = False
