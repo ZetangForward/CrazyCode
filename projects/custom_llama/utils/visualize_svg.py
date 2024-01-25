@@ -148,9 +148,9 @@ def main(cl: int = 0, rd: str = None):
             g_svg, g_svg_str = convert_svg(golden, True)
             
             ## tmp save
-            p_svg1.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
-            p_svg2.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
-            g_svg.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+            _ = p_svg1.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
+            _ = p_svg2.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
+            _ = g_svg.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
             
             str_paths.append({
                 "p_svg_str1": p_svg_str1,
