@@ -148,9 +148,9 @@ def main(cl: int = 0, rd: str = None):
             g_svg, g_svg_str = convert_svg(golden, True)
             
             ## tmp save
-            p_svg1.normalize().draw_colored(fill=True, file_path=f"/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/reconstruction/CL2/{i}_p_svg1.png")
-            p_svg2.normalize().draw_colored(fill=True, file_path=f"/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/reconstruction/CL2/{i}_p_svg2.png")
-            g_svg.normalize().draw_colored(fill=True, file_path=f"/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/reconstruction/CL2/{i}_g_svg.png")
+            p_svg1.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
+            p_svg2.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
+            g_svg.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
             
             str_paths.append({
                 "p_svg_str1": p_svg_str1,
@@ -158,9 +158,9 @@ def main(cl: int = 0, rd: str = None):
                 "g_svg_str": g_svg_str,
             })
             
-            p_svg1.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
-            p_svg2.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
-            g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
+            # p_svg1.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
+            # p_svg2.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
+            # g_svg.save_png(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
             all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
             all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
             all_image_paths.append(os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_g_svg.png"))
