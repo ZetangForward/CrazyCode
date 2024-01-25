@@ -2,12 +2,12 @@ from modelzipper.tutils import *
 
 
 def filter_data(content):
-    data_with_5_kwds = []
-    data_with_10_kwds = []
-    data_with_15_kwds = []
-    data_with_20_kwds = []
-    data_with_25_kwds = []
-    data_with_30_kwds = []
+    # data_with_5_kwds = []
+    # data_with_10_kwds = []
+    # data_with_15_kwds = []
+    # data_with_20_kwds = []
+    # data_with_25_kwds = []
+    # data_with_30_kwds = []
 
     # with tqdm(total=len(content)) as pbar:
     #     for i, sample in enumerate(content):
@@ -86,11 +86,11 @@ def main(rd):
     print_c(f"======= merge content =======", "magenta")
     merged_list = [item for sublist in content for item in sublist]
     
-    
     # filter dataset by length
     print_c("======= filter dataset by length =======", "magenta")
     processed_data = filter_data(merged_list)
 
+    import pdb; pdb.set_trace()
     # save the data
     print_c(f"======= save content =======", "magenta")
     save_path = os.path.join(rd, f"inference_full_data_compress_1_snaps_merged.pkl")
