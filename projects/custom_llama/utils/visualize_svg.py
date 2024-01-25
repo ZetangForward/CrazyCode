@@ -129,8 +129,8 @@ def main(cl: int = 0, rd: str = None):
     if DIRECT_GENERATE_SINGLE_IMAGE:
         results = auto_read_data(FILE_PATH)
         keys = ['raw_predict', 'p_predict1', 'p_predict2', 'golden', 'zs', 'xs_quantised']
-        # num_svgs = len(results[keys[0]])
-        num_svgs = 2000
+        num_svgs = len(results[keys[0]])
+        # num_svgs = 2000
         str_paths = []
 
         for i in trange(num_svgs):
