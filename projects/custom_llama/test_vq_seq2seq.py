@@ -383,10 +383,10 @@ def test():
             num_beams=test_args.num_beams,
         )
 
-        interative_loop(svgllama, "./", vqvae, flant5_tokenizer, max_generate_length=test_args.max_generate_length, **sampling_strategy)
+        # interative_loop(svgllama, "./", vqvae, flant5_tokenizer, max_generate_length=test_args.max_generate_length, **sampling_strategy)
         
         
-        exit()
+        # exit()
         
         predicted_results = predict_loop(
             model=svgllama, 
