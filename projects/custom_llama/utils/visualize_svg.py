@@ -38,7 +38,7 @@ def convert_svg(t, colored=False, save_path=None):
     if save_path is not None and colored:
         svg.draw_colored(fill=True, file_path=save_path, do_display=False)
     elif colored:
-        svg = svg.normalize().split_paths().set_color("random")
+        svg = svg.normalize().split_paths().set_color("random").normalize()
     str_svg = svg.numericalize(n=200).to_str()
     return svg, str_svg
 
@@ -120,7 +120,7 @@ def main(cl: int = 0, rd: str = None):
     SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(SAVE_DIR, "single_image")) # save single image    
     PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
 
-    DIRECT_GENERATE_BIG_MAP = True
+    DIRECT_GENERATE_BIG_MAP = False
     DIRECT_GENERATE_SINGLE_IMAGE = True
     DIRECT_ADD_BACKGROUND = False
 
@@ -130,7 +130,7 @@ def main(cl: int = 0, rd: str = None):
         results = auto_read_data(FILE_PATH)
         keys = ['raw_predict', 'p_predict1', 'p_predict2', 'golden', 'zs', 'xs_quantised']
         # num_svgs = len(results[keys[0]])
-        num_svgs = 500
+        num_svgs = 2000
         str_paths = []
 
         for i in trange(num_svgs):
