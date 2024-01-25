@@ -90,7 +90,6 @@ def main(rd):
     print_c("======= filter dataset by length =======", "magenta")
     processed_data = filter_data(merged_list)
 
-    import pdb; pdb.set_trace()
     # save the data
     print_c(f"======= save content =======", "magenta")
     save_path = os.path.join(rd, f"inference_full_data_compress_1_snaps_merged.pkl")
