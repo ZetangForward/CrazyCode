@@ -1,4 +1,4 @@
-projects/custom_llama/configs/experiment/config_subtask_8.yamlSAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
+SAVE_DIR: &SAVE_DIR "/zecheng2/vqllama"
 JOB_ID: &JOB_ID 8
 EXP_NAME: &EXP_NAME "vqllama_quantizer"
 

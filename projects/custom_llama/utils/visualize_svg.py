@@ -120,7 +120,7 @@ def main(cl: int = 0, rd: str = None):
     SINGLE_IMAGE_SAVED_DIR = auto_mkdir(os.path.join(SAVE_DIR, "single_image")) # save single image    
     PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
 
-    DIRECT_GENERATE_BIG_MAP = True
+    DIRECT_GENERATE_BIG_MAP = False
     DIRECT_GENERATE_SINGLE_IMAGE = True
     DIRECT_ADD_BACKGROUND = False
 
@@ -146,7 +146,7 @@ def main(cl: int = 0, rd: str = None):
             p_svg2, p_svg_str2 = convert_svg(p_predict2, True)
             golden = sanint_check_svg_tensor(golden).squeeze(0)
             g_svg, g_svg_str = convert_svg(golden, True)
-            
+            import pdb; pdb.set_trace()
             ## tmp save
             _ = p_svg1.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg1.png"))
             _ = p_svg2.normalize().draw_colored(fill=True, file_path=os.path.join(SINGLE_IMAGE_SAVED_DIR, f"{i}_p_svg2.png"))
