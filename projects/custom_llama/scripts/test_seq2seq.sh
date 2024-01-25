@@ -1,7 +1,7 @@
 ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
 save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100_topp/"
 snap_id=0
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 
 python test_vq_seq2seq.py \
     --ckpt ${ckpt} \
@@ -10,7 +10,7 @@ python test_vq_seq2seq.py \
     --data_path "/zecheng2/svg/icon-shop/test_data_snaps/split_snaps_v3/long_test_split_${snap_id}.pkl" \
     --save_dir ${save_dir} \
     --max_generate_length 512 \
-    --predict_batch_size 4 \
+    --predict_batch_size 1 \
     --model_max_length 512 \
     --inference_nums -1 \
     --dataloader_num_workers 0 \
