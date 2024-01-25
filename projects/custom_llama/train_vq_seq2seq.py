@@ -30,6 +30,7 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
     freezen_llm: bool = field(default=False)
+    init_decoder: bool = field(default=False)
     
 
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
@@ -114,31 +115,17 @@ def train():
         tokenizer=flant5_tokenizer,
     )
 
+    if training_args.init_decoder:
+        SvgSeq2SeqModel.int_decoder()
+
     SvgSeq2SeqModel.is_parallelizable = False
     SvgSeq2SeqModel.model_parallel = False
-
-    # # init optimizer
-    # if svgllama.model_parallel:
-    #     all_params = [param for module in svgllama.modules() for param in module.parameters()]
-    # else:
-    #     all_params = svgllama.parameters()
-    
-    # trainable_params = [p for p in all_params if p.requires_grad]
-    # optimizer = torch.optim.AdamW(trainable_params, lr=training_args.learning_rate)
-
-    # # init lr scheduler
-    # lr_scheduler = transformers.get_linear_schedule_with_warmup(
-    #     optimizer,
-    #     num_warmup_steps=training_args.warmup_steps,
-    #     num_training_steps=training_args.max_steps,
-    # )
 
     trainer = CustomTrainier(model=SvgSeq2SeqModel, tokenizer=flant5_tokenizer, args=training_args, **data_module)
 
     trainer.train()
     trainer.save_state()
     safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)
-
 
 if __name__ == "__main__":
     train()

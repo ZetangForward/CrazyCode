@@ -11,7 +11,8 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
 from modelzipper.tutils import *
 from transformers.modeling_outputs import Seq2SeqLMOutput, BaseModelOutput
-
+from transformers.models.t5.modeling_t5 import T5Stack
+import copy
 
 class VQSVGSeq2SeqModel(T5ForConditionalGeneration):  
     def __init__(self, config, tokenizer=None, vqvae=None, codebook_size=4096):  
@@ -41,6 +42,14 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
         for param in self.vqvae.model.parameters():
             param.requires_grad = False
 
+    def init_decoder(self):
+        print_c("Attention! encoder is freezed!")
+        decoder_config = copy.deepcopy(self.config)
+        decoder_config.is_decoder = True
+        decoder_config.is_encoder_decoder = False
+        decoder_config.num_layers = self.config.num_decoder_layers
+        self.decoder = T5Stack(decoder_config, self.shared)
+    
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True):
         return super().load_state_dict(state_dict, strict)
