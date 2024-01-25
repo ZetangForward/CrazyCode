@@ -108,6 +108,19 @@ def cal_rouge(generated_svg_str, golden_svg_str):
     scores = rouge.get_scores(generated_svg_str[:50], golden_svg_str[:50])
     return scores
 
+def calculate_recall(pred_list, gold_list):
+    # 计算交集的大小，即在pred_list出现的且在gold_list中也出现的唯一token ID的数量
+    common_tokens = set(pred_list) & set(gold_list)
+    true_positives = sum(min(pred_list.count(token), gold_list.count(token)) for token in common_tokens)
+
+    # 计算gold_list中的总token数量
+    total_relevant = len(gold_list)
+
+    # 计算召回率
+    recall = true_positives / total_relevant if total_relevant > 0 else 0
+    
+    return recall
+
 
 class PluginVQVAE(nn.Module):
     def __init__(self, model):
@@ -135,7 +148,7 @@ if __name__ == "__main__":
     print_c("VQVAE loaded!", "green")
     vqvae = plugin_vqvae.model
     
-    vqvae.eval().cpu()
+    vqvae.eval().cuda()
 
     
     device =  "cuda:7"
@@ -145,11 +158,15 @@ if __name__ == "__main__":
     for i in trange(1):
         cur_content = auto_read_data(os.path.join(ROOT_DIR, f"snap_{i}_results.pkl"))
         pred_res.extend(cur_content)
-        p_zs = plugin_vqvae.model.encode(cur_content[0]['generated_svg_path'].unsqueeze(0), 0, 1)
-        g_zs = plugin_vqvae.model.encode(cur_content[0]['raw_data'].unsqueeze(0), 0, 1)
-        pred_tokens.append(p_zs)
-        golden_tokens.append(g_zs)
-    
+        
+    print_c(f"total {len(pred_res)} samples", "green")
+    for i in trange(len(pred_res)):
+        item = pred_res[i]
+        p_zs = plugin_vqvae.model.encode(item['generated_svg_path'].unsqueeze(0).cuda(), 0, 1)
+        g_zs = plugin_vqvae.model.encode(item['raw_data'].unsqueeze(0).cuda(), 0, 1)
+        pred_tokens.append(p_zs[0].cpu().tolist()[0])
+        golden_tokens.append(g_zs[0].cpu().tolist()[0])
+        
     golden_svg_path = [len(item['golden_svg_path']) for item in pred_res]
     generated_svg_path = [item['generated_svg_path'].size(0) for item in pred_res]
     text = [item['text'] for item in pred_res]
@@ -171,8 +188,9 @@ if __name__ == "__main__":
     clip_model, clip_process = clip.load("ViT-L/14", device=device)
     
     import pdb; pdb.set_trace()
-    
-    
+
+    recalls = [calculate_recall(pred, golden) for pred, golden in zip(pred_tokens, golden_tokens)]
+    recall = sum(recalls) / len(recalls)
     
     scores = cal_rouge(p_svg_str, r_svg_str)
     metrics['rouge_scores'] = scores

@@ -121,7 +121,7 @@ def main(cl: int = 0, rd: str = None):
     PATH_SAVED_PATH = os.path.join(SAVE_DIR, "svg_paths.jsonl") # save svg path
 
     DIRECT_GENERATE_BIG_MAP = True
-    DIRECT_GENERATE_SINGLE_IMAGE = False
+    DIRECT_GENERATE_SINGLE_IMAGE = True
     DIRECT_ADD_BACKGROUND = False
 
     all_image_paths = []
@@ -129,9 +129,10 @@ def main(cl: int = 0, rd: str = None):
     if DIRECT_GENERATE_SINGLE_IMAGE:
         results = auto_read_data(FILE_PATH)
         keys = ['raw_predict', 'p_predict1', 'p_predict2', 'golden', 'zs', 'xs_quantised']
-        num_svgs = len(results[keys[0]])
+        # num_svgs = len(results[keys[0]])
+        num_svgs = 500
         str_paths = []
-        
+
         for i in trange(num_svgs):
             raw_predict = results['raw_predict'][i]
             p_predict1 = results['p_predict1'][i]
@@ -164,19 +165,19 @@ def main(cl: int = 0, rd: str = None):
         p_svg_images1 = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='p_svg1.png', 
-            num_images=1999, 
+            num_images=500, 
             save_dir=BIG_MAP_SAVED_DIR
         )
         p_svg_images2 = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='p_svg2.png', 
-            num_images=1999, 
+            num_images=500, 
             save_dir=BIG_MAP_SAVED_DIR
         )
         g_svg_images = merge_images(
             folder_path=SINGLE_IMAGE_SAVED_DIR, 
             image_suffix='g_svg.png', 
-            num_images=1999, 
+            num_images=500, 
             save_dir=BIG_MAP_SAVED_DIR
         )
 
