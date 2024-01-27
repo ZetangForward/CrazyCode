@@ -9,6 +9,7 @@ deepspeed --num_gpus 16 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vq_seq2seq.py \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
+    --resume_from_checkpoint "/zecheng2/vqllama/vqllama_flant5/version_6/checkpoint-2700" \
     --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_14/epoch_75/inference_full_data_compress_1_snaps_merged.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 30 \
