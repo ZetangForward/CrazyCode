@@ -35,5 +35,5 @@ deepspeed --num_gpus 16 \
     --fp16 False \
     --remove_unused_columns False \
     --freezen_llm True \
-    --init_decoder True \
+    --init_decoder False \
     --config_path "configs/deepspeed/vqvae_config_v3.yaml";
