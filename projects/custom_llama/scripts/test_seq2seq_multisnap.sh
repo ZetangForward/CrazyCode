@@ -1,6 +1,6 @@
 snap_id=$1
-ckpt="/zecheng2/vqllama/vqllama_flant5/version_1/checkpoint-8100"
-save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100_topp/"
+ckpt="/zecheng2/vqllama/vqllama_flant5/version_6/checkpoint-2700"
+save_dir="/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_2700/"
 LOG_OUTPUT="/workspace/zecheng/modelzipper/projects/custom_llama/Logs/multisnap_inference"
 
 mkdir -p ${LOG_OUTPUT}
@@ -21,7 +21,7 @@ for i in {0..7}; do
         --dataloader_num_workers 0 \
         --fp16 False \
         --vqvae_config_path "configs/deepspeed/vqvae_config_v2.yaml" \
-        --do_sample True \
+        --do_sample False \
         --top_p 0.9 \
         --top_k 40 \
         --do_inference True \

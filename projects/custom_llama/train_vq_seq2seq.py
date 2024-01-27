@@ -56,7 +56,6 @@ class CustomTrainier(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         
         outputs = model(**inputs)
-        
         loss = None
         loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
         return (loss, outputs) if return_outputs else loss 
