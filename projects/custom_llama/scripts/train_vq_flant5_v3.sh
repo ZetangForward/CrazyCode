@@ -5,7 +5,7 @@ mkdir -p ${OUTPUT_DIR}
 deepspeed --num_gpus 16 \
     --num_nodes 4 \
     --master_addr worker-0 \
-    --master_port 6668 \
+    --master_port 6768 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vq_seq2seq.py \
     --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
