@@ -43,7 +43,7 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             param.requires_grad = False
 
     def init_decoder(self):
-        print_c("Attention! encoder is freezed!")
+        print_c("Attention! Decoder is inited!")
         decoder_config = copy.deepcopy(self.config)
         decoder_config.is_decoder = True
         decoder_config.is_encoder_decoder = False
