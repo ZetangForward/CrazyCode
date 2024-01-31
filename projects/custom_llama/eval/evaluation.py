@@ -138,6 +138,13 @@ if __name__ == "__main__":
         "/workspace/zecheng/modelzipper/projects/custom_llama/baselines/analysis/velcle_image_NUWASVG_300.png",
     ]
     
+    GPT4_PNG = [
+        "/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/gpt-4/gpt4-chip.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/gpt-4/gpt4-clock.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/gpt-4/gpt4-cloud.png",
+        "/workspace/zecheng/modelzipper/projects/custom_llama/tmp_save_png/gpt-4/gpt4-family_car.png",
+    ]
+    
     KEYS = ["Electrical Chip", "Clock", "Cloud", "Family Car"]
     
     
@@ -157,10 +164,13 @@ if __name__ == "__main__":
     
     import pdb; pdb.set_trace()
     
-    calculate_clip_core(clip_process, clip_metric,LIVE_PNG,KEYS) # 23.1125
-    calculate_clip_core(clip_process, clip_metric,LayoutNUWA_PNG,KEYS) # 21.8337
-    calculate_clip_core(clip_process, clip_metric,LIVE_PNG_2,KEYS) # 23.2657
-    calculate_clip_core(clip_process, clip_metric,SVGNUWA_PNG,KEYS)  # 24.6824
+    ## GPT4
+    calculate_clip_core(clip_process, clip_metric, GPT4_PNG, KEYS) # 16.3232
+    
+    calculate_clip_core(clip_process, clip_metric, LIVE_PNG, KEYS) # 23.1125
+    calculate_clip_core(clip_process, clip_metric, LayoutNUWA_PNG, KEYS) # 21.8337
+    calculate_clip_core(clip_process, clip_metric, LIVE_PNG_2, KEYS) # 23.2657
+    calculate_clip_core(clip_process, clip_metric, SVGNUWA_PNG, KEYS)  # 24.6824
     
     metrics = {}
     
