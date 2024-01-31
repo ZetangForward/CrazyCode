@@ -25,7 +25,7 @@ deepspeed --num_gpus 16 \
     --eval_steps 300 \
     --save_steps 300 \
     --save_total_limit 10 \
-    --learning_rate 3e-5 \
+    --learning_rate 5e-5 \
     --warmup_steps 50 \
     --logging_steps 1 \
     --dataloader_num_workers 0 \
