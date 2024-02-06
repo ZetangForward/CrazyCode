@@ -1,11 +1,12 @@
-import random
-import os
 import transformers
+import types
+import yaml
 from dataclasses import dataclass, field
-from transformers import Trainer, T5Config
-from modelzipper.tutils import *
+from transformers import Trainer
 from models.vq_seq2seq import VQSVGSeq2SeqModel
 from data.vqseq2seq_dataset import VQDataCollator, VQSeq2SeqData
+from typing import Optional
+
 
 @dataclass
 class VQVAEConfig:
@@ -32,6 +33,42 @@ class TrainingArguments(transformers.TrainingArguments):
     freezen_llm: bool = field(default=False)
     init_decoder: bool = field(default=False)
     
+
+def load_yaml_config(config_path):  
+    """
+    Load YAML configuration file.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+
+    Returns:
+        dict: Loaded configuration as a dictionary.
+
+    """
+    
+    def dict_to_simplenamespace(d):
+        if isinstance(d, dict):
+            for key, value in d.items():
+                d[key] = dict_to_simplenamespace(value)
+            return types.SimpleNamespace(**d)
+        elif isinstance(d, list):
+            return [dict_to_simplenamespace(item) for item in d]
+        else:
+            return d
+    
+    print("load config files from {}".format(config_path))
+    with open(config_path, 'r') as config_file:  
+        try:  
+            config = yaml.safe_load(config_file)  
+            config = dict_to_simplenamespace(config)
+        except yaml.YAMLError as exc:  
+            print(exc)  
+            return None  
+    print("config loaded successfully!")
+    print("config: {}".format(config), "green", "underline")
+    print()
+    return config
+
 
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
     """Collects the state dict and dump to disk."""
