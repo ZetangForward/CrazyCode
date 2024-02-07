@@ -97,5 +97,3 @@ We appreciate the open source of the following projects:
 
 [Hugging Face](https://github.com/huggingface) &#8194;
 [LLaMA-X](https://github.com/AetherCortex/Llama-X) &#8194;
-[LayoutDM](https://github.com/CyberAgentAILab/layout-dm) &#8194; 
-[Const Layout](https://github.com/ktrk115/const_layout) &#8194; 
