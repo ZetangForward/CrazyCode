@@ -29,7 +29,7 @@ from transformers import (
 
 from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer, create_reference_model, set_seed
 from trl.core import LengthSampler
-from modelzipper_gitee.tutils import *
+from modelzipper.tutils import *
 
 tqdm.pandas()
 
