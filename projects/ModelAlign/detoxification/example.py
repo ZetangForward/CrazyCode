@@ -29,7 +29,7 @@ from transformers import (
 
 from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer, create_reference_model, set_seed
 from trl.core import LengthSampler
-# from modelzipper.tutils import *
+from modelzipper.tutils import *
 
 tqdm.pandas()
 
@@ -158,11 +158,13 @@ set_seed(config.seed)
 
 # Now let's build the model, the reference model, and the tokenizer. We first load the model
 # in bfloat16 to save memory using `transformers`.
+print_c("load backbone model")
 model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=torch.bfloat16)
 # And then we pass the loaded model to `AutoModelForCausalLMWithValueHead`.
 model = AutoModelForCausalLMWithValueHead.from_pretrained(model)
 
 # We create a reference model by sharing 20 layers
+print_c("load reference model")
 ref_model = create_reference_model(model, num_shared_layers=20)
 
 # We make sure to use `Adam` optimizer on the model parameters that require gradients.
@@ -186,7 +188,7 @@ ppo_trainer = PPOTrainer(
 
 # We then build the reward pipeline, we will use the toxicity model to compute the reward.
 # We first load the toxicity model and tokenizer.
-
+print_c("load toxicity model")
 toxicity_tokenizer = RobertaTokenizer.from_pretrained(script_args.toxicity_model_id)
 # We load the toxicity model in fp16 to save memory.
 toxicity_model = RobertaForSequenceClassification.from_pretrained(script_args.toxicity_model_id, torch_dtype=torch.float16).to(
