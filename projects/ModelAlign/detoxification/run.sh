@@ -6,4 +6,5 @@ ACCELERATE_LOG_LEVEL=info accelerate launch --config_file ${CONFIG} detoxificati
     --log_with tensorboard \
     --model_save_path ${MODEL_SAVE_PATH} \
     --model_name "/nvme/hf_models/gpt-j-6b" \
-    --dataset_name "/home/amax/zecheng/data/real-toxicity-prompts";
+    --dataset_name "/home/amax/zecheng/data/real-toxicity-prompts" \
+    --toxicity_model_id "/home/amax/zecheng/data/roberta-hate-speech-dynabench-r4-target";
