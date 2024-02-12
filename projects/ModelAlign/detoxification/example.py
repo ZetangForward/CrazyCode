@@ -195,7 +195,6 @@ toxicity_model = RobertaForSequenceClassification.from_pretrained(script_args.to
     ppo_trainer.accelerator.device
 )
 
-
 # We then define the arguments to pass to the `generate` function. These arguments
 # are passed to the `generate` function of the PPOTrainer, which is a wrapper around
 # the `generate` function of the trained model.
