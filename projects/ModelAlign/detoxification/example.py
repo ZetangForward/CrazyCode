@@ -29,7 +29,7 @@ from transformers import (
 
 from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer, create_reference_model, set_seed
 from trl.core import LengthSampler
-
+from modelzipper.tutils import *
 
 tqdm.pandas()
 
@@ -65,6 +65,7 @@ class ScriptArguments:
     # NOTE: gpt2 models use Conv1D instead of Linear layers which are not yet supported in 8 bit mode
     # models like gpt-neo* models are more suitable.
     model_name: Optional[str] = field(default="ybelkada/gpt-j-6b-sharded-bf16", metadata={"help": "the model name"})
+    toxicity_model_id: Optional[str] = field(default="facebook/roberta-hate-speech-dynabench-r4-target", metadata={"help": "the model name"})
     log_with: Optional[str] = field(default=None, metadata={"help": "use 'wandb' to log with wandb"})
     learning_rate: Optional[float] = field(default=(1.47e-5) * 2, metadata={"help": "the learning rate"})
     mini_batch_size: Optional[int] = field(default=4, metadata={"help": "the PPO minibatch size"})
@@ -75,6 +76,9 @@ class ScriptArguments:
     model_save_path: Optional[str] = field(
         default="./gpt-j-6B-detoxified-long-context-26-shl-1e4-final",
         metadata={"help": "the path to save the model"},
+    )
+    dataset_name: Optional[str] = field(
+        default="allenai/real-toxicity-prompts",
     )
 
 
@@ -142,7 +146,7 @@ def build_dataset(
 # We retrieve the dataloader by calling the `build_dataset` function.
 min_input_length = 30
 max_input_length = 40
-dataset = build_dataset(config, input_min_text_length=min_input_length, input_max_text_length=max_input_length)
+dataset = build_dataset(config, dataset_name=script_args.dataset_name,input_min_text_length=min_input_length, input_max_text_length=max_input_length)
 
 
 def collator(data):
@@ -182,10 +186,10 @@ ppo_trainer = PPOTrainer(
 
 # We then build the reward pipeline, we will use the toxicity model to compute the reward.
 # We first load the toxicity model and tokenizer.
-toxicity_model_id = "facebook/roberta-hate-speech-dynabench-r4-target"
-toxicity_tokenizer = RobertaTokenizer.from_pretrained(toxicity_model_id)
+
+toxicity_tokenizer = RobertaTokenizer.from_pretrained(script_args.toxicity_model_id)
 # We load the toxicity model in fp16 to save memory.
-toxicity_model = RobertaForSequenceClassification.from_pretrained(toxicity_model_id, torch_dtype=torch.float16).to(
+toxicity_model = RobertaForSequenceClassification.from_pretrained(script_args.toxicity_model_id, torch_dtype=torch.float16).to(
     ppo_trainer.accelerator.device
 )
 
