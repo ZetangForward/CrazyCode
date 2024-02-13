@@ -70,7 +70,7 @@ print(norm_TOXICs)
 
 # 模型数据
 data = {
-    'LLaMA-7B': {
+    'LLaMA2-7B': {
         'similarity': norm_SIMs[0],
         'toxicity': norm_TOXICs[0],
         'ppl': norm_PPLs[0],
@@ -114,7 +114,10 @@ fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
 for model_name, attrs in data.items():  
     stats = np.array([attrs['toxicity'], attrs['ppl'], attrs['similarity']])  # Coherence是ppl的倒数  
     stats = np.concatenate((stats,[stats[0]]))  # 闭合雷达图  
-    ax.plot(angles, stats, label=model_name)  
+    if model_name == 'LLaMA2-7B' or model_name == 'GPT2-XL':
+        ax.plot(angles, stats, label=model_name, linestyle='--')  
+    else:
+        ax.plot(angles, stats, label=model_name)
     ax.fill(angles, stats, alpha=0.25)  
   
 # 添加标签，不包括闭合的额外角度  
@@ -140,6 +143,6 @@ ax.set_rgrids([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4], labels=[])
 ax.set_ylim(0)  # 可以通过设置y轴的下限来确保图形是三角形  
 
 # 添加图例  
-# plt.legend(loc='upper right', bbox_to_anchor=(0.12, 0.12), prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 16})  
+plt.legend(loc='upper right', bbox_to_anchor=(0.12, 0.12), prop={'family': 'DejaVu Sans Mono', 'weight': 600, 'size': 16})  
 
 plt.savefig('save_figs/radar_chart_no_legend.pdf', bbox_inches='tight', pad_inches=0.1)

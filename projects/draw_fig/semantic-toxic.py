@@ -59,7 +59,6 @@ similarity_portion5_mask = [0.0526,0.1634,0.2111,0.1723,0.3978]
 toxicity_gen5_mask = [0.0891,0.1141,0.1301,0.1466,0.1776]
 toxicity_wo_gen5_mask = [0.0756,0.0966,0.126,0.1673,0.2228]
 
-
 index = np.arange(len(similarity))  
 
 toxicity_wo_gen2 = [min(0.25, i) for i in toxicity_wo_gen2]
