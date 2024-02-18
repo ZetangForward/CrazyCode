@@ -8,9 +8,8 @@ deepspeed --num_gpus 16 \
     --master_port 6668 \
     --hostfile configs/machine/hostfile_v64_sxm4 \
     train_vq_seq2seq_aug.py \
-    --model_name_or_path "/zecheng2/model_hub/flan-t5-xl" \
-    --resume_from_checkpoint "/zecheng2/vqllama/test_vq_seq2seq/test_flat_t5/epoch_8100" \
-    --data_path "/zecheng2/svg/icon-shop/pkl_data/efficient_inference_full_data/test_vqllama_quantizer_testset/version_12/epoch_37/augment_stage2_data_pro.pkl" \
+    --model_name_or_path "./ckpt/flan-t5-xl" \
+    --data_path "./example_dataset/data_sample_edm.pkl" \
     --output_dir ${OUTPUT_DIR} \
     --num_train_epochs 20 \
     --model_max_length 512 \
@@ -30,4 +29,4 @@ deepspeed --num_gpus 16 \
     --fp16 False \
     --remove_unused_columns False \
     --freezen_llm True \
-    --config_path "configs/deepspeed/vqvae_config_v2.yaml";
+    --config_path "configs/deepspeed/vqvae_config.yaml";
