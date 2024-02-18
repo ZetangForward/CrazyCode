@@ -9,10 +9,17 @@ import torch.nn.functional as F
 from transformers import T5Model, T5ForConditionalGeneration
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation import GenerationMixin
-from modelzipper.tutils import *
 from transformers.modeling_outputs import Seq2SeqLMOutput, BaseModelOutput
 from transformers.models.t5.modeling_t5 import T5Stack
 import copy
+from typing import Any, Mapping, Tuple, List, Optional, Dict, Sequence, Union
+
+def freeze_model(model):
+    """
+    Freeze the model.
+    """
+    for param in model.parameters():
+        param.requires_grad = False
 
 class VQSVGSeq2SeqModel(T5ForConditionalGeneration):  
     def __init__(self, config, tokenizer=None, vqvae=None, codebook_size=4096):  
@@ -31,7 +38,7 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
         self.post_init()
         
         if config.frozen_llm: 
-            print_c("Attention! encoder is freezed!")
+            print("Attention! encoder is freezed!")
             self.encoder.requires_grad_ = False # only freeze the encoder
             self.shared.requires_grad_ = False  # freeze the text embedding 
 
@@ -43,7 +50,7 @@ class VQSVGSeq2SeqModel(T5ForConditionalGeneration):
             param.requires_grad = False
 
     def init_decoder(self):
-        print_c("Attention! Decoder is inited!")
+        print("Attention! Decoder is inited!")
         decoder_config = copy.deepcopy(self.config)
         decoder_config.is_decoder = True
         decoder_config.is_encoder_decoder = False

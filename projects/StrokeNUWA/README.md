@@ -25,7 +25,6 @@ VQ-Stroke modules encompasses two main stages: “Code to Matrix” stage that t
 </p> 
 
 
-
 ## Setup
 
 We check the reproducibility under this environment.
@@ -50,7 +49,7 @@ pip install -r requirements.txt
 ```
 
 ### Model Preparation
-We utilize [Flan-T5 (3B)](https://huggingface.co/google/flan-t5-xl) as our backbone. Download the model and place it under the ``./ckpt`` directory.
+We utilize [Flan-T5 (3B)](https://huggingface.co/google/flan-t5-xl) as our backbone. Download the model under the ``./ckpt`` directory.
 
 ### Dataset Preparation
 
@@ -58,38 +57,22 @@ We utilize [Flan-T5 (3B)](https://huggingface.co/google/flan-t5-xl) as our backb
 
 Download the raw FIGR-8 dataset from [[Link]](https://github.com/marcdemers/FIGR-8-SVG) and follow [Iconshop](https://icon-shop.github.io/) to further preprocess the datasets. (We thank @[Ronghuan Wu](https://github.com/kingnobro) --- author of Iconshop for providing the preprocessing scripts.)
 
-
 ## Model Training and Inference
-We customize the training code based on the [LLaMA-X](https://github.com/AetherCortex/Llama-X)
 
-### Stage 1: Training the VQ-Stroke
-Please Check ``trainer/src/configs/hostfile`` and ``trainer/src/configs/deepspeed_config_2.json`` first, where the current code is designed for 64 NVIDIA V100 GPUs (8 GPUs x 8 nodes).
+### Step 1: Training the VQ-Stroke
 ```Shell
-cd trainer/src/scripts
-bash scripts/train.sh
+python scripts/train_vq.py -cn example
 ```
 
-### Inference
+### VQ-Stroke Inference
 ```Shell
-cd trainer/src/scripts
-bash scripts/inference.sh
+python scripts/test_vq.py -cn config_test CKPT_PATH=/path/to/ckpt TEST_DATA_PATH=/path/to/test_data
 ```
 
-## Evaluation
-You can run the following command to evaluate the generated results for the RICO dataset (We have released generated results of RICO dataset in ``data/generated_results/rico`` as an example).
+### Step 2: Training the EDM
+After training the VQ-Stroke, we first create the training data by inferencing on the full training data, obtaining the "Stroke" tokens and utilize these "Stroke" tokens to further training the Flan-T5 model.
 
-```Shell
-python evaluate.py \
-    --file_dir data/generated_results/rico \
-    --intermediate_saved_path data/generated_results/rico/all_gen.pt \
-    --golden_file data/generated_results/rico/golden.jsonl \
-    --fid_model_name_or_path models/rico25-max25 \
-    --cluster_model models/rico25-max25/rico25_max25_kmeans_train_clusters.pkl \
-    --dataset_name rico25 \
-    --dataset_path data/rico25-max25 \
-```
-
-``NOTICE``: just change the dataset name, dataset path, and generated results path if you want to evaluate other datasets.
+We have provided an ``example.sh`` and training example data ``example_dataset/data_sample_edm.pkl`` for users for reference.
 
 
 ## Acknowledgement

@@ -63,7 +63,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs/experiment', config_name='default', version_base='1.1')
+@hydra.main(config_path='./configs/VQ-Stroke', config_name='default', version_base='1.1')
 def main(config):
 
     print(config)

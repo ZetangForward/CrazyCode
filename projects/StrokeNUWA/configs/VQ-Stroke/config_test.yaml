@@ -1,30 +1,32 @@
 SAVE_DIR: &SAVE_DIR "./ckpt"
 JOB_ID: &JOB_ID 1
-EXP_NAME: &EXP_NAME "vq_stroke"
+EPOCH: &EPOCH 20
+EXP_NAME: &EXP_NAME "test_vq_stroke"
+CKPT_PATH: &CKPT_PATH 
+TEST_DATA_PATH: &TEST_DATA_PATH 
+TYPE: &TYPE "raw"
 
 hydra:
   job:
     id: ${JOB_ID}
     name: hydra_${EXP_NAME}
   run:
-    dir: ${SAVE_DIR}/${EXP_NAME}/version_${JOB_ID}/${hydra.job.name} 
+    dir: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/${hydra.job.name} 
 
 dataset:
-  train_data_path: "example_dataset/data_sample_stroke.pkl"
+  test_data_path: ${TEST_DATA_PATH}
   max_path_nums: 512
-  min_path_nums: 4
   pad_token_id: 0
-  train_batch_size: 128
-  val_batch_size: 32
+  val_batch_size: 1
   nworkers: 16
-  pin_memory: False
   x_channels: 9
-  inference_mode: False
-  vocab_size: 200  # max number
-  return_all_token_mask: False
   num_bins: 9
-  remove_redundant_col: False  # remove the 2nd and 3rd coloumns
+  inference_mode: True
+  pin_memory: False
+  return_all_token_mask: False
+  remove_redundant_col: False
   cluster_batch: True
+  vocab_size: 200
 
 vqvae:
   levels: 2
@@ -53,24 +55,16 @@ vqvae_conv_block:
   dilation_growth_rate: 1
   dilation_cycle: null
   vqvae_reverse_decoder_dilation: True
-  
 
 experiment:
-  model_save_dir: ${SAVE_DIR}
+  ckeckpoint_path: ${CKPT_PATH}
+  prediction_save_path: ${SAVE_DIR}/${EXP_NAME}/test_${JOB_ID}/epoch_${EPOCH}/${TYPE}
   exp_name: ${EXP_NAME}
   version: ${JOB_ID}
-  beta_1: 0.9
-  beta_2: 0.999
-  lr: 0.0003
-  weight_decay: 0.0
-  eps: 0.00000001
-  lr_warmup: 100.0
-  lr_decay: 10000000000.0
-  lr_gamma: 1.0
-  lr_scale: 1.0
-  lr_use_linear_decay: False
-  lr_start_linear_decay: 0
-  lr_use_cosine_decay: False
-  max_epoch: 90
   device_num: 1
-  node_num: 1
+  compress_level: 1
+  return_all_quantized_res: False
+  path_interpolation: True
+
+
+  

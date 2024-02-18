@@ -7,9 +7,43 @@ from typing import Any
 import torch  
 import torch.nn as nn 
 from transformers import PreTrainedTokenizer, LlamaConfig, LlamaForCausalLM  
-from torch.utils.data import DataLoader, Dataset 
-from modelzipper.tutils import *
+from torch.utils.data import DataLoader, Dataset
+import os
+import pickle
 
+def auto_read_data(file_path, return_format="list"):
+    """
+    Read data from a file and return it in the specified format.
+
+    Parameters:
+        file_path (str): The path to the file to be read.
+        return_format (str, optional): The format in which the data should be returned. Defaults to "list".
+
+    Returns:
+        list or str: The data read from the file, in the specified format.
+    """
+    print(f"begin to read data from {file_path} ...")
+    file_type = file_path.split('.')[-1].lower()  
+    
+    if file_type == 'jsonl':  
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = [json.loads(line.strip()) for line in file]  
+    elif file_type == 'json':
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = json.load(file)
+    elif file_type == 'pkl':  
+        with open(file_path, 'rb') as file:  
+            data = pickle.load(file)  
+    elif file_type == 'txt':  
+        with open(file_path, 'r', encoding='utf-8') as file:  
+            data = [line.strip() for line in file]  
+    else:  
+        raise ValueError(f"Unsupported file type: {file_type}")  
+  
+    if return_format != "list":  
+        raise ValueError(f"Unsupported return format: {return_format}")  
+  
+    return data 
 
 EDGE = torch.tensor([  # after convert function
     [    0,    0,    0,    0,    0,    0,    0,    4,  104],
@@ -77,15 +111,15 @@ class BasicDataset(Dataset):
         content = self.pre_process(content)
         if cluster_batch:
             # first sort the dataset by length
-            print_c("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
+            print("you choose to cluster by batch length, begin to sort dataset by length, this may take some time ...", color='magenta')
             content = sorted(content, key=lambda x: x['mesh_data'].shape[0])
-            print_c("sort done !", color='magenta')
+            print("sort done !", color='magenta')
         self.content = content
 
     def pre_process(self, dataset, min_length=1):   
         # just prevent too short path
         # length exceed max_seq_length will be cut off in __getitem__
-        print_c(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
+        print(f"begin to sanity check the dataset and conduct pre_process, num of samples: {len(dataset)}, it will take some time...", color='magenta')
         new_dataset = []
         for item in dataset:
             sample = item['mesh_data']
@@ -399,7 +433,7 @@ class VQLLaMAData:
             if inferece_nums == -1:
                 inferece_nums = len(content)
             content = content[:inferece_nums]
-            print_c(f"num of testing data: {len(content)}", color='magenta')
+            print(f"num of testing data: {len(content)}", color='magenta')
             self.pred_data = content
         else:  # for training setting
             if os.path.isdir(vq_svg_file): # read data sequencially
@@ -411,8 +445,8 @@ class VQLLaMAData:
             
             if add_eval:  # add validation set
                 num_valid_data = min(int(len(content) * 0.01), 2048)
-                print_c(f"num of valid data: {num_valid_data}", color='magenta')
-                print_c(f"num of train data: {len(content) - num_valid_data}", color='magenta')
+                print(f"num of valid data: {num_valid_data}", color='magenta')
+                print(f"num of train data: {len(content) - num_valid_data}", color='magenta')
                 self.valid_data = content[:num_valid_data]
                 self.train_data = content[num_valid_data:]
             else:
