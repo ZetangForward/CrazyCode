@@ -1,14 +1,9 @@
-from modelzipper.tutils import *
-from modelzipper.datamanager.base_dataset import datamodule
-from transformers import AutoTokenizer
 import torch
-import argparse
 from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
-from transformers import AutoTokenizer, TrainingArguments
+from transformers import AutoTokenizer
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-import sys
 import pytorch_lightning as pl
 import hydra
 from data import custom_datamodule
@@ -32,6 +27,7 @@ class Experiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
 
+
     def training_step(self, batch, batch_idx):
         input_ids = batch.pop("input_ids")
         lm_logits = self.forward(input_ids).logits
@@ -47,6 +43,7 @@ class Experiment(pl.LightningModule):
 
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         return lm_loss
+
 
     def validation_step(self, batch, batch_idx):
         input_ids = batch.pop("input_ids")
@@ -107,10 +104,43 @@ def main(config):
     model, tokenizer = get_model_tokenizer(config.model, config.tokenizer)
     
     # load data
-    data_module = custom_datamodule(config.dataset)
+    data_module = custom_datamodule(config.dataset, tokenizer)
     
+    # load experiment
+    experiment = Experiment(model, config)
     
+    # init logger
+    tb_logger = TensorBoardLogger(
+        save_dir=config.experiment.model_save_dir, 
+        name=f"{config.experiment.task}",
+        version=config.experiment.version
+    )
     
+    trainer = pl.Trainer(
+        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+        logger=tb_logger,
+        callbacks=[
+            LearningRateMonitor(),
+            ModelCheckpoint(
+                save_top_k=10, 
+                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
+                monitor="val_lm_loss",
+                filename="vq-{epoch:02d}",
+                save_last=True,
+                mode='min',
+            ),
+        ],
+        check_val_every_n_epoch=1,
+        strategy=DDPStrategy(find_unused_parameters=False),
+        max_steps=config.experiment.num_training_steps,
+        devices=config.experiment.device_num,
+        gradient_clip_val=1.5,
+        enable_model_summary=True,
+        num_sanity_val_steps=20,
+        fast_dev_run=True # for debugging
+    )
+    
+    trainer.fit(experiment, datamodule=data_module)
 
 def get_model_tokenizer(model_config, tokenizer_config):
     model = MambaLMHeadModel.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda")
@@ -118,26 +148,9 @@ def get_model_tokenizer(model_config, tokenizer_config):
     return model, tokenizer
 
 
-    
-
-
-
 if __name__ == '__main__':
     main()
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="state-spaces/mamba-2.8b")
-    parser.add_argument("--tokenizer", type=str, default="EleutherAI/gpt-neox-20b")
-    parser.add_argument("--learning_rate", type=float, default=5e-5)
-    parser.add_argument("--batch_size", type=int, default=4)
-    parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
-    parser.add_argument("--optim", type=str, default="adamw_torch")
-    parser.add_argument("--data_path", type=str, default="./data/ultrachat_small.jsonl")
-    parser.add_argument("--num_epochs", type=int, default=1)
-    args = parser.parse_args()
-
-    run(args)
 
 
 
