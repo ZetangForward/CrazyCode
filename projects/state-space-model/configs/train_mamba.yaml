@@ -1,4 +1,4 @@
-SAVE_DIR: &SAVE_DIR "/public/home/ljt/tzc/ckpt"
+SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
 JOB_ID: &JOB_ID 1
 TASK: &TASK "text_infilling"
 
@@ -10,7 +10,7 @@ hydra:
     dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
-  file_path: "/public/home/ljt/tzc/data/roc_stories/ROCStories_winter2017.csv"
+  file_path: "/nvme/zecheng/data/roc_stories/ROCStories_winter2017.csv"
   max_seq_length: 512
   train_batch_size: 16
   val_batch_size: 16
@@ -20,10 +20,10 @@ dataset:
   cluster_batch: False
 
 model:
-  model_name_or_path: "/public/home/ljt/hf_models/mamba-1.4b"
+  model_name_or_path: "/nvme/hf_models/mamba-1.4b"
   
 tokenizer:
-  tokenizer_name_or_path: "/public/home/ljt/hf_models/gpt-neo-1.3B"
+  tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
   
 vqvae_conv_block:
   depth: 4
