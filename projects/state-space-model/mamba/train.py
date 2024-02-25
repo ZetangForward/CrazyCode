@@ -23,6 +23,7 @@ class Experiment(pl.LightningModule):
         self.model = model
         self.model.train()
         self.cfg = config
+        self.exp_cfg = config.experiment
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -64,19 +65,33 @@ class Experiment(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
-        optimizer = FusedAdam(
+        betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
+        optimizer = optim.Adam(
             self.model.parameters(), 
-            lr=self.cfg.experiment.lr,
-            weight_decay=self.cfg.experiment.weight_decay, 
+            lr=self.exp_cfg.lr,
+            weight_decay=self.exp_cfg.weight_decay, 
             betas=betas, 
-            eps=self.cfg.experiment.eps
+            eps=self.exp_cfg.eps
         )
+        
+        def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
 
-        def lr_lambda(step):
-            return self.cfg.experiment.lr_scale * (self.cfg.experiment.lr_gamma ** (step // self.cfg.experiment.lr_decay)) * min(1.0, step / self.cfg.experiment.lr_warmup)
+            def lr_lambda(current_step):
+                if current_step < warmup_steps:
+                    # 线性预热
+                    return current_step / warmup_steps
+                # 余弦衰减
+                # 计算已经完成的衰减步数的比例
+                progress = (current_step - warmup_steps) / (num_training_steps - warmup_steps)
+                # 计算衰减后的学习率比例
+                cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+                # 根据比例计算当前学习率
+                lr = (last_lr + (peak_lr - last_lr) * cosine_decay)
+                return lr / peak_lr
 
-        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+            return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
+        scheduler = get_scheduler(optimizer, self.exp_cfg.num_training_steps, self.exp_cfg.warmup_steps, self.exp_cfg.peak_lr, self.exp_cfg.last_lr)
 
         return {
             "optimizer": optimizer,
