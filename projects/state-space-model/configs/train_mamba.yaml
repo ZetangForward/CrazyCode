@@ -12,9 +12,9 @@ hydra:
 dataset:
   file_path: "/nvme/zecheng/data/roc_stories/ROCStories_winter2017.csv"
   max_seq_length: 512
-  train_batch_size: 32
+  train_batch_size: 16
   val_batch_size: 16
-  nworkers: 16
+  nworkers: 8
   pin_memory: False
   inference_mode: False
   cluster_batch: False

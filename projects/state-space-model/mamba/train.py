@@ -136,7 +136,7 @@ def main(config):
         gradient_clip_val=1.5,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=5 # for debugging
+        # fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
