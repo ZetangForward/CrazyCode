@@ -12,14 +12,24 @@ class BaseDataset(Dataset):
     
     def __len__(self):
         return len(self.content)
-    
-    @classmethod
-    def collect_fn(cls, batch_input):
-        return batch_input
-        
 
 
+class datamodule:
+    def __init__(self) -> None:
+        pass
     
-        
+    @property
+    def train_dataset(self) -> Dataset:
+        pass
+    
+    @property
+    def valid_dataset(self) -> Dataset:
+        pass
+    
+    @property
+    def test_dataset(self) -> Dataset:
+        pass
+    
+    
         
     

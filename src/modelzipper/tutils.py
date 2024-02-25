@@ -23,6 +23,7 @@ import gc
 import fire
 import accelerate
 import torch.nn as nn
+import pandas as pd
 import matplotlib.pyplot as plt  
 from tqdm import tqdm
 from termcolor import colored  
@@ -85,6 +86,8 @@ def auto_read_data(file_path, return_format="list"):
     elif file_type == 'txt':  
         with open(file_path, 'r', encoding='utf-8') as file:  
             data = [line.strip() for line in file]  
+    elif file_type == 'csv':
+        data = pd.read_csv(file_path)
     else:  
         raise ValueError(f"Unsupported file type: {file_type}")  
   
