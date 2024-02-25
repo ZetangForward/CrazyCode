@@ -35,6 +35,7 @@ vqvae_conv_block:
   
 
 experiment:
+  seed: 27
   model_save_dir: ${SAVE_DIR}
   task: ${TASK}
   version: ${JOB_ID}
@@ -46,5 +47,5 @@ experiment:
   warmup_steps: 1000
   peak_lr: 0.0002
   last_lr: 0.00001
-  device_num: 2
+  device_num: 4
   node_num: 1

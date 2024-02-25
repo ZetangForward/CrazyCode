@@ -60,12 +60,11 @@ class Experiment(pl.LightningModule):
 
         self.log("val_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
 
-
     def configure_optimizers(self):
         betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
         optimizer = optim.Adam(
             self.model.parameters(), 
-            lr=self.exp_cfg.lr,
+            lr=self.exp_cfg.last_lr,
             weight_decay=self.exp_cfg.weight_decay, 
             betas=betas, 
             eps=self.exp_cfg.eps
@@ -96,9 +95,9 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='./configs/', config_name='train_mamba', version_base='1.1')
+@hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
 def main(config):
-    pl.seed_everything(config.seed, workers=True)
+    pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
     model, tokenizer = get_model_tokenizer(config.model, config.tokenizer)
@@ -137,14 +136,16 @@ def main(config):
         gradient_clip_val=1.5,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=True # for debugging
+        fast_dev_run=5 # for debugging
     )
-    
+
     trainer.fit(experiment, datamodule=data_module)
 
 def get_model_tokenizer(model_config, tokenizer_config):
     model = MambaLMHeadModel.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_config.tokenizer_name_or_path)
+    if "gpt-neo" in tokenizer_config.tokenizer_name_or_path:
+        tokenizer.pad_token = tokenizer.eos_token
     return model, tokenizer
 
 

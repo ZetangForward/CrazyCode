@@ -65,11 +65,13 @@ class TextFillingDataset(Dataset):
             tokenized_prompt = self.tokenizer(
                 prompt,  
                 truncation=True, 
+                padding="max_length",
                 max_length=self.max_text_length,
                 return_tensors="pt",
             )
             input_ids = tokenized_prompt.input_ids[0]
             attention_mask = tokenized_prompt.attention_mask[0]
+            
             labels = torch.where(
                 input_ids != self.tokenizer.pad_token_id, input_ids, -100
             )
@@ -86,7 +88,7 @@ class TextFillingDataset(Dataset):
 
 class custom_datamodule(pl.LightningDataModule):
     def __init__(self, cfg, tokenizer):
-        super(custom_datamodule).__init__()
+        super().__init__()
         self.cfg = cfg
         self.tokenizer = tokenizer
         self.prepare_data_per_node = True
