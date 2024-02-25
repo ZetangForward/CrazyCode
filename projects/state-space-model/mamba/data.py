@@ -1,17 +1,21 @@
 from modelzipper.datamanager import *
 from modelzipper.tutils import *
 from transformers import AutoTokenizer
+from torch.utils.data import DataLoader, Dataset
+import pytorch_lightning as pl
 import torch
-
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 
 class TextFillingDataset(Dataset):
-    def __init__(self, content=None, tokenizer=None, split="train", *args, **kwargs):
+    def __init__(self, content=None, tokenizer=None, split="train", full_modeling=True, *args, **kwargs):
         super(TextFillingDataset).__init__()
         self.split = split
         self.content = content
         self.max_text_length = kwargs['max_text_length']
         self.tokenizer = tokenizer
-        self.template = "Beginning: {s1} {s2} {s3}\nEnding: {s5}\nMiddle: "
+        self.full_modeling = full_modeling
+        self.template1 = "Beginning: {s1} {s2} {s3}\nEnding: {s5}\nMiddle: "
+        self.template2 = "Beginning: {s1} {s2} {s3}\nEnding: {s5}\nMiddle: {s4}"
         
     def __getitem__(self, index):
         sample = self.content[index]
@@ -20,38 +24,55 @@ class TextFillingDataset(Dataset):
         s3 = sample["sentence3"]
         s4 = sample["sentence4"]
         s5 = sample["sentence5"]
-        prompt = self.template.format(s1=s1, s2=s2, s3=s3, s5=s5)
         
-        tokenized_prompt = self.tokenizer(
-            prompt,  
-            truncation=True, 
-            max_length=self.max_text_length,
-            return_tensors="pt",
-        )
-        prompt_ids = tokenized_prompt.input_ids[0]
-        prompt_mask = tokenized_prompt.attention_mask[0]
-        prompt_sential = torch.empty_like(prompt_ids).fill_(self.tokenizer.pad_token_id)
+        if not self.full_modeling:
+            prompt = self.template.format(s1=s1, s2=s2, s3=s3, s5=s5)
+            
+            tokenized_prompt = self.tokenizer(
+                prompt,  
+                truncation=True, 
+                max_length=self.max_text_length,
+                return_tensors="pt",
+            )
+            prompt_ids = tokenized_prompt.input_ids[0]
+            prompt_mask = tokenized_prompt.attention_mask[0]
+            prompt_sential = torch.empty_like(prompt_ids).fill_(self.tokenizer.pad_token_id)
+            
+            remain_length = self.max_text_length - prompt_ids.size(0)
+            
+            tokenized_mid = self.tokenizer(
+                s4,  
+                truncation=True, 
+                padding="max_length",
+                max_length=remain_length,
+                return_tensors="pt",
+            )
+            label_ids = tokenized_mid.input_ids[0]
+            label_attention_mask = tokenized_prompt.attention_mask[0]
+            label_sentinel = label_ids
+            
+            input_ids = torch.concatenate([prompt_ids, label_ids], dim=0)
+            tok_seq = torch.concatenate([prompt_sential, label_sentinel], dim=0)
+            attention_mask = torch.concatenate([prompt_mask, label_attention_mask], dim=0)
+            
+            labels = torch.where(
+                tok_seq != self.tokenizer.pad_token_id, tok_seq, -100
+            )
         
-        remain_length = self.max_text_length - prompt_ids.size(0)
-        
-        tokenized_mid = self.tokenizer(
-            s4,  
-            truncation=True, 
-            padding="max_length",
-            max_length=remain_length,
-            return_tensors="pt",
-        )
-        label_ids = tokenized_mid.input_ids[0]
-        label_attention_mask = tokenized_prompt.attention_mask[0]
-        label_sentinel = label_ids
-        
-        input_ids = torch.concatenate([prompt_ids, label_ids], dim=0)
-        tok_seq = torch.concatenate([prompt_sential, label_sentinel], dim=0)
-        attention_mask = torch.concatenate([prompt_mask, label_attention_mask], dim=0)
-        
-        labels = torch.where(
-            tok_seq != self.tokenizer.pad_token_id, tok_seq, -100
-        )
+        else:
+            prompt = self.template2.format(s1=s1, s2=s2, s3=s3, s4=s4, s5=s5)
+            
+            tokenized_prompt = self.tokenizer(
+                prompt,  
+                truncation=True, 
+                max_length=self.max_text_length,
+                return_tensors="pt",
+            )
+            input_ids = tokenized_prompt.input_ids[0]
+            attention_mask = tokenized_prompt.attention_mask[0]
+            labels = torch.where(
+                input_ids != self.tokenizer.pad_token_id, input_ids, -100
+            )
         
         return {
             "input_ids": input_ids,
@@ -63,39 +84,60 @@ class TextFillingDataset(Dataset):
         return len(self.content)
 
 
-class custom_datamodule(data_module):
-    def __init__(self, file_path, tokenizer):
+class custom_datamodule(pl.LightningDataModule):
+    def __init__(self, cfg, tokenizer):
         super(custom_datamodule).__init__()
+        self.cfg = cfg
         self.tokenizer = tokenizer
-        content = auto_read_data(file_path)
-        self.kwargs = {
-            "max_text_length": 512,
+        self.prepare_data_per_node = True
+        self.dataset_kwargs = {
+            "max_text_length": self.cfg.max_seq_length,
         }
-        min_valid_num = min(1000, len(content)*0.1)
-        self.valid_data = content[:min_valid_num]
-        self.train_data = content[min_valid_num:]
         
-    @property
-    def train_dataset(self) -> Dataset:
-        return BaseDataset(
-            content=self.train_data, 
-            tokenizer=self.tokenizer, 
-            split="train",
-            **self.kwargs,
+    def setup(self, stage: str = 'fit') -> None:
+        self.test_dataset = None
+        if self.cfg.inference_mode:
+            pass
+        else:
+            content = auto_read_data(self.cfg.file_path)
+            
+            min_valid_num = min(1000, len(content)*0.1)
+            self.valid_data = content[:min_valid_num]
+            self.train_data = content[min_valid_num:]
+
+            self.train_dataset = TextFillingDataset(
+                content=self.train_data, 
+                tokenizer=self.tokenizer, 
+                split="train",
+                **self.dataset_kwargs,
+            )
+            
+            self.valid_dataset = TextFillingDataset(
+                content=self.valid_data, 
+                tokenizer=self.tokenizer, 
+                split="valid",
+                **self.dataset_kwargs,
+            )
+            print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
+            print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
+
+            
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
+        return DataLoader(
+            self.train_dataset, batch_size=self.cfg.train_batch_size, 
+            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
         )
     
-    @property
-    def valid_dataset(self) -> Dataset:
-        return BaseDataset(
-            content=self.valid_data, 
-            tokenizer=self.tokenizer, 
-            split="train",
-            **self.kwargs,
+    def val_dataloader(self) -> TRAIN_DATALOADERS:
+        return DataLoader(
+            self.valid_dataset, batch_size=self.cfg.val_batch_size, 
+            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
         )
     
-    @property
-    def test_dataset(self) -> Dataset:
-        pass
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
+        if self.test_dataloader is not None:
+            pass
+        return None
     
     
 if __name__ == "__main__":
