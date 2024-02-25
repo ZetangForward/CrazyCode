@@ -1,0 +1,51 @@
+SAVE_DIR: &SAVE_DIR "/public/home/ljt/tzc/ckpt"
+JOB_ID: &JOB_ID 1
+TASK: &TASK "text_infilling"
+
+hydra:
+  job:
+    id: ${JOB_ID}
+    name: hydra_${TASK}
+  run:
+    dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
+
+dataset:
+  file_path: "/public/home/ljt/tzc/data/roc_stories/ROCStories_winter2017.csv"
+  max_seq_length: 512
+  train_batch_size: 16
+  val_batch_size: 16
+  nworkers: 8
+  pin_memory: False
+  inference_mode: False
+  cluster_batch: False
+
+model:
+  model_name_or_path: "/public/home/ljt/hf_models/mamba-1.4b"
+  
+tokenizer:
+  tokenizer_name_or_path: "/public/home/ljt/hf_models/gpt-neo-1.3B"
+  
+vqvae_conv_block:
+  depth: 4
+  width: 512
+  m_conv: 1.0
+  dilation_growth_rate: 1
+  dilation_cycle: null
+  vqvae_reverse_decoder_dilation: True
+  
+
+experiment:
+  seed: 27
+  model_save_dir: ${SAVE_DIR}
+  task: ${TASK}
+  version: ${JOB_ID}
+  beta_1: 0.9
+  beta_2: 0.95
+  weight_decay: 0.1
+  eps: 0.001
+  num_training_steps: 10000
+  warmup_steps: 1000
+  peak_lr: 0.0002
+  last_lr: 0.00001
+  device_num: 8
+  node_num: 1
