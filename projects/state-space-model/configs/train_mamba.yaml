@@ -14,7 +14,7 @@ dataset:
   max_seq_length: 512
   train_batch_size: 16
   val_batch_size: 16
-  nworkers: 8
+  nworkers: 12
   pin_memory: False
   inference_mode: False
   cluster_batch: False
@@ -47,5 +47,5 @@ experiment:
   warmup_steps: 1000
   peak_lr: 0.0002
   last_lr: 0.00001
-  device_num: 4
+  device_num: 6
   node_num: 1
