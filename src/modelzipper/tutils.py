@@ -87,7 +87,8 @@ def auto_read_data(file_path, return_format="list"):
         with open(file_path, 'r', encoding='utf-8') as file:  
             data = [line.strip() for line in file]  
     elif file_type == 'csv':
-        data = pd.read_csv(file_path)
+        raw_data = pd.read_csv(file_path)
+        data = raw_data.to_dict(orient='records')  # list[Dict]
     else:  
         raise ValueError(f"Unsupported file type: {file_type}")  
   

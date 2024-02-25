@@ -14,7 +14,7 @@ class BaseDataset(Dataset):
         return len(self.content)
 
 
-class datamodule:
+class data_module:
     def __init__(self) -> None:
         pass
     
