@@ -64,7 +64,7 @@ class Experiment(pl.LightningModule):
         betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
         optimizer = optim.Adam(
             self.model.parameters(), 
-            lr=self.exp_cfg.last_lr,
+            lr=self.exp_cfg.peak_lr,
             weight_decay=self.exp_cfg.weight_decay, 
             betas=betas, 
             eps=self.exp_cfg.eps
@@ -124,7 +124,7 @@ def main(config):
                 save_top_k=10, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_lm_loss",
-                filename="vq-{epoch:02d}",
+                filename="mamba-{config.experiment.task}-{epoch:02d}",
                 save_last=True,
                 mode='min',
             ),
@@ -133,7 +133,7 @@ def main(config):
         strategy=DDPStrategy(find_unused_parameters=False),
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
-        gradient_clip_val=1.5,
+        gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
         # fast_dev_run=5 # for debugging
