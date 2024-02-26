@@ -121,7 +121,7 @@ def main(config):
         callbacks=[
             LearningRateMonitor(),
             ModelCheckpoint(
-                save_top_k=10, 
+                save_top_k=5, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_lm_loss",
                 filename="mamba-{config.experiment.task}-{epoch:02d}",

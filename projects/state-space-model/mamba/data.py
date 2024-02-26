@@ -102,11 +102,10 @@ class custom_datamodule(pl.LightningDataModule):
             pass
         else:
             content = auto_read_data(self.cfg.file_path)
-            
             min_valid_num = min(1000, len(content)*0.1)
             self.valid_data = content[:min_valid_num]
             self.train_data = content[min_valid_num:]
-
+            
             self.train_dataset = TextFillingDataset(
                 content=self.train_data, 
                 tokenizer=self.tokenizer, 
