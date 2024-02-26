@@ -77,7 +77,6 @@ class Experiment(pl.LightningModule):
         self.model.eval()
         self.cfg = config
         self.tokenizer = tokenizer
-        self.return_all_quantized_res = config.experiment.return_all_quantized_res
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -89,45 +88,38 @@ class Experiment(pl.LightningModule):
         tensor = torch.round(tensor).long()
         return tensor
 
-
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        outputs, _, _ = self.model.generate(batch['input_ids'], max_length=2000, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
-
-        golden = sanint_check_golden(batch['svg_path'])
+        output = self.model.generate(batch['input_ids'], max_length=64, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
+        
+        label = batch['labels'][0]
         
         standard_test_reconstruct = {
-            "raw_predict": output,
-            "p_predict1": post_process_output1,
-            "p_predict2": post_process_output2,
-            "golden": golden,
+            "prediction": self.tokenizer.decode(output[0]),
+            "golden": self.tokenizer.decode(label),
         }
-
-        if self.return_all_quantized_res:
-            zs = self.model.encode(batch['svg_path'], start_level=0, end_level=None)
-            standard_test_reconstruct.update({
-                "zs": zs[self.cfg.experiment.compress_level - 1],
-            })
-
+        
         return standard_test_reconstruct
     
 
 @hydra.main(config_path='../configs', config_name='test_mamba', version_base='1.1')
 def main(config):
     
-    print_c(f"compress_level: {config.experiment.compress_level}", "magenta")
+    print_c(f"Experiment: {config.experiment.task}", "magenta")
     
     # load model and tokenizer
     model = MambaLMHeadModel.from_pretrained(config.model.model_name_or_path, dtype=torch.bfloat16, device="cuda")
-    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_config.tokenizer_name_or_path)
-    if "gpt-neo" in config.tokenizer_config.tokenizer_name_or_path:
+    
+    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
+    if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
+        
+    # load experiment (and model checkpoint)
+    experiment = Experiment.load_from_checkpoint(config.model.ckpt_path, model=model, config=config, tokenizer=tokenizer)
+    
     
     # load data
     data_module = custom_datamodule(config.dataset, tokenizer)
-    
-    # load experiment
-    experiment = Experiment(model, config)
 
     tester = pl.Trainer(devices=config.experiment.device_num)
 
@@ -135,8 +127,9 @@ def main(config):
         experiment, 
         datamodule=data_module,
         return_predictions=True,
-        ckpt_path=config.experiment.ckeckpoint_path
+        ckpt_path=config.model.ckpt_path  # second pass for safety
     )
+    
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
 
     m_predictions = merge_dicts(predictions)

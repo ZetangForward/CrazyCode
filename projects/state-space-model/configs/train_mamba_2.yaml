@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
-JOB_ID: &JOB_ID 2
+JOB_ID: &JOB_ID 3
 TASK: &TASK "text_infilling"
 
 hydra:
@@ -45,7 +45,7 @@ experiment:
   eps: 0.001
   num_training_steps: 10000
   warmup_steps: 1000
-  peak_lr: 0.00002
-  last_lr: 0.000001
+  peak_lr: 0.0002
+  last_lr: 0.00001
   device_num: 6
   node_num: 1

@@ -26,7 +26,7 @@ class TextFillingDataset(Dataset):
         s5 = sample["sentence5"]
         
         if not self.full_modeling:
-            prompt = self.template.format(s1=s1, s2=s2, s3=s3, s5=s5)
+            prompt = self.template1.format(s1=s1, s2=s2, s3=s3, s5=s5)
             
             tokenized_prompt = self.tokenizer(
                 prompt,  
@@ -35,9 +35,12 @@ class TextFillingDataset(Dataset):
                 return_tensors="pt",
             )
             prompt_ids = tokenized_prompt.input_ids[0]
-            
+            label_ids = self.tokenizer(s4, return_tensors="pt").input_ids[0]
             if self.split == "test":
-                return prompt_ids
+                return {
+                    "input_ids": prompt_ids,
+                    "labels": label_ids,
+                }
             
             prompt_mask = tokenized_prompt.attention_mask[0]
             prompt_sential = torch.empty_like(prompt_ids).fill_(self.tokenizer.pad_token_id)
@@ -88,7 +91,6 @@ class TextFillingDataset(Dataset):
 
     def __len__(self):
         return len(self.content)
-
 
 class custom_datamodule(pl.LightningDataModule):
     def __init__(self, cfg, tokenizer):

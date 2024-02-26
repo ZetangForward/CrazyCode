@@ -13,12 +13,13 @@ from torch import optim, Tensor
 
 class Experiment(pl.LightningModule):
 
-    def __init__(self, model, config, state="train") -> None:
+    def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()
         self.model = model
         self.model.train()
         self.cfg = config
         self.exp_cfg = config.experiment
+        self.tokenizer = tokenizer
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -26,7 +27,6 @@ class Experiment(pl.LightningModule):
         
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
-
 
     def training_step(self, batch, batch_idx):
         input_ids = batch.pop("input_ids")
@@ -40,10 +40,9 @@ class Experiment(pl.LightningModule):
 
         loss_fct = torch.nn.CrossEntropyLoss()
         lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
-
+        
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         return lm_loss
-
 
     def validation_step(self, batch, batch_idx):
         input_ids = batch.pop("input_ids")
@@ -74,24 +73,26 @@ class Experiment(pl.LightningModule):
 
             def lr_lambda(current_step):
                 if current_step < warmup_steps:
-                    # 线性预热
                     return current_step / warmup_steps
-                # 余弦衰减
-                # 计算已经完成的衰减步数的比例
                 progress = (current_step - warmup_steps) / (num_training_steps - warmup_steps)
-                # 计算衰减后的学习率比例
                 cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
-                # 根据比例计算当前学习率
                 lr = (last_lr + (peak_lr - last_lr) * cosine_decay)
                 return lr / peak_lr
-
+            
             return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
         scheduler = get_scheduler(optimizer, self.exp_cfg.num_training_steps, self.exp_cfg.warmup_steps, self.exp_cfg.peak_lr, self.exp_cfg.last_lr)
 
+        lr_scheduler = {
+            'scheduler': scheduler,
+            'name': 'custom_scheduler',
+            'interval': 'step',  # Ensure learning rate updates per step
+            'frequency': 1,  # Optional: If you want to make sure it updates every step
+        }
+        
         return {
             "optimizer": optimizer,
-            "lr_scheduler": scheduler,
+            "lr_scheduler": lr_scheduler,
         }
 
 
@@ -106,7 +107,7 @@ def main(config):
     data_module = custom_datamodule(config.dataset, tokenizer)
     
     # load experiment
-    experiment = Experiment(model, config)
+    experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
     
     # init logger
     tb_logger = TensorBoardLogger(
@@ -114,17 +115,18 @@ def main(config):
         name=f"{config.experiment.task}",
         version=config.experiment.version
     )
+    lr_monitor = LearningRateMonitor(logging_interval='step')
     
     trainer = pl.Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
         callbacks=[
-            LearningRateMonitor(),
+            lr_monitor,
             ModelCheckpoint(
                 save_top_k=5, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_lm_loss",
-                filename="mamba-{config.experiment.task}-{epoch:02d}",
+                filename=f"mamba-{config.experiment.task}"+"-{epoch:02d}",
                 save_last=True,
                 mode='min',
             ),
