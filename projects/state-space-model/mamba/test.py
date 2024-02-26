@@ -5,7 +5,7 @@ from torch import Tensor
 import hydra  
 from data import custom_datamodule
 from modelzipper.tutils import *
-
+from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 
 def remove_padding(x, padding_mask):
     """
@@ -93,9 +93,7 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         outputs, _, _ = self.model.generate(batch['input_ids'], max_length=2000, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
-        output = outputs[self.cfg.experiment.compress_level - 1]
-        post_process_output1 = postprocess(output, batch['padding_mask'], True)  # path interpolation
-        post_process_output2 = postprocess(output, batch['padding_mask'], False)  # path interpolation
+
         golden = sanint_check_golden(batch['svg_path'])
         
         standard_test_reconstruct = {
@@ -114,21 +112,22 @@ class Experiment(pl.LightningModule):
         return standard_test_reconstruct
     
 
-@hydra.main(config_path='./configs/experiment', config_name='config_test', version_base='1.1')
+@hydra.main(config_path='../configs', config_name='test_mamba', version_base='1.1')
 def main(config):
+    
     print_c(f"compress_level: {config.experiment.compress_level}", "magenta")
-    # set training dataset
-    data_module = SvgDataModule(config.dataset)
-
-    block_kwargs = dict(
-        width=config.vqvae_conv_block.width, depth=config.vqvae_conv_block.depth, m_conv=config.vqvae_conv_block.m_conv,
-        dilation_growth_rate=config.vqvae_conv_block.dilation_growth_rate,
-        dilation_cycle=config.vqvae_conv_block.dilation_cycle,
-        reverse_decoder_dilation=config.vqvae_conv_block.vqvae_reverse_decoder_dilation
-    )
-
-    vqvae = VQVAE(config, multipliers=None, **block_kwargs)
-    experiment = Experiment(vqvae, config)
+    
+    # load model and tokenizer
+    model = MambaLMHeadModel.from_pretrained(config.model.model_name_or_path, dtype=torch.bfloat16, device="cuda")
+    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_config.tokenizer_name_or_path)
+    if "gpt-neo" in config.tokenizer_config.tokenizer_name_or_path:
+        tokenizer.pad_token = tokenizer.eos_token
+    
+    # load data
+    data_module = custom_datamodule(config.dataset, tokenizer)
+    
+    # load experiment
+    experiment = Experiment(model, config)
 
     tester = pl.Trainer(devices=config.experiment.device_num)
 

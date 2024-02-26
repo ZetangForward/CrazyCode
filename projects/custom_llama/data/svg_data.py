@@ -228,7 +228,7 @@ class SvgDataModule(pl.LightningDataModule):
         )
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
-        if self.test_dataloader is not None:
+        if self.test_dataset is not None:
             return DataLoader(
                 self.test_dataset, batch_size=self.cfg.val_batch_size, 
                 num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,

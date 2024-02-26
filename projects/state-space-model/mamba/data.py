@@ -35,6 +35,10 @@ class TextFillingDataset(Dataset):
                 return_tensors="pt",
             )
             prompt_ids = tokenized_prompt.input_ids[0]
+            
+            if self.split == "test":
+                return prompt_ids
+            
             prompt_mask = tokenized_prompt.attention_mask[0]
             prompt_sential = torch.empty_like(prompt_ids).fill_(self.tokenizer.pad_token_id)
             
@@ -99,7 +103,14 @@ class custom_datamodule(pl.LightningDataModule):
     def setup(self, stage: str = 'fit') -> None:
         self.test_dataset = None
         if self.cfg.inference_mode:
-            pass
+            self.test_data = auto_read_data(self.cfg.test_data_path)
+            self.test_dataset = TextFillingDataset(
+                content=self.test_data, 
+                tokenizer=self.tokenizer, 
+                full_modeling=False,
+                split="test",
+                **self.dataset_kwargs,
+            )
         else:
             content = auto_read_data(self.cfg.file_path)
             min_valid_num = min(1000, len(content)*0.1)
@@ -136,8 +147,11 @@ class custom_datamodule(pl.LightningDataModule):
         )
     
     def predict_dataloader(self) -> EVAL_DATALOADERS:
-        if self.test_dataloader is not None:
-            pass
+        if self.test_dataset is not None:
+            return DataLoader(
+                self.test_dataset, batch_size=1, 
+                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+            )
         return None
     
     
