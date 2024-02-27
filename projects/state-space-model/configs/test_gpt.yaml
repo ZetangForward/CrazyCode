@@ -20,8 +20,8 @@ dataset:
   cluster_batch: False
 
 model:
-  model_name_or_path: "/nvme/hf_models/mamba-1.4b"
-  ckpt_path: "${SAVE_DIR}/${TASK}/version_${JOB_ID}/checkpoints/last.ckpt"
+  model_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
+  ckpt_path: "/nvme/zecheng/ckpt/${TASK}/version_${JOB_ID}/checkpoints/last.ckpt"
   
 tokenizer:
   tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"

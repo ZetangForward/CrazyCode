@@ -21,7 +21,6 @@ dataset:
 
 model:
   model_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
-  ckpt_path: "/nvme/zecheng/ckpt/text_infilling/version_${JOB_ID}/checkpoints/last.ckpt"
   
 tokenizer:
   tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"

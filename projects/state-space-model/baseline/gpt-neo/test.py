@@ -29,8 +29,7 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output = self.model.generate(batch['input_ids'], max_length=64, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
-        import pdb; pdb.set_trace()
+        output = self.model.generate(batch['input_ids'], max_new_tokens=64, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
         label = batch['labels'][0]
         
         standard_test_reconstruct = {
@@ -47,9 +46,10 @@ def main(config):
     print_c(f"Experiment: {config.experiment.task}", "magenta")
     
     # load model and tokenizer
-    model = transformers.GPTNeoForCausalLM.from_pretrained(config.model.model_name_or_path, torch_dtype=torch.bfloat16).to('cuda')
-    
+    model = transformers.GPTNeoForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
         
