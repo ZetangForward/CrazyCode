@@ -1,14 +1,18 @@
+import os
+import sys
+sys.path.append(os.getcwd()) 
 import torch
-from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
-from transformers import AutoTokenizer
+import hydra
+import transformers
+import pytorch_lightning as pl
+from transformers import AutoTokenizer, GPTNeoForCausalLM
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-import pytorch_lightning as pl
-import hydra
 from custom_dataset.data import custom_datamodule
 from modelzipper.tutils import *
 from torch import optim, Tensor 
+
 
 
 class Experiment(pl.LightningModule):
@@ -26,62 +30,22 @@ class Experiment(pl.LightningModule):
             pass
         
     def forward(self, input: Tensor, **kwargs) -> Tensor:
-        return self.model(input, **kwargs)
+        return self.model(**input, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        loss_fct = torch.nn.CrossEntropyLoss()
-        lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
-        
+        import pdb; pdb.set_trace()
+        lm_loss = self.forward(batch).loss
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         return lm_loss
 
     def validation_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        loss_fct = torch.nn.CrossEntropyLoss()
-        lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
-
+        lm_loss = self.forward(batch).loss
         self.log("val_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
 
     def configure_optimizers(self):
-        betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
-        optimizer = optim.Adam(
-            self.model.parameters(), 
-            lr=self.exp_cfg.peak_lr,
-            weight_decay=self.exp_cfg.weight_decay, 
-            betas=betas, 
-            eps=self.exp_cfg.eps
-        )
-        
-        def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
+        optimizer = transformers.AdamW(self.model.parameters(), lr=self.exp_cfg.lr)
 
-            def lr_lambda(current_step):
-                if current_step < warmup_steps:
-                    return current_step / warmup_steps
-                progress = (current_step - warmup_steps) / (num_training_steps - warmup_steps)
-                cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
-                lr = (last_lr + (peak_lr - last_lr) * cosine_decay)
-                return lr / peak_lr
-            
-            return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
-
-        scheduler = get_scheduler(optimizer, self.exp_cfg.num_training_steps, self.exp_cfg.warmup_steps, self.exp_cfg.peak_lr, self.exp_cfg.last_lr)
+        scheduler = transformers.get_linear_schedule_with_warmup(optimizer, self.exp_cfg.warmup_steps, self.exp_cfg.num_training_steps)
 
         lr_scheduler = {
             'scheduler': scheduler,
@@ -96,7 +60,7 @@ class Experiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
+@hydra.main(config_path='../../configs', config_name='train_gpt', version_base='1.1')
 def main(config):
     pl.seed_everything(config.experiment.seed, workers=True)
     
@@ -118,6 +82,9 @@ def main(config):
     lr_monitor = LearningRateMonitor(logging_interval='step')
     
     trainer = pl.Trainer(
+        accelerator=config.device.accelerator,
+        precision=config.device.precision,
+        devices=config.device.device_num,
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
         callbacks=[
@@ -126,7 +93,7 @@ def main(config):
                 save_top_k=5, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="val_lm_loss",
-                filename=f"mamba-{config.experiment.task}"+"-{epoch:02d}",
+                filename=f"gpt-noe-{config.experiment.task}"+"-{epoch:02d}",
                 save_last=True,
                 mode='min',
             ),
@@ -134,17 +101,16 @@ def main(config):
         check_val_every_n_epoch=1,
         strategy=DDPStrategy(find_unused_parameters=False),
         max_steps=config.experiment.num_training_steps,
-        devices=config.experiment.device_num,
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=5 # for debugging
+        fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
 
 def get_model_tokenizer(model_config, tokenizer_config):
-    model = MambaLMHeadModel.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda")
+    model = GPTNeoForCausalLM.from_pretrained(model_config.model_name_or_path, torch_dtype=torch.bfloat16).to('cuda')
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_config.tokenizer_name_or_path)
     if "gpt-neo" in tokenizer_config.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token

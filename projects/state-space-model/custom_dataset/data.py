@@ -36,7 +36,8 @@ class TextFillingDataset(Dataset):
             )
             prompt_ids = tokenized_prompt.input_ids[0]
             label_ids = self.tokenizer(s4, return_tensors="pt").input_ids[0]
-            if self.split == "test":
+            
+            if self.split == "test":  # test mode
                 return {
                     "input_ids": prompt_ids,
                     "labels": label_ids,

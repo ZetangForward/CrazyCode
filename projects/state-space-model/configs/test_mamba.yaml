@@ -29,6 +29,7 @@ tokenizer:
 experiment:
   seed: 27
   model_save_dir: ${SAVE_DIR}
+  results_save_dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/results
   task: ${TASK}
   version: ${JOB_ID}
   device_num: 1
