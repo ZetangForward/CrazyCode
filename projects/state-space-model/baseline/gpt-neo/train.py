@@ -33,7 +33,6 @@ class Experiment(pl.LightningModule):
         return self.model(**input, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        import pdb; pdb.set_trace()
         lm_loss = self.forward(batch).loss
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         return lm_loss

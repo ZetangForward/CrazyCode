@@ -13,8 +13,8 @@ hydra:
 dataset:
   file_path: "/nvme/zecheng/data/roc_stories/processed_2017/train.jsonl"
   max_seq_length: 512
-  train_batch_size: 4
-  val_batch_size: 4
+  train_batch_size: 12
+  val_batch_size: 12
   nworkers: 12
   pin_memory: False
   inference_mode: False
