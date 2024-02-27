@@ -78,10 +78,11 @@ def main(config):
         name=f"{config.experiment.task}",
         version=config.experiment.version
     )
+    
     lr_monitor = LearningRateMonitor(logging_interval='step')
     
     trainer = pl.Trainer(
-        accelerator=config.device.accelerator,
+        # accelerator=config.device.accelerator,
         precision=config.device.precision,
         devices=config.device.device_num,
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
@@ -103,7 +104,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=5 # for debugging
+        # fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)

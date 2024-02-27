@@ -1,20 +1,19 @@
 SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
 JOB_ID: &JOB_ID 1
-MODEL: &MODEL "gpt"
-TASK: &TASK "text_infilling"
+TASK: &TASK "text_infilling_gpt"
 
 hydra:
   job:
     id: ${JOB_ID}
     name: hydra_${TASK}
   run:
-    dir: ${SAVE_DIR}/${TASK}/${MODEL}/version_${JOB_ID}/${hydra.job.name} 
+    dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
   file_path: "/nvme/zecheng/data/roc_stories/processed_2017/train.jsonl"
   max_seq_length: 512
-  train_batch_size: 12
-  val_batch_size: 12
+  train_batch_size: 6
+  val_batch_size: 6
   nworkers: 12
   pin_memory: False
   inference_mode: False
@@ -25,18 +24,10 @@ model:
   
 tokenizer:
   tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
-  
-vqvae_conv_block:
-  depth: 4
-  width: 512
-  m_conv: 1.0
-  dilation_growth_rate: 1
-  dilation_cycle: null
-  vqvae_reverse_decoder_dilation: True
 
 device:
   accelerator: "cuda"
-  device_num: 1
+  device_num: 7
   precision: "bf16"
 
 experiment:
