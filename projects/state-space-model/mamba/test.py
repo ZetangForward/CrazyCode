@@ -131,7 +131,7 @@ def main(config):
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-
+    import pdb; pdb.set_trace()
     m_predictions = merge_dicts(predictions)
     save_path = os.path.join(config.experiment.prediction_save_path, f"compress_level_{config.experiment.compress_level}_predictions.pkl")
     b_t = time.time()

@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
-JOB_ID: &JOB_ID 2
+JOB_ID: &JOB_ID 3
 TASK: &TASK "text_infilling"
 
 hydra:
@@ -21,7 +21,7 @@ dataset:
 
 model:
   model_name_or_path: "/nvme/hf_models/mamba-1.4b"
-  ckpt_path: "/nvme/zecheng/ckpt/text_infilling/version_1/checkpoints/last.ckpt"
+  ckpt_path: "/nvme/zecheng/ckpt/text_infilling/version_${JOB_ID}/checkpoints/last.ckpt"
   
 tokenizer:
   tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
