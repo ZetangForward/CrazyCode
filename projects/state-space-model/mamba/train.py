@@ -12,7 +12,7 @@ import hydra
 from custom_dataset.data import custom_datamodule
 from modelzipper.tutils import *
 from torch import optim, Tensor 
-
+from custom_mamba.position_mamba import PositionMamba
 
 class Experiment(pl.LightningModule):
 
@@ -140,7 +140,7 @@ def main(config):
         version=config.experiment.version
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    
+
     trainer = pl.Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
@@ -168,7 +168,7 @@ def main(config):
     trainer.fit(experiment, datamodule=data_module)
 
 def get_model_tokenizer(model_config, tokenizer_config):
-    model = MambaLMHeadModel.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda")
+    model = PositionMamba.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda", strict=False)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_config.tokenizer_name_or_path)
     if "gpt-neo" in tokenizer_config.tokenizer_name_or_path:
         tokenizer.eos_token = "<|endoftext|>"

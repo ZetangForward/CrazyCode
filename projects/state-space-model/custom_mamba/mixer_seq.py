@@ -20,12 +20,12 @@ except ImportError:
 try:
     from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 except ImportError:
-    causal_conv1d_fn, causal_conv1d_update = None
+    causal_conv1d_fn, causal_conv1d_update = None, None
 
 try:
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 except ImportError:
-    selective_scan_fn, mamba_inner_fn = None, None, None
+    selective_scan_fn, mamba_inner_fn = None, None
 
 try:
     from mamba_ssm.ops.triton.selective_state_update import selective_state_update
@@ -103,8 +103,10 @@ class Mamba(nn.Module):
             torch.rand(self.d_inner, **factory_kwargs) * (math.log(dt_max) - math.log(dt_min))
             + math.log(dt_min)
         ).clamp(min=dt_init_floor)
+        
         # Inverse of softplus: https://github.com/pytorch/pytorch/issues/72759
         inv_dt = dt + torch.log(-torch.expm1(-dt))
+        
         with torch.no_grad():
             self.dt_proj.bias.copy_(inv_dt)
         # Our initialization would set all Linear.bias to zero, need to mark this one as _no_reinit
@@ -276,7 +278,6 @@ class Mamba(nn.Module):
     def _get_states_from_cache(self, inference_params, batch_size, initialize_states=False):
         assert self.layer_idx is not None
         if self.layer_idx not in inference_params.key_value_memory_dict:
-            batch_shape = (batch_size,)
             conv_state = torch.zeros(
                 batch_size,
                 self.d_model * self.expand,
