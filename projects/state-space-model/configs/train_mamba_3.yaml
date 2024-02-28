@@ -31,7 +31,7 @@ optimizer:
 
 lr_scheduler:
   scheduler_type: "get_cosine_schedule_with_warmup"
-  warmup_steps: 20
+  warmup_steps: 0
 
 experiment:
   seed: 27
