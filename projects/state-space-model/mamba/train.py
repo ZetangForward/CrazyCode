@@ -63,32 +63,53 @@ class Experiment(pl.LightningModule):
         self.log("val_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
 
     def configure_optimizers(self):
-        betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
-        optimizer = optim.Adam(
-            self.model.parameters(), 
-            lr=self.exp_cfg.peak_lr,
-            weight_decay=self.exp_cfg.weight_decay, 
-            betas=betas, 
-            eps=self.exp_cfg.eps
-        )
+        # init optimizer
+        if self.cfg.optimizer.optimizer_type.lower() == "adamw":
+            optimizer = transformers.AdamW(
+                self.model.parameters(), 
+                lr=self.cfg.optimizer.lr,
+            )
+        else: # implement with adam as default 
+            betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
+            optimizer = optim.Adam(
+                self.model.parameters(), 
+                lr=self.exp_cfg.peak_lr,
+                weight_decay=self.exp_cfg.weight_decay, 
+                betas=betas, 
+                eps=self.exp_cfg.eps
+            )
         
-        def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
+        # init lr scheduler
+        if self.cfg.lr_scheduler.scheduler_type == "get_cosine_schedule_with_warmup":
+            scheduler = transformers.get_cosine_schedule_with_warmup(
+                optimizer=optimizer,
+                num_warmup_steps=self.cfg.lr_scheduler.warmup_steps,
+                num_training_steps=self.exp_cfg.num_training_steps,
+            )
+        else:
+            def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
+                
+                def lr_lambda(current_step):
+                    if current_step < warmup_steps:
+                        return current_step / warmup_steps
+                    progress = (current_step - warmup_steps) / (num_training_steps - warmup_steps)
+                    cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+                    lr = (last_lr + (peak_lr - last_lr) * cosine_decay)
+                    return lr / peak_lr
+                
+                return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
-            def lr_lambda(current_step):
-                if current_step < warmup_steps:
-                    return current_step / warmup_steps
-                progress = (current_step - warmup_steps) / (num_training_steps - warmup_steps)
-                cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
-                lr = (last_lr + (peak_lr - last_lr) * cosine_decay)
-                return lr / peak_lr
-            
-            return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
-
-        scheduler = get_scheduler(optimizer, self.exp_cfg.num_training_steps, self.exp_cfg.warmup_steps, self.exp_cfg.peak_lr, self.exp_cfg.last_lr)
+            scheduler = get_scheduler(
+                optimizer, 
+                self.exp_cfg.num_training_steps, 
+                self.exp_cfg.warmup_steps, 
+                self.exp_cfg.peak_lr, 
+                self.exp_cfg.last_lr
+            )
 
         lr_scheduler = {
             'scheduler': scheduler,
-            'name': 'custom_scheduler',
+            'name': f"{self.cfg.lr_scheduler.scheduler_type}",
             'interval': 'step',  # Ensure learning rate updates per step
             'frequency': 1,  # Optional: If you want to make sure it updates every step
         }
@@ -150,6 +171,7 @@ def get_model_tokenizer(model_config, tokenizer_config):
     model = MambaLMHeadModel.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_config.tokenizer_name_or_path)
     if "gpt-neo" in tokenizer_config.tokenizer_name_or_path:
+        tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
     return model, tokenizer
 

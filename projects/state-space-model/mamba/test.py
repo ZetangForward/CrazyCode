@@ -1,9 +1,10 @@
 import os  
+import sys
+sys.path.append(os.getcwd())
 import torch   
 import pytorch_lightning as pl
-from torch import Tensor  
 import hydra  
-from data import custom_datamodule
+from custom_dataset.data import custom_datamodule
 from modelzipper.tutils import *
 from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 
@@ -109,14 +110,16 @@ def main(config):
     
     # load model and tokenizer
     model = MambaLMHeadModel.from_pretrained(config.model.model_name_or_path, dtype=torch.bfloat16, device="cuda")
-    
+    state_dict = torch.load(config.model.ckpt_path, map_location='cuda')
+    model.load_state_dict(state_dict, strict=True)
+
+
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
         
     # load experiment (and model checkpoint)
-    experiment = Experiment.load_from_checkpoint(config.model.ckpt_path, model=model, config=config, tokenizer=tokenizer)
-    
+    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     # load data
     data_module = custom_datamodule(config.dataset, tokenizer)
@@ -129,7 +132,7 @@ def main(config):
         experiment, 
         datamodule=data_module,
         return_predictions=True,
-        ckpt_path=config.model.ckpt_path  # second pass for safety
+        # ckpt_path=config.model.ckpt_path  # second pass for safety
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
