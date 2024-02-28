@@ -134,7 +134,7 @@ def main(config):
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
 
-    save_path = f"{config.experiment.results_save_dir}/predictions.pkl"
+    save_path = f"{config.experiment.results_save_dir}/predictions.jsonl"
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
 

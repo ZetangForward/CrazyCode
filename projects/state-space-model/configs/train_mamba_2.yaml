@@ -23,16 +23,7 @@ model:
   model_name_or_path: "/nvme/hf_models/mamba-1.4b"
   
 tokenizer:
-  tokenizer_name_or_path: "EleutherAI/gpt-neox-20b"
-  
-vqvae_conv_block:
-  depth: 4
-  width: 512
-  m_conv: 1.0
-  dilation_growth_rate: 1
-  dilation_cycle: null
-  vqvae_reverse_decoder_dilation: True
-  
+  tokenizer_name_or_path: "/nvme/hf_models/EleutherAI/gpt-neox-20b"
 
 experiment:
   seed: 27

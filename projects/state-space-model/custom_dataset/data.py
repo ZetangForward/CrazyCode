@@ -83,7 +83,7 @@ class TextFillingDataset(Dataset):
             labels = torch.where(
                 input_ids != self.tokenizer.pad_token_id, input_ids, -100
             )
-        
+
         return {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
