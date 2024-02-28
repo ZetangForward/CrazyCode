@@ -8,9 +8,6 @@ from custom_dataset.data import custom_datamodule
 from modelzipper.tutils import *
 from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 
-
-
-
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
         super(Experiment, self).__init__()
