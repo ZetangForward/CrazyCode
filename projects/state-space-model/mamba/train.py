@@ -2,7 +2,6 @@ import torch
 import os
 import sys
 sys.path.append(os.getcwd())
-from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 from transformers import AutoTokenizer
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
