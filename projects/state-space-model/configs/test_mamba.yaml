@@ -1,5 +1,5 @@
 SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
-JOB_ID: &JOB_ID 3
+JOB_ID: &JOB_ID 5
 TASK: &TASK "text_infilling"
 
 hydra:
@@ -11,7 +11,7 @@ hydra:
 
 dataset:
   test_data_path: "/nvme/zecheng/data/roc_stories/processed_2017/test.jsonl"
-  max_seq_length: 512
+  max_seq_length: 128
   train_batch_size: 16
   val_batch_size: 16
   nworkers: 12
@@ -21,13 +21,14 @@ dataset:
 
 model:
   model_name_or_path: "/nvme/hf_models/mamba-1.4b"
-  # ckpt_path: "/nvme/zecheng/ckpt/text_infilling/version_${JOB_ID}/checkpoints/last.ckpt"
-  ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
+  ckpt_path: "/nvme/zecheng/ckpt/text_infilling/version_${JOB_ID}/checkpoints/last.ckpt"
+  # ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
 tokenizer:
-  tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
+  tokenizer_name_or_path: "/nvme/hf_models/EleutherAI/gpt-neox-20b"
 
 experiment:
   seed: 27
+  max_seq_length: 160
   model_save_dir: ${SAVE_DIR}
   results_save_dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/results
   task: ${TASK}
