@@ -101,6 +101,7 @@ class Mamba(nn.Module):
             torch.rand(self.d_inner, **factory_kwargs) * (math.log(dt_max) - math.log(dt_min))
             + math.log(dt_min)
         ).clamp(min=dt_init_floor)
+        
         # Inverse of softplus: https://github.com/pytorch/pytorch/issues/72759
         inv_dt = dt + torch.log(-torch.expm1(-dt))
         with torch.no_grad():
@@ -129,7 +130,7 @@ class Mamba(nn.Module):
         hidden_states: (B, L, D)
         Returns: same shape as hidden_states
         """
-        batch, seqlen, dim = hidden_states.shape
+        batch, seqlen, _ = hidden_states.shape
         conv_state, ssm_state = None, None
         if inference_params is not None:
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
@@ -403,7 +404,7 @@ class PositionMamba(nn.Module, GenerationMixin):
         pad_vocab_size_multiple: int = 1,
         device=None,
         dtype=None,
-        add_position=None,
+        use_position=None,
         **backbone_kwargs,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -505,11 +506,14 @@ class MixerModel(nn.Module):
         residual_in_fp32=False,
         device=None,
         dtype=None,
+        use_position=False,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.residual_in_fp32 = residual_in_fp32
-        self.wpe = nn.Embedding(max_position_embeddings, d_model, **factory_kwargs)
+        self.wpe = None
+        if use_position:
+            self.wpe = nn.Embedding(max_position_embeddings, d_model, **factory_kwargs)
         self.embedding = nn.Embedding(vocab_size, d_model, **factory_kwargs)
         
         # We change the order of residual and layer norm:
@@ -559,18 +563,19 @@ class MixerModel(nn.Module):
     def forward(self, input_ids, position_ids=None, inference_params=None):
         input_shape = input_ids.shape
         device = input_ids.device if input_ids is not None else inputs_embeds.device
-
-        if position_ids is None:
+        position_embeds = None
+        if self.wpe is not None and position_ids is None:
             if inference_params is not None:
                 position_ids = torch.arange(inference_params.seqlen_offset, input_shape[-1] + inference_params.seqlen_offset, dtype=torch.long, device=device)
                 position_ids = position_ids.unsqueeze(0)
             else:
                 position_ids = torch.arange(input_shape[-1], dtype=torch.long, device=device)
                 position_ids = position_ids.unsqueeze(0)
+            position_embeds = self.wpe(position_ids)
         
         inputs_embeds = self.embedding(input_ids)
-        position_embeds = self.wpe(position_ids)
-        hidden_states = inputs_embeds + position_embeds
+        
+        hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
         residual = None
         for layer in self.layers:

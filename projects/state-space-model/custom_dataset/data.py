@@ -5,6 +5,9 @@ from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
+import glob
+
+
 
 class TextFillingDataset(Dataset):
     def __init__(self, content=None, tokenizer=None, split="train", full_modeling=True, *args, **kwargs):
@@ -92,6 +95,50 @@ class TextFillingDataset(Dataset):
 
     def __len__(self):
         return len(self.content)
+
+
+class FindNeedle(pl.LightningDataModule):
+    def __init__(self, cfg, tokenizer, eval_path) -> None:
+        super().__init__()
+        self.cfg = cfg
+        self.tokenizer = tokenizer
+        self.eval_path = eval_path
+        self.ctx_len = cfg.ctx_len
+        self.depth = cfg.depth
+        self.needle = cfg.needle
+
+    def load_context(self, fpath, ctx_len=10000):
+        context = ""
+        for file in glob.glob(fpath):
+            with open(file, 'r') as f: 
+                context += f.read()
+        LLAMA_CHAR_TO_TOKEN_RATIO = 3.66
+        context = context[: int(ctx_len * LLAMA_CHAR_TO_TOKEN_RATIO)]
+        return context
+
+    def insert_needle(self, context, needle, depth):
+        context = context.split(".")
+        c_len = len(context)
+        needle_place = int(depth * c_len)
+        context = ".".join(context[:needle_place]) + "." + needle + ".".join(context[needle_place:])
+        return context
+
+    def setup(self, stage: str = 'predict') -> None:
+        context = self.load_context(fpath=self.eval_path, ctx_len=self.ctx_len)
+        context = self.insert_needle(context, self.needle, depth=self.depth)
+        needle_idx = context.find("The best thing to do in San Francisco is")
+        print("Context has %d chars, needle inserted at %d char location:\n" % (len(context), needle_idx))
+        print(context[needle_idx - 150: needle_idx + 150]) # look at how the needle is inserted 
+        import pdb; pdb.set_trace()
+
+
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
+        return DataLoader(
+            self.context, batch_size=1, 
+            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+        )
+       
+
 
 class custom_datamodule(pl.LightningDataModule):
     def __init__(self, cfg, tokenizer):

@@ -4,9 +4,11 @@ sys.path.append(os.getcwd())
 import torch   
 import pytorch_lightning as pl
 import hydra  
-from custom_dataset.data import custom_datamodule
+from custom_dataset.data import FindNeedle, custom_datamodule
 from modelzipper.tutils import *
 from custom_mamba.position_mamba import PositionMamba
+
+
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -28,7 +30,7 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-
+        import pdb; pdb.set_trace()
         output = self.model.generate(batch['input_ids'], max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
         print_c("one sample generation ending")
         import pdb; pdb.set_trace()
@@ -41,25 +43,41 @@ class Experiment(pl.LightningModule):
         }
         
         return standard_test_reconstruct
-    
+
+
+
 
 @hydra.main(config_path='../configs', config_name='test_mamba', version_base='1.1')
 def main(config):
     
-    print_c(f"Experiment: {config.experiment.task}", "magenta")
+    print_c(f"Experiment: {config.experiment.test_task}", "magenta")
     
     # load model and tokenizer
-    model = PositionMamba.from_pretrained(config.model.model_name_or_path, dtype=torch.bfloat16, device="cuda", strict=False)
+    model = PositionMamba.from_pretrained(
+        config.model.model_name_or_path, 
+        use_position=config.model.use_position,
+        dtype=torch.bfloat16, 
+        device="cuda", 
+        strict=False
+    )
+
+    if config.model.load_model_state_dict:
+        state_dict = torch.load(config.model.ckpt_path, map_location='cuda')
+        model.load_state_dict(state_dict, strict=True)
 
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
-        
+    
+
     # load experiment (and model checkpoint)
-    experiment = Experiment.load_from_checkpoint(config.model.ckpt_path, model=model, config=config, tokenizer=tokenizer)
+    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     # load data
-    data_module = custom_datamodule(config.dataset, tokenizer)
+    if config.experiment.test_task == "needle":
+        data_module = FindNeedle(config, tokenizer, config.dataset.data_path)
+    else:
+        data_module = custom_datamodule(config.dataset, tokenizer)
 
     tester = pl.Trainer(devices=config.experiment.device_num)
 
@@ -69,7 +87,7 @@ def main(config):
         experiment, 
         datamodule=data_module,
         return_predictions=True,
-        ckpt_path=config.model.ckpt_path  # second pass for safety
+        ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
