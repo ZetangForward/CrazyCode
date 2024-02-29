@@ -4,7 +4,7 @@ sys.path.append(os.getcwd())
 import torch   
 import pytorch_lightning as pl
 import hydra  
-from custom_dataset.data import FindNeedle, custom_datamodule
+from custom_dataset.data import FindNeedle, ZeroScrolls, custom_datamodule
 from modelzipper.tutils import *
 from custom_mamba.position_mamba import PositionMamba
 
@@ -73,6 +73,8 @@ def main(config):
     # load data
     if config.experiment.test_task == "needle":
         data_module = FindNeedle(config.dataset, tokenizer, config.dataset.data_path)
+    elif config.experiment.test_task == "zero_scroll":
+        data_module = ZeroScrolls(config.dataset, tokenizer, config.experiment.max_input_length)
     else:
         data_module = custom_datamodule(config.dataset, tokenizer)
 

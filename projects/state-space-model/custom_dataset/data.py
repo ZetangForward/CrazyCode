@@ -6,8 +6,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 import glob
-
-
+from datasets import load_dataset
 
 class TextFillingDataset(Dataset):
     def __init__(self, content=None, tokenizer=None, split="train", full_modeling=True, *args, **kwargs):
@@ -138,6 +137,59 @@ class FindNeedle(pl.LightningDataModule):
             num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
         )
        
+
+class ZeroScrolls(pl.LightningDataModule):
+
+    datasets = [
+        'gov_report',
+        'summ_screen_fd',
+        'qmsum',
+        'qasper',
+        'narrative_qa',
+        'quality',
+        'musique',
+        'squality',
+        'space_digest',
+        'book_sum_sort'
+    ]
+
+    def __init__(self, cfg, tokenizer, max_input_length):
+        self.cfg = cfg
+        self.tokenizer = tokenizer
+        self.max_input_length = max_input_length
+
+
+    def trim_doc_keeping_suffix(self, tokenizer, tokenized_input_full, example, suffix_index, max_tokens, device):
+        seperator_and_suffix = f"{example['truncation_seperator'].strip()}\n\n{example['input'][suffix_index:].strip()}\n"
+        tokenized_seperator_and_suffix = tokenizer(seperator_and_suffix, return_tensors="pt").input_ids.to(device)
+        tokenized_input_trimmed = tokenized_input_full[:, :max_tokens - tokenized_seperator_and_suffix.shape[1]]
+        tokenized_input = torch.cat([tokenized_input_trimmed, tokenized_seperator_and_suffix], dim=1)
+        return tokenized_input
+
+
+    def process_model_input(self, tokenizer, example, max_tokens, device):
+        tokenized_input_full = tokenizer(example["input"], return_tensors="pt").input_ids.to(device)
+        if tokenized_input_full.shape[1] <= max_tokens:
+            return tokenized_input_full
+
+        seperator_and_query_text = example['truncation_seperator'] + example["input"][example['query_start_index']:]
+        tokenized_seperator_and_query = tokenizer(seperator_and_query_text, return_tensors="pt").input_ids.to(device)
+        input_without_query = example['input'][:example['query_start_index']]
+        tokenized_input_without_query = tokenizer(input_without_query, return_tensors="pt").input_ids.to(device)
+        tokenized_input_without_query = tokenized_input_without_query[:, :max_tokens - tokenized_seperator_and_query.shape[1]]
+
+        tokenized_input = torch.cat([tokenized_input_without_query, tokenized_seperator_and_query], dim=1)
+        return tokenized_input
+    
+    def setup(self, stage: str = 'predict') -> None:
+        all_testing_data = []
+        for dataset in self.datasets:
+            data = load_dataset(self.cfg.data_path, dataset)
+
+            for i, example in enumerate(data["test"]):
+                model_input = self.process_model_input(tokenizer, example, self.max_input_length, 'cpu')
+                import pdb; pdb.set_trace()
+
 
 
 class custom_datamodule(pl.LightningDataModule):

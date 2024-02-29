@@ -1,0 +1,41 @@
+SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
+JOB_ID: &JOB_ID 1
+TASK: &TASK "vanilla_mamba"
+TEST_TASK: &TEST_TASK "zero_scroll"
+
+hydra:
+  job:
+    id: ${JOB_ID}
+    name: hydra_${TASK}
+  run:
+    dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
+
+dataset:
+  data_path: "/nvme/zecheng/data/ZeroSCROLLS"
+  ctx_len: 10000
+  depth: 0.5
+  needle: "\nThe best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day.\n"
+  nworkers: 12
+  pin_memory: False
+  inference_mode: True
+  cluster_batch: False
+
+model:
+  model_name_or_path: "/nvme/hf_models/mamba-1.4b"
+  ckpt_path: "/nvme/hf_models/mamba-1.4b/pytorch_model.bin"
+  load_model_state_dict: True
+  use_position: False
+  # ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
+tokenizer:
+  tokenizer_name_or_path: "/nvme/hf_models/EleutherAI/gpt-neox-20b"
+
+
+experiment:
+  seed: 27
+  max_input_length: 10000
+  model_save_dir: ${SAVE_DIR}
+  results_save_dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/results/${TEST_TASK}
+  test_task: ${TEST_TASK}
+  version: ${JOB_ID}
+  device_num: 1
+  node_num: 1
