@@ -133,10 +133,11 @@ def main(config):
             ModelCheckpoint(
                 save_top_k=5, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor="val_lm_loss",
+                monitor="train_lm_loss",
                 filename=f"mamba-{config.experiment.task}"+"-{epoch:02d}",
                 save_last=True,
                 mode='min',
+                ModelCheckpoint=True, # only save state dict
             ),
         ],
         check_val_every_n_epoch=1,

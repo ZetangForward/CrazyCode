@@ -12,8 +12,8 @@ hydra:
 dataset:
   file_path: "/nvme/zecheng/data/alpaca-cleaned/alpaca_data_cleaned.json"
   max_seq_length: 256
-  train_batch_size: 18
-  val_batch_size: 18
+  train_batch_size: 36
+  val_batch_size: 36
   nworkers: 12
   pin_memory: False
   inference_mode: False
@@ -39,5 +39,5 @@ experiment:
   task: ${TASK}
   version: ${JOB_ID}
   num_training_steps: 20000
-  device_num: 1
+  device_num: 4
   node_num: 1
