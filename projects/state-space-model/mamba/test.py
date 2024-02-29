@@ -45,8 +45,6 @@ class Experiment(pl.LightningModule):
         return standard_test_reconstruct
 
 
-
-
 @hydra.main(config_path='../configs', config_name='test_mamba', version_base='1.1')
 def main(config):
     
@@ -69,13 +67,12 @@ def main(config):
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
     
-
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     # load data
     if config.experiment.test_task == "needle":
-        data_module = FindNeedle(config, tokenizer, config.dataset.data_path)
+        data_module = FindNeedle(config.dataset, tokenizer, config.dataset.data_path)
     else:
         data_module = custom_datamodule(config.dataset, tokenizer)
 

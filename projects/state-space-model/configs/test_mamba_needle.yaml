@@ -11,7 +11,7 @@ hydra:
     dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
 
 dataset:
-  data_path: "/nvme/zecheng/data/needle/PaulGrahamEssays"
+  data_path: "/nvme/zecheng/data/needle/PaulGrahamEssays/*.txt"
   ctx_len: 10000
   depth: 0.5
   needle: "\nThe best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day.\n"
@@ -22,7 +22,7 @@ dataset:
 
 model:
   model_name_or_path: "/nvme/hf_models/mamba-1.4b"
-  ckpt_path: "/nvme/hf_models/mamba-1.4b"
+  ckpt_path: "/nvme/hf_models/mamba-1.4b/pytorch_model.bin"
   load_model_state_dict: True
   use_position: False
   # ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
