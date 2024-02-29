@@ -92,6 +92,7 @@ class TextFillingDataset(Dataset):
     def __len__(self):
         return len(self.content)
 
+
 class custom_datamodule(pl.LightningDataModule):
     def __init__(self, cfg, tokenizer):
         super().__init__()

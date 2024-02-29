@@ -2,16 +2,17 @@ import torch
 import os
 import sys
 sys.path.append(os.getcwd())
+import pytorch_lightning as pl
+import hydra
 from transformers import AutoTokenizer
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-import pytorch_lightning as pl
-import hydra
-from custom_dataset.data import custom_datamodule
+from custom_dataset.data import *
 from modelzipper.tutils import *
 from torch import optim, Tensor 
 from custom_mamba.position_mamba import PositionMamba
+
 
 class Experiment(pl.LightningModule):
 
@@ -31,9 +32,11 @@ class Experiment(pl.LightningModule):
         return self.model(input, **kwargs)
 
     def training_step(self, batch, batch_idx):
+        import pdb; pdb.set_trace()
         input_ids = batch.pop("input_ids")
         lm_logits = self.forward(input_ids).logits
         
+        import pdb; pdb.set_trace()
         labels = batch.pop("labels")
         labels = labels.to(lm_logits.device)
         
@@ -45,21 +48,6 @@ class Experiment(pl.LightningModule):
         
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         return lm_loss
-
-    def validation_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        loss_fct = torch.nn.CrossEntropyLoss()
-        lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
-
-        self.log("val_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
 
     def configure_optimizers(self):
         # init optimizer
@@ -127,7 +115,7 @@ def main(config):
     model, tokenizer = get_model_tokenizer(config.model, config.tokenizer)
     
     # load data
-    data_module = custom_datamodule(config.dataset, tokenizer)
+    data_module = AlpacaData(config.dataset, tokenizer)
     
     # load experiment
     experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
@@ -161,7 +149,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=5 # for debugging
+        fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)

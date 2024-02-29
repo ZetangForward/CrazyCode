@@ -10,18 +10,40 @@ from datasets import load_dataset
 
 
 class AlpacaDataset(Dataset):
-    def __init__(self, content=None, tokenizer=None, split="train", full_modeling=True, *args, **kwargs):
-        super(AlpacaDataset).__init__()
+    def __init__(self, content=None, tokenizer=None, split="train", full_modeling=True, max_seq_length=512, *args, **kwargs):
+        super().__init__()
         self.split = split
         self.content = content
-        self.max_text_length = kwargs['max_text_length']
+        self.max_text_length = max_seq_length
         self.tokenizer = tokenizer
         self.full_modeling = full_modeling
         self.template = "{instruction} {input} {output}"
-    
-    def __getitem__(self, index) -> Any:
         
-
+    def __getitem__(self, index) -> Any:
+        sample = self.content[index]
+        instruction = sample["instruction"]
+        input_text = sample["input"]
+        output_text = sample["output"]
+        
+        prompt = self.template.format(instruction=instruction, input=input_text, output=output_text)
+        
+        tokenized_prompt = self.tokenizer(
+            prompt,  
+            truncation=True, 
+            max_length=self.max_text_length,
+            return_tensors="pt",
+        )
+        input_ids = tokenized_prompt.input_ids[0]
+        attention_mask = tokenized_prompt.attention_mask[0]
+        labels = torch.where(
+            input_ids != self.tokenizer.pad_token_id, input_ids, -100
+        )
+        
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+        }
 
 
 class TextFillingDataset(Dataset):
@@ -211,15 +233,12 @@ class ZeroScrolls(pl.LightningDataModule):
 
 
 class AlpacaData(pl.LightningDataModule):
-    
     def __init__(self, cfg, tokenizer):
         super().__init__()
         self.cfg = cfg
         self.tokenizer = tokenizer
         self.prepare_data_per_node = True
-        self.dataset_kwargs = {
-            "max_text_length": self.cfg.max_seq_length,
-        }
+        self.max_seq_length = self.cfg.max_seq_length
         
     def setup(self, stage: str = 'fit') -> None:
         self.test_dataset = None
@@ -228,34 +247,22 @@ class AlpacaData(pl.LightningDataModule):
         else:
             content = auto_read_data(self.cfg.file_path)
             self.train_data = content
-            
             self.train_dataset = AlpacaDataset(
                 content=self.train_data, 
                 tokenizer=self.tokenizer, 
                 split="train",
-                **self.dataset_kwargs,
-            )
-            
-            self.valid_dataset = TextFillingDataset(
-                content=self.valid_data, 
-                tokenizer=self.tokenizer, 
-                split="valid",
-                **self.dataset_kwargs,
+                full_modeling=True,
+                max_seq_length=self.max_seq_length,
             )
             print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
-            print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
-
             
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
-            self.train_dataset, batch_size=self.cfg.train_batch_size, 
-            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
-        )
-    
-    def val_dataloader(self) -> TRAIN_DATALOADERS:
-        return DataLoader(
-            self.valid_dataset, batch_size=self.cfg.val_batch_size, 
-            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+            self.train_dataset, 
+            batch_size=self.cfg.train_batch_size, 
+            num_workers=self.cfg.nworkers, 
+            pin_memory=self.cfg.pin_memory, 
+            drop_last=True, shuffle=True, 
         )
 
 
