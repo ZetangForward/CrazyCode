@@ -18,7 +18,10 @@ class AlpacaDataset(Dataset):
         self.tokenizer = tokenizer
         self.full_modeling = full_modeling
         self.template = "{instruction} {input} {output}"
-        
+    
+    def __len__(self):
+        return len(self.content)
+    
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
         instruction = sample["instruction"]
@@ -255,9 +258,6 @@ class AlpacaData(pl.LightningDataModule):
                 max_seq_length=self.max_seq_length,
             )
             print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
-    
-    def __len__(self):
-        return len(self.train_dataset)
       
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
