@@ -255,7 +255,10 @@ class AlpacaData(pl.LightningDataModule):
                 max_seq_length=self.max_seq_length,
             )
             print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
-            
+    
+    def __len__(self):
+        return len(self.train_dataset)
+      
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.train_dataset, 
