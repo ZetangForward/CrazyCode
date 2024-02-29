@@ -32,11 +32,8 @@ class Experiment(pl.LightningModule):
         return self.model(input, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        import pdb; pdb.set_trace()
         input_ids = batch.pop("input_ids")
         lm_logits = self.forward(input_ids).logits
-        
-        import pdb; pdb.set_trace()
         labels = batch.pop("labels")
         labels = labels.to(lm_logits.device)
         
@@ -149,7 +146,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=5 # for debugging
+        # fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
