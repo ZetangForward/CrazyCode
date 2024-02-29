@@ -33,6 +33,7 @@ class AlpacaDataset(Dataset):
         tokenized_prompt = self.tokenizer(
             prompt,  
             truncation=True, 
+            padding="max_length",
             max_length=self.max_text_length,
             return_tensors="pt",
         )
