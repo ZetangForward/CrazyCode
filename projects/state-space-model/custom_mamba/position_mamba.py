@@ -122,6 +122,7 @@ class PositionMamba(nn.Module, GenerationMixin):
         model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype), strict=strict)
         return model
 
+
 def create_block(
     d_model,
     ssm_cfg=None,
@@ -218,7 +219,6 @@ class MixerModel(nn.Module):
         }
 
     def forward(self, input_ids, position_ids=None, inference_params=None):
-        
         input_shape = input_ids.shape
         device = input_ids.device if input_ids is not None else inputs_embeds.device
 

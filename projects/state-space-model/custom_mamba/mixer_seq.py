@@ -27,10 +27,10 @@ try:
 except ImportError:
     selective_scan_fn, mamba_inner_fn = None, None
 
-try:
-    from mamba_ssm.ops.triton.selective_state_update import selective_state_update
-except ImportError:
-    selective_state_update = None
+# try:
+#     from mamba_ssm.ops.triton.selective_state_update import selective_state_update
+# except ImportError:
+selective_state_update = None
 
 try:
     from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
@@ -134,7 +134,7 @@ class Mamba(nn.Module):
         Returns: same shape as hidden_states
         """
         batch, seqlen, dim = hidden_states.shape
-
+        
         conv_state, ssm_state = None, None
         if inference_params is not None:
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
@@ -154,6 +154,7 @@ class Mamba(nn.Module):
 
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
         # In the backward pass we write dx and dz next to each other to avoid torch.cat
+        
         if self.use_fast_path and inference_params is None:  # Doesn't support outputting the states
             out = mamba_inner_fn(
                 xz,
@@ -213,6 +214,7 @@ class Mamba(nn.Module):
                 ssm_state.copy_(last_state)
             y = rearrange(y, "b d l -> b l d")
             out = self.out_proj(y)
+        
         return out
 
     def step(self, hidden_states, conv_state, ssm_state):
@@ -243,7 +245,7 @@ class Mamba(nn.Module):
         # Don't add dt_bias here
         dt = F.linear(dt, self.dt_proj.weight)  # (B d_inner)
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
-
+        
         # SSM step
         if selective_state_update is None:
             # Discretize A and B

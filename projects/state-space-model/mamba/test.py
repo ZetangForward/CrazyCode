@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import hydra  
 from custom_dataset.data import custom_datamodule
 from modelzipper.tutils import *
-from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
+from custom_mamba.position_mamba import PositionMamba
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -28,7 +28,10 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
+
         output = self.model.generate(batch['input_ids'], max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
+        print_c("one sample generation ending")
+        import pdb; pdb.set_trace()
         
         label = batch['labels'][0]
         
@@ -46,7 +49,7 @@ def main(config):
     print_c(f"Experiment: {config.experiment.task}", "magenta")
     
     # load model and tokenizer
-    model = MambaLMHeadModel.from_pretrained(config.model.model_name_or_path, dtype=torch.bfloat16, device="cuda")
+    model = PositionMamba.from_pretrained(config.model.model_name_or_path, dtype=torch.bfloat16, device="cuda", strict=False)
 
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:

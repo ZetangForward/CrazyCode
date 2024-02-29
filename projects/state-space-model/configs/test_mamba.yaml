@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
-JOB_ID: &JOB_ID 5
-TASK: &TASK "text_infilling"
+JOB_ID: &JOB_ID 1
+TASK: &TASK "vanilla_position_mamba_text_infilling"
 
 hydra:
   job:
@@ -21,7 +21,7 @@ dataset:
 
 model:
   model_name_or_path: "/nvme/hf_models/mamba-1.4b"
-  ckpt_path: "/nvme/zecheng/ckpt/text_infilling/version_${JOB_ID}/checkpoints/last.ckpt"
+  ckpt_path: "/nvme/zecheng/ckpt/${TASK}/version_${JOB_ID}/checkpoints/last.ckpt"
   # ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
 tokenizer:
   tokenizer_name_or_path: "/nvme/hf_models/EleutherAI/gpt-neox-20b"
