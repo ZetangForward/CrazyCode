@@ -129,7 +129,7 @@ def main(config):
         callbacks=[
             lr_monitor,
             ModelCheckpoint(
-                save_top_k=5, 
+                save_top_k=1, 
                 dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
                 monitor="train_lm_loss",
                 filename=f"mamba-{config.experiment.task}"+"-{epoch:02d}",
@@ -145,7 +145,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=5 # for debugging
+        # fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
