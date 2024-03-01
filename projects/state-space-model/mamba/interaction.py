@@ -39,8 +39,9 @@ if __name__ == "__main__":
     model = custom_model(model)
     
     state_dict = torch.load(args.ckpt, map_location=device)['state_dict']
-    import pdb; pdb.set_trace()
-    model = model.load_state_dict(state_dict).model
+    model.load_state_dict(state_dict)
+
+    model = model.model
     
     def chat_with_mamba(
         user_message,
