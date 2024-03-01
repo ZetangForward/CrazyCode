@@ -8,14 +8,13 @@ from transformers import AutoTokenizer
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from custom_dataset.data import *
 from modelzipper.tutils import *
 from torch import optim, Tensor 
 from custom_mamba.position_mamba import PositionMamba
+from custom_dataset.longalign import *
 
 
 class Experiment(pl.LightningModule):
-
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()
         self.model = model
@@ -112,7 +111,7 @@ def main(config):
     model, tokenizer = get_model_tokenizer(config.model, config.tokenizer)
     
     # load data
-    data_module = AlpacaData(config.dataset, tokenizer)
+    data_module = LongAlignData(config.dataset, tokenizer)
     
     # load experiment
     experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
