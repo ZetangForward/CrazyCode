@@ -16,14 +16,18 @@ class LongAlignDataset(Dataset):
         self.max_text_length = max_seq_length
         self.tokenizer = tokenizer
         self.full_modeling = full_modeling
-        self.template = "{instruction} {input} {output}"
+        self.template1 = "{instruction} {input} {output}"
+        self.template2 = "{instruction} {output}"
     
     def __len__(self):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
-        context = self.template.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
+        if 'input' not in sample:
+            context = self.template1.format(instruction=sample['instruction'], output=sample["output"])
+        else:
+            context = self.template.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
         
         tokenized_prompt = self.tokenizer(
             context,  
