@@ -37,7 +37,6 @@ class LongAlignDataset(Dataset):
             return_tensors="pt",
         )
         input_ids = tokenized_prompt.input_ids[0]
-        import pdb; pdb.set_trace()
         attention_mask = tokenized_prompt.attention_mask[0]
         labels = torch.where(
             input_ids != self.tokenizer.pad_token_id, input_ids, -100
