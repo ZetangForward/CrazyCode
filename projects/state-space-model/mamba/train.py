@@ -13,7 +13,6 @@ from torch import optim, Tensor
 from custom_mamba.position_mamba import PositionMamba
 from custom_dataset.longalign import *
 
-
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()
