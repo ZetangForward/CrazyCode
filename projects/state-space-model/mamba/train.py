@@ -137,7 +137,7 @@ def main(config):
                 filename=f"mamba-{config.experiment.task}"+"-{epoch:02d}",
                 save_last=True,
                 mode='min',
-                ModelCheckpoint=True, # only save state dict
+                save_weights_only=True, # only save state dict
             ),
         ],
         check_val_every_n_epoch=1,

@@ -1,6 +1,6 @@
 SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
 JOB_ID: &JOB_ID 1
-TASK: &TASK "mamba_alpaca"
+TASK: &TASK "mamba_3b_alpaca"
 
 hydra:
   job:
@@ -12,8 +12,8 @@ hydra:
 dataset:
   file_path: "/nvme/zecheng/data/alpaca-cleaned/alpaca_data_cleaned.json"
   max_seq_length: 256
-  train_batch_size: 36
-  val_batch_size: 36
+  train_batch_size: 8
+  val_batch_size: 8
   nworkers: 12
   pin_memory: False
   inference_mode: False
@@ -38,6 +38,6 @@ experiment:
   model_save_dir: ${SAVE_DIR}
   task: ${TASK}
   version: ${JOB_ID}
-  num_training_steps: 20000
-  device_num: 4
+  num_training_steps: 10000
+  device_num: 6
   node_num: 1

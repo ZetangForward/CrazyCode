@@ -14,7 +14,7 @@ dataset:
   data_path: "/nvme/zecheng/data/needle/PaulGrahamEssays/*.txt"
   ctx_len: 10000
   depth: 0.5
-  needle: "\nThe best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day.\n"
+  needle: "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
   nworkers: 12
   pin_memory: False
   inference_mode: True

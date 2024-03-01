@@ -4,7 +4,7 @@ sys.path.append(os.getcwd())
 import torch   
 import pytorch_lightning as pl
 import hydra  
-from custom_dataset.data import FindNeedle, ZeroScrolls, custom_datamodule
+from custom_dataset import *
 from modelzipper.tutils import *
 from custom_mamba.position_mamba import PositionMamba
 
@@ -30,16 +30,11 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        import pdb; pdb.set_trace()
         output = self.model.generate(batch['input_ids'], max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
         print_c("one sample generation ending")
-        import pdb; pdb.set_trace()
-        
-        label = batch['labels'][0]
-        
+       
         standard_test_reconstruct = {
             "prediction": self.tokenizer.decode(output[0]),
-            "golden": self.tokenizer.decode(label),
         }
         
         return standard_test_reconstruct
