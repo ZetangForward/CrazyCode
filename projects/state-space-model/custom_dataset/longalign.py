@@ -24,10 +24,10 @@ class LongAlignDataset(Dataset):
     
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
-        if 'input' not in sample:
-            context = self.template1.format(instruction=sample['instruction'], output=sample["output"])
+        if 'input' not in sample.keys():
+            context = self.template2.format(instruction=sample['instruction'], output=sample["output"])
         else:
-            context = self.template2.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
+            context = self.template1.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
         
         tokenized_prompt = self.tokenizer(
             context,  
@@ -37,6 +37,7 @@ class LongAlignDataset(Dataset):
             return_tensors="pt",
         )
         input_ids = tokenized_prompt.input_ids[0]
+        import pdb; pdb.set_trace()
         attention_mask = tokenized_prompt.attention_mask[0]
         labels = torch.where(
             input_ids != self.tokenizer.pad_token_id, input_ids, -100
@@ -72,6 +73,7 @@ class LongAlignData(pl.LightningDataModule):
                 content=self.train_data, 
                 tokenizer=self.tokenizer, 
                 split="train",
+                max_seq_length=self.cfg.max_seq_length,
                 **self.dataset_kwargs,
             )
             
@@ -79,6 +81,7 @@ class LongAlignData(pl.LightningDataModule):
                 content=self.valid_data, 
                 tokenizer=self.tokenizer, 
                 split="valid",
+                max_seq_length=self.cfg.max_seq_length,
                 **self.dataset_kwargs,
             )
             print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
