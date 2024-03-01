@@ -165,7 +165,7 @@ if __name__ == "__main__":
         """
         input_ids = tokenizer(user_message, return_tensors="pt",).to(device).input_ids
         
-        out = model.generate(input_ids=input_ids, max_length=128, temperature=0.9, top_p=0.7, eos_token_id=tokenizer.eos_token_id, num_return_sequences=1,)
+        out = model.generate(input_ids=input_ids, max_length=128, temperature=0.9, top_p=0.7, eos_token_id=tokenizer.eos_token_id)
         prompt_length = input_ids.size(1)
         generated_sequence = out[:, prompt_length:]
         decoded_text = tokenizer.batch_decode(generated_sequence, skip_special_tokens=True)[0]
