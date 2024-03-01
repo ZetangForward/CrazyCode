@@ -81,7 +81,7 @@ class FindNeedle(pl.LightningDataModule):
             prompt ="\n<|im_start|> This is a very long story book: <book> %s </book>.\n" % context_insert
             question = "What is the best thing to do in San Francisco?"
             prompt += "Based on the content of the book, Question: %s\nAnswer:" % question
-            all_insert_data.append({"depth": depth, "context": context_insert, "needle": self.needle, "ctx_length": self.ctx_len})
+            all_insert_data.append({"depth": depth, "context": prompt, "needle": self.needle, "ctx_length": self.ctx_len})
         
         self.text_data = CustomDataset(all_insert_data, self.tokenizer, split="test")
 
