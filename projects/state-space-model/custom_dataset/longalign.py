@@ -27,7 +27,7 @@ class LongAlignDataset(Dataset):
         if 'input' not in sample:
             context = self.template1.format(instruction=sample['instruction'], output=sample["output"])
         else:
-            context = self.template.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
+            context = self.template2.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
         
         tokenized_prompt = self.tokenizer(
             context,  
