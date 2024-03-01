@@ -71,7 +71,7 @@ def main(config):
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     # load data
-    if config.experiment.test_task == "needle":
+    if config.experiment.test_task == "insert_needle":
         data_module = FindNeedle(config.dataset, tokenizer, config.dataset.data_path)
     elif config.experiment.test_task == "zero_scroll":
         data_module = ZeroScrolls(config.dataset, tokenizer, config.experiment.max_input_length)

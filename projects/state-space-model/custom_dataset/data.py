@@ -138,50 +138,7 @@ class TextFillingDataset(Dataset):
         return len(self.content)
 
 
-class FindNeedle(pl.LightningDataModule):
-    def __init__(self, cfg, tokenizer, eval_path) -> None:
-        super().__init__()
-        self.cfg = cfg
-        self.tokenizer = tokenizer
-        self.eval_path = eval_path
-        self.ctx_len = cfg.ctx_len
-        self.depth = cfg.depth
-        self.needle = cfg.needle
-        self.prepare_data_per_node = True
 
-    def load_context(self, fpath, ctx_len=10000, tokenizer=None):
-        context = ""
-        for file in glob.glob(fpath):
-            with open(file, 'r') as f: 
-                context += f.read()
-        tokenized_context = tokenizer(context, return_tensors="pt").input_ids
-        tok_ids_len = len(tokenized_context[0])
-        RATIO = tok_ids_len / len(context)
-        context = context[: int(ctx_len * RATIO)]
-        return context
-
-    def insert_needle(self, context, needle, depth):
-        context = context.split(".")
-        c_len = len(context)
-        needle_place = int(depth * c_len)
-        context = ".".join(context[:needle_place]) + "." + needle + ".".join(context[needle_place:])
-        return context
-
-    def setup(self, stage: str = 'predict') -> None:
-        context = self.load_context(fpath=self.eval_path, ctx_len=self.ctx_len, tokenizer=self.tokenizer)
-        context = self.insert_needle(context, self.needle, depth=self.depth)
-        needle_idx = context.find("The best thing to do in San Francisco is")
-        print("Context has %d chars, needle inserted at %d char location:\n" % (len(context), needle_idx))
-        print(context[needle_idx - 150: needle_idx + 150]) # look at how the needle is inserted 
-        import pdb; pdb.set_trace()
-
-
-    def predict_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(
-            self.context, batch_size=1, 
-            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
-        )
-       
 
 class ZeroScrolls(pl.LightningDataModule):
 
