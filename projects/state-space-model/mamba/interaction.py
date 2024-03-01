@@ -48,7 +48,7 @@ if __name__ == "__main__":
         history: list[list[str]],
         temperature: float = 0.9,
         top_p: float = 0.7,
-        max_length: int = 256,
+        max_length: int = 64,
     ):
         # history_dict: list[dict[str, str]] = []
         # for user_m, assistant_m in history:
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         # ).to(device)
 
         input_ids = tokenizer(user_message, return_tensors="pt",).to(device).input_ids
-        import pdb; pdb.set_trace()
+
         out = model.generate(
             input_ids=input_ids,
             max_length=max_length,
@@ -70,8 +70,8 @@ if __name__ == "__main__":
             eos_token_id=tokenizer.eos_token_id,
         )
 
-        decoded_text = tokenizer.batch_decode(out)
-
+        decoded_text = tokenizer.batch_decode(out, skip_special_tokens=True)[0]
+        
         # assistant_message = (
         #     decoded[0].split("<|assistant|>\n")[-1].replace(eos, "")
         # )
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         additional_inputs=[
             gr.Slider(minimum=0, maximum=1, step=0.1, value=0.9, label="temperature"),
             gr.Slider(minimum=0, maximum=1, step=0.1, value=0.7, label="top_p"),
-            gr.Number(value=2000, label="max_length"),
+            gr.Number(value=256, label="max_length"),
         ],
         title="Mamba Chat",
     )
