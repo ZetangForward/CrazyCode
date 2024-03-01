@@ -149,13 +149,15 @@ class FindNeedle(pl.LightningDataModule):
         self.needle = cfg.needle
         self.prepare_data_per_node = True
 
-    def load_context(self, fpath, ctx_len=10000):
+    def load_context(self, fpath, ctx_len=10000, tokenizer=None):
         context = ""
         for file in glob.glob(fpath):
             with open(file, 'r') as f: 
                 context += f.read()
-        LLAMA_CHAR_TO_TOKEN_RATIO = 3.66
-        context = context[: int(ctx_len * LLAMA_CHAR_TO_TOKEN_RATIO)]
+        tokenized_context = tokenizer(context, return_tensors="pt").input_ids
+        tok_ids_len = len(tokenized_context[0])
+        RATIO = tok_ids_len / len(context)
+        context = context[: int(ctx_len * RATIO)]
         return context
 
     def insert_needle(self, context, needle, depth):
@@ -166,7 +168,7 @@ class FindNeedle(pl.LightningDataModule):
         return context
 
     def setup(self, stage: str = 'predict') -> None:
-        context = self.load_context(fpath=self.eval_path, ctx_len=self.ctx_len)
+        context = self.load_context(fpath=self.eval_path, ctx_len=self.ctx_len, tokenizer=self.tokenizer)
         context = self.insert_needle(context, self.needle, depth=self.depth)
         needle_idx = context.find("The best thing to do in San Francisco is")
         print("Context has %d chars, needle inserted at %d char location:\n" % (len(context), needle_idx))
