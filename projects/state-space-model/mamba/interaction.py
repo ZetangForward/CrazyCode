@@ -60,9 +60,8 @@ if __name__ == "__main__":
         #     history_dict, return_tensors="pt", add_generation_prompt=True
         # ).to(device)
 
-        input_ids = tokenizer(user_message, return_tensors="pt",).to(device)
+        input_ids = tokenizer(user_message, return_tensors="pt",).to(device).input_ids
         import pdb; pdb.set_trace()
-        input_ids = input_ids.unsqueeze(0)
         out = model.generate(
             input_ids=input_ids,
             max_length=max_length,
