@@ -23,15 +23,10 @@ class LongAlignDataset(Dataset):
     
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
-        import pdb; pdb.set_trace()
-        instruction = sample["instruction"]
-        input_text = sample["input"]
-        output_text = sample["output"]
-        
-        prompt = self.template.format(instruction=instruction, input=input_text, output=output_text)
+        context = self.template.format(instruction=sample['instruction'], input=sample["input"], output=sample["output"]) 
         
         tokenized_prompt = self.tokenizer(
-            prompt,  
+            context,  
             truncation=True, 
             padding="max_length",
             max_length=self.max_text_length,
