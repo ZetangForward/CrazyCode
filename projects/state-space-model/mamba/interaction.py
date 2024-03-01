@@ -50,16 +50,19 @@ if __name__ == "__main__":
         top_p: float = 0.7,
         max_length: int = 256,
     ):
-        history_dict: list[dict[str, str]] = []
-        for user_m, assistant_m in history:
-            history_dict.append(dict(role="user", content=user_m))
-            history_dict.append(dict(role="assistant", content=assistant_m))
-        history_dict.append(dict(role="user", content=user_message))
+        # history_dict: list[dict[str, str]] = []
+        # for user_m, assistant_m in history:
+        #     history_dict.append(dict(role="user", content=user_m))
+        #     history_dict.append(dict(role="assistant", content=assistant_m))
+        # history_dict.append(dict(role="user", content=user_message))
 
-        input_ids = tokenizer.apply_chat_template(
-            history_dict, return_tensors="pt", add_generation_prompt=True
-        ).to(device)
+        # input_ids = tokenizer.apply_chat_template(
+        #     history_dict, return_tensors="pt", add_generation_prompt=True
+        # ).to(device)
 
+        input_ids = tokenizer(user_message, return_tensors="pt",).to(device)
+        import pdb; pdb.set_trace()
+        input_ids = input_ids.unsqueeze(0)
         out = model.generate(
             input_ids=input_ids,
             max_length=max_length,
@@ -68,11 +71,12 @@ if __name__ == "__main__":
             eos_token_id=tokenizer.eos_token_id,
         )
 
-        decoded = tokenizer.batch_decode(out)
-        assistant_message = (
-            decoded[0].split("<|assistant|>\n")[-1].replace(eos, "")
-        )
-        return assistant_message
+        decoded_text = tokenizer.batch_decode(out)
+
+        # assistant_message = (
+        #     decoded[0].split("<|assistant|>\n")[-1].replace(eos, "")
+        # )
+        return decoded_text
     
 
     demo = gr.ChatInterface(
