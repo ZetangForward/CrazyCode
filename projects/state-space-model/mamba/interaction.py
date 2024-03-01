@@ -39,8 +39,9 @@ if __name__ == "__main__":
     model = custom_model(model)
     
     state_dict = torch.load(args.ckpt, map_location=device)['state_dict']
+    import pdb; pdb.set_trace()
     model = model.load_state_dict(state_dict).model
-
+    
     def chat_with_mamba(
         user_message,
         history: list[list[str]],
@@ -75,11 +76,11 @@ if __name__ == "__main__":
 
     demo = gr.ChatInterface(
         fn=chat_with_mamba,
-        examples=[
-            "Explain what is state space model",
-            "Nice to meet you!",
-            "'Mamba is way better than ChatGPT.' Is this statement correct?",
-        ],
+        # examples=[
+        #     "Explain what is state space model",
+        #     "Nice to meet you!",
+        #     "'Mamba is way better than ChatGPT.' Is this statement correct?",
+        # ],
         additional_inputs=[
             gr.Slider(minimum=0, maximum=1, step=0.1, value=0.9, label="temperature"),
             gr.Slider(minimum=0, maximum=1, step=0.1, value=0.7, label="top_p"),
@@ -87,4 +88,5 @@ if __name__ == "__main__":
         ],
         title="Mamba Chat",
     )
+
     demo.launch(server_port=args.port, share=args.share)
