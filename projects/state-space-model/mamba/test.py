@@ -36,6 +36,7 @@ class Experiment(pl.LightningModule):
        
         standard_test_reconstruct = {
             "prediction": self.tokenizer.decode(output[0]),
+            "subset": subset,
         }
         
         return standard_test_reconstruct

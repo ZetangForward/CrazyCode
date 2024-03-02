@@ -1,0 +1,12 @@
+pt: &platform "amax"
+task: &task "zero_scroll"
+state: &state "test"
+
+defaults:
+  - _self_
+  - task: ${task} 
+  - hydra: default
+  - platform: ${platform}
+
+device_num: 1
+node_num: 1

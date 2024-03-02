@@ -8,7 +8,7 @@ hydra:
     id: ${JOB_ID}
     name: hydra_${TASK}
   run:
-    dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
+    dir: ${SAVE_DIR}/${TASK}/${TEST_TASK}/${hydra.job.name} 
 
 dataset:
   data_path: "/nvme/zecheng/data/ZeroSCROLLS"
@@ -34,7 +34,7 @@ experiment:
   seed: 27
   max_seq_length: 512
   model_save_dir: ${SAVE_DIR}
-  results_save_dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/results/${TEST_TASK}
+  results_save_dir: ${SAVE_DIR}/${TASK}/${TEST_TASK}
   test_task: ${TEST_TASK}
   version: ${JOB_ID}
   device_num: 1

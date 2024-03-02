@@ -1,0 +1,5 @@
+job:
+  id: ${JOB_ID}
+  name: hydra_${task}
+run:
+  dir: ${exp_path}/${task}/${hydra.job.name}
