@@ -17,10 +17,10 @@ class ZeroScrollDataset(Dataset):
         self.tokenizer = tokenizer
         self.content = self.post_process(content)
     
-    def post_process(self):
+    def post_process(self, content):
         dataset = []
-        for key in self.content:
-            for item in self.content[key]:
+        for key in content:
+            for item in content[key]:
                 dataset.append({"input_ids": item, "subset": key})
         return dataset
         
@@ -74,7 +74,7 @@ class ZeroScrolls(pl.LightningDataModule):
     
     def setup(self, stage: str = 'predict') -> None:
         if self.cfg.processed_data_path is not None:
-            self.all_testing_data = auto_read_data(self.cfg.processed_data_path)
+            all_testing_data = auto_read_data(self.cfg.processed_data_path)
         else:
             all_testing_data = dict()
             print_c("processing data ...", "magenta")
@@ -86,19 +86,21 @@ class ZeroScrolls(pl.LightningDataModule):
                 for i, example in enumerate(data):
                     model_input = self.process_model_input(self.tokenizer, example, self.max_input_length, 'cpu')
                     all_testing_data[dataset].append(model_input)
-            self.all_testing_data = all_testing_data
-        import pdb; pdb.set_trace()
-        auto_save_data(self.all_testing_data, "/nvme/zecheng/data/ZeroSCROLLS/all_testing_data.pkl")
-    
-    def predict_dataloader(self) -> DataLoader:
-        return DataLoader(
-            ZeroScrollDataset(
-                content=self.all_testing_data, 
+            all_testing_data = all_testing_data
+        
+        self.all_testing_data = ZeroScrollDataset(
+                content=all_testing_data, 
                 tokenizer=self.tokenizer, 
                 split="test", 
                 max_seq_length=self.max_input_length
             ),
+    
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
+        return DataLoader(
+            self.all_testing_data,
             batch_size=1,
             num_workers=self.cfg.num_workers,
+            pin_memory=self.cfg.pin_memory, 
+            drop_last=False, 
             shuffle=False,
         )
