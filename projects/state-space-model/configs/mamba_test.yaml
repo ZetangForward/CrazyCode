@@ -13,10 +13,10 @@ hydra:
   job:
     name: hydra_${exp_task}
   run:
-    dir: ./runs/${exp_task}/${id}
+    dir: ./runs/${exp_task}/${model}
 
 experiment:
   seed: 27
-  results_save_dir: ${exp_path}/${exp_task}/${id}/results
+  results_save_dir: ${exp_task}/${model}/results
   device_num: 1
   node_num: 1

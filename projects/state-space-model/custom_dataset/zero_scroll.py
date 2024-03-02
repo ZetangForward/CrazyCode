@@ -46,9 +46,10 @@ class ZeroScrolls(pl.LightningDataModule):
         'book_sum_sort'
     ]
 
-    def __init__(self, cfg, tokenizer):
+    def __init__(self, cfg, platform_cfg, tokenizer):
         super().__init__()
-        self.cfg = cfg
+        self.data_cfg = cfg
+        self.platform_cfg = platform_cfg
         self.tokenizer = tokenizer
         self.max_input_length = cfg.ctx_len
         self.prepare_data_per_node = True
@@ -73,15 +74,15 @@ class ZeroScrolls(pl.LightningDataModule):
         return tokenized_input
     
     def setup(self, stage: str = 'predict') -> None:
-        if self.cfg.processed_data_path is not None:
-            all_testing_data = auto_read_data(self.cfg.processed_data_path)
+        if self.data_cfg.processed_data_path is not None:
+            all_testing_data = auto_read_data(os.path.join(self.platform_cfg.dataset_path, self.cfg.processed_data_path))
         else:
             all_testing_data = dict()
             print_c("processing data ...", "magenta")
             for dataset in self.datasets:
                 print_c(f"processing split {dataset}", "magenta")
                 all_testing_data[dataset] = []
-                local_data_path = os.path.join(self.cfg.data_path, dataset) # we save the data in local path
+                local_data_path = os.path.join(self.platform_cfg.dataset_path, self.data_cfg.data_path, dataset) # we save the data in local path
                 data = load_dataset(local_data_path, split='test')
                 for i, example in enumerate(data):
                     model_input = self.process_model_input(self.tokenizer, example, self.max_input_length, 'cpu')

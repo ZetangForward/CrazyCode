@@ -74,10 +74,10 @@ def main(config):
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     # load data
-    if config.experiment.test_task.lower() == "insert_needle":
-        data_module = FindNeedle(config.dataset, tokenizer, config.dataset.data_path)
-    elif config.experiment.test_task.lower() == "zero_scroll":
-        data_module = ZeroScrolls(config.dataset, tokenizer)
+    if config.exp_task.lower() == "insert_needle":
+        data_module = FindNeedle(config.task, tokenizer, config.dataset.data_path)
+    elif config.exp_task.lower() == "zero_scroll":
+        data_module = ZeroScrolls(config.task.dataset, config.platform, tokenizer)
     else:
         data_module = custom_datamodule(config.dataset, tokenizer)
 
@@ -94,7 +94,7 @@ def main(config):
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
 
-    save_path = f"{config.experiment.results_save_dir}/predictions.jsonl"
+    save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
 
