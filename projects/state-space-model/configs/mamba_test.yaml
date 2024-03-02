@@ -1,5 +1,5 @@
 platform: &platform "amax"
-task: &task "zero_scroll"
+exp_task: &exp_task "zero_scroll"
 state: &state "test"
 id: &id "vanilla_mamba-2.8b"
 
@@ -10,12 +10,12 @@ defaults:
 
 hydra:
   job:
-    name: hydra_${task}
+    name: hydra_${exp_task}
   run:
-    dir: runs/${task}/${id}/${hydra.job.name}
+    dir: ./runs/${exp_task}/${id}
 
 experiment:
   seed: 27
-  results_save_dir: ${exp_path}/${task}/${id}/results
+  results_save_dir: ${exp_path}/${exp_task}/${id}/results
   device_num: 1
   node_num: 1

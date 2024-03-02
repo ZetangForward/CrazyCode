@@ -45,7 +45,7 @@ class Experiment(pl.LightningModule):
 @hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
 def main(config):
     
-    print_c(f"Conduct Experiment: {config.task} | State: {config.state}", "magenta")
+    print_c(f"Conduct Experiment: {config.exp_task} | State: {config.state}", "magenta")
     import pdb; pdb.set_trace()
     # load model and tokenizer
     model = PositionMamba.from_pretrained(
