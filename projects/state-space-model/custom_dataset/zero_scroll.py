@@ -9,45 +9,27 @@ import glob
 from datasets import load_dataset
 
 
-class AlpacaDataset(Dataset):
-    def __init__(self, content=None, tokenizer=None, split="train", full_modeling=True, max_seq_length=512, *args, **kwargs):
+class ZeroScrollDataset(Dataset):
+    def __init__(self, content=None, tokenizer=None, split="train", max_seq_length=512, *args, **kwargs):
         super().__init__()
         self.split = split
-        self.content = content
         self.max_text_length = max_seq_length
         self.tokenizer = tokenizer
-        self.full_modeling = full_modeling
-        self.template = "{instruction} {input} {output}"
+        self.content = self.post_process(content)
     
+    def post_process(self):
+        dataset = []
+        for key in self.content:
+            for item in self.content[key]:
+                dataset.append({"input_ids": item, "subset": key})
+        return dataset
+        
     def __len__(self):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
-        instruction = sample["instruction"]
-        input_text = sample["input"]
-        output_text = sample["output"]
-        
-        prompt = self.template.format(instruction=instruction, input=input_text, output=output_text)
-        
-        tokenized_prompt = self.tokenizer(
-            prompt,  
-            truncation=True, 
-            padding="max_length",
-            max_length=self.max_text_length,
-            return_tensors="pt",
-        )
-        input_ids = tokenized_prompt.input_ids[0]
-        attention_mask = tokenized_prompt.attention_mask[0]
-        labels = torch.where(
-            input_ids != self.tokenizer.pad_token_id, input_ids, -100
-        )
-        
-        return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels,
-        }
+        return {"input_ids": sample["input_ids"], "subset": sample["subset"]}
 
 
 class ZeroScrolls(pl.LightningDataModule):
@@ -65,10 +47,10 @@ class ZeroScrolls(pl.LightningDataModule):
         'book_sum_sort'
     ]
 
-    def __init__(self, cfg, tokenizer, max_input_length):
+    def __init__(self, cfg, tokenizer):
         self.cfg = cfg
         self.tokenizer = tokenizer
-        self.max_input_length = max_input_length
+        self.max_input_length = cfg.ctx_len
         self.prepare_data_per_node = True
 
     def trim_doc_keeping_suffix(self, tokenizer, tokenized_input_full, example, suffix_index, max_tokens, device):
@@ -101,5 +83,17 @@ class ZeroScrolls(pl.LightningDataModule):
             for i, example in enumerate(data):
                 model_input = self.process_model_input(self.tokenizer, example, self.max_input_length, 'cpu')
                 all_testing_data[dataset].append(model_input)
-        
-        import pdb; pdb.set_trace()
+        self.all_testing_data = all_testing_data
+
+    def predict_dataloader(self) -> DataLoader:
+        return DataLoader(
+            ZeroScrollDataset(
+                content=self.all_testing_data, 
+                tokenizer=self.tokenizer, 
+                split="test", 
+                max_seq_length=self.max_input_length
+            ),
+            batch_size=1,
+            num_workers=self.cfg.num_workers,
+            shuffle=False,
+        )

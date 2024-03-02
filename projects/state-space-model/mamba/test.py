@@ -5,9 +5,9 @@ import torch
 import pytorch_lightning as pl
 import hydra  
 from custom_dataset import *
+from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
 from custom_mamba.position_mamba import PositionMamba
-
 
 
 class Experiment(pl.LightningModule):
@@ -31,6 +31,8 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         output = self.model.generate(batch['input_ids'], max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
+        import pdb; pdb.set_trace() 
+        subset = batch['subset'][0]
         print_c("one sample generation ending")
        
         standard_test_reconstruct = {
@@ -66,9 +68,9 @@ def main(config):
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     # load data
-    if config.experiment.test_task == "insert_needle":
+    if config.experiment.test_task.lower() == "insert_needle":
         data_module = FindNeedle(config.dataset, tokenizer, config.dataset.data_path)
-    elif config.experiment.test_task == "zero_scroll":
+    elif config.experiment.test_task.lower() == "zero_scroll":
         data_module = ZeroScrolls(config.dataset, tokenizer, config.experiment.max_input_length)
     else:
         data_module = custom_datamodule(config.dataset, tokenizer)

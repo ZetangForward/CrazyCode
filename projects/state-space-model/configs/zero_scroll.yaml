@@ -13,8 +13,7 @@ hydra:
 dataset:
   data_path: "/nvme/zecheng/data/ZeroSCROLLS"
   ctx_len: 10000
-  depth: 0.5
-  needle: "\nThe best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day.\n"
+  subsets: ['gov_report', 'summ_screen_fd', 'qmsum', 'qasper', 'narrative_qa', 'quality', 'musique', 'squality', 'space_digest','book_sum_sort']
   nworkers: 12
   pin_memory: False
   inference_mode: True
