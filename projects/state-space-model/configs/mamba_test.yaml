@@ -7,7 +7,7 @@ defaults:
   - _self_
   - platform: amax
   - task: zero_scroll
-  - model: model
+  - model: mamba-2_8b
 
 hydra:
   job:
