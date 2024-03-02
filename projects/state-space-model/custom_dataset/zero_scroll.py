@@ -48,6 +48,7 @@ class ZeroScrolls(pl.LightningDataModule):
     ]
 
     def __init__(self, cfg, tokenizer):
+        super().__init__()
         self.cfg = cfg
         self.tokenizer = tokenizer
         self.max_input_length = cfg.ctx_len
@@ -94,12 +95,12 @@ class ZeroScrolls(pl.LightningDataModule):
                 split="test", 
                 max_seq_length=self.max_input_length
             ),
-    
+        
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
             self.all_testing_data,
             batch_size=1,
-            num_workers=self.cfg.num_workers,
+            num_workers=self.cfg.nworkers,
             pin_memory=self.cfg.pin_memory, 
             drop_last=False, 
             shuffle=False,
