@@ -1,12 +1,13 @@
 platform: &platform "amax"
 exp_task: &exp_task "zero_scroll"
 state: &state "test"
-id: &id "vanilla_mamba-2.8b"
+model: &model "vanilla_mamba-2.8b"
 
 defaults:
   - _self_
   - platform: amax
   - task: zero_scroll
+  - model: model
 
 hydra:
   job:

@@ -8,16 +8,8 @@ dataset:
   inference_mode: True
   cluster_batch: False
 
-model:
-  model_name_or_path: "${hf_model_path}/mamba-1.4b"
-  ckpt_path: "${hf_model_path}/mamba-1.4b/pytorch_model.bin"
-  load_model_state_dict: True
-  use_position: False
-
-tokenizer:
-  tokenizer_name_or_path: "${hf_model_path}/EleutherAI/gpt-neox-20b"
-
-other_cfgs: null
+other_cfgs: 
+  max_generation_length: 256
 
 
   

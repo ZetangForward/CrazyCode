@@ -30,7 +30,7 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output = self.model.generate(batch['input_ids'].squeeze(0), max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
+        output = self.model.generate(batch['input_ids'].squeeze(0), max_length=self.cfg.task.other_cfgs.max_generation_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
         subset = batch['subset'][0]
         print_c("one sample generation ending")
        
@@ -45,11 +45,11 @@ class Experiment(pl.LightningModule):
 @hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
 def main(config):
     
-    print_c(f"Conduct Experiment: {config.exp_task} | State: {config.state}", "magenta")
+    print_c(f"Conduct Experiment: {config.exp_task} | Id: {config.id} | State: {config.state}", "magenta")
     import pdb; pdb.set_trace()
     # load model and tokenizer
     model = PositionMamba.from_pretrained(
-        config.model.model_name_or_path, 
+        os.path.join(config.platform.hf_model_path, config.model.model_name), 
         use_position=config.model.use_position,
         dtype=torch.bfloat16, 
         device="cuda", 
@@ -57,11 +57,17 @@ def main(config):
     )
 
     if config.model.load_model_state_dict:
-        state_dict = torch.load(config.model.ckpt_path, map_location='cuda')
+        state_dict = torch.load(
+            os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
+            map_location='cuda'
+        )
         model.load_state_dict(state_dict, strict=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
-    if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
+    tokenizer = AutoTokenizer.from_pretrained(
+        os.path.join(config.platform.hf_model_path, config.model.tokenizer_name_or_path)
+    )
+
+    if "gpt-neo" in config.model.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
     
     # load experiment (and model checkpoint)
