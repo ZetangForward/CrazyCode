@@ -28,7 +28,6 @@ class ZeroScrollDataset(Dataset):
     
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
-        import pdb; pdb.set_trace()
         return {"input_ids": sample["input_ids"], "subset": sample["subset"]}
 
 

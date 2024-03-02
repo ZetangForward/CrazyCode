@@ -32,7 +32,7 @@ tokenizer:
 
 experiment:
   seed: 27
-  max_input_length: 10000
+  max_seq_length: 512
   model_save_dir: ${SAVE_DIR}
   results_save_dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/results/${TEST_TASK}
   test_task: ${TEST_TASK}

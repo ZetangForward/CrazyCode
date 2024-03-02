@@ -30,8 +30,7 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output = self.model.generate(batch['input_ids'], max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
-        import pdb; pdb.set_trace() 
+        output = self.model.generate(batch['input_ids'].squeeze(0), max_length=self.cfg.experiment.max_seq_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
         subset = batch['subset'][0]
         print_c("one sample generation ending")
        
