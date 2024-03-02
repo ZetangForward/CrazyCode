@@ -73,18 +73,23 @@ class ZeroScrolls(pl.LightningDataModule):
         return tokenized_input
     
     def setup(self, stage: str = 'predict') -> None:
-        all_testing_data = dict()
-        print_c("processing data ...", "magenta")
-        for dataset in self.datasets:
-            print_c(f"processing split {dataset}", "magenta")
-            all_testing_data[dataset] = []
-            local_data_path = os.path.join(self.cfg.data_path, dataset) # we save the data in local path
-            data = load_dataset(local_data_path, split='test')
-            for i, example in enumerate(data):
-                model_input = self.process_model_input(self.tokenizer, example, self.max_input_length, 'cpu')
-                all_testing_data[dataset].append(model_input)
-        self.all_testing_data = all_testing_data
-
+        if self.cfg.processed_data_path is not None:
+            self.all_testing_data = auto_read_data(self.cfg.processed_data_path)
+        else:
+            all_testing_data = dict()
+            print_c("processing data ...", "magenta")
+            for dataset in self.datasets:
+                print_c(f"processing split {dataset}", "magenta")
+                all_testing_data[dataset] = []
+                local_data_path = os.path.join(self.cfg.data_path, dataset) # we save the data in local path
+                data = load_dataset(local_data_path, split='test')
+                for i, example in enumerate(data):
+                    model_input = self.process_model_input(self.tokenizer, example, self.max_input_length, 'cpu')
+                    all_testing_data[dataset].append(model_input)
+            self.all_testing_data = all_testing_data
+        import pdb; pdb.set_trace()
+        auto_save_data(self.all_testing_data, "/nvme/zecheng/data/ZeroSCROLLS/all_testing_data.pkl")
+    
     def predict_dataloader(self) -> DataLoader:
         return DataLoader(
             ZeroScrollDataset(

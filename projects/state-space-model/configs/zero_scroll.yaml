@@ -12,6 +12,7 @@ hydra:
 
 dataset:
   data_path: "/nvme/zecheng/data/ZeroSCROLLS"
+  processed_data_path: "/nvme/zecheng/data/ZeroSCROLLS/all_testing_data.pkl"
   ctx_len: 10000
   subsets: ['gov_report', 'summ_screen_fd', 'qmsum', 'qasper', 'narrative_qa', 'quality', 'musique', 'squality', 'space_digest','book_sum_sort']
   nworkers: 12
@@ -25,9 +26,9 @@ model:
   load_model_state_dict: True
   use_position: False
   # ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
+
 tokenizer:
   tokenizer_name_or_path: "/nvme/hf_models/EleutherAI/gpt-neox-20b"
-
 
 experiment:
   seed: 27
