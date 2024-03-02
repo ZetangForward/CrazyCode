@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from termcolor import colored  
 from typing import Any, Mapping, Tuple, List, Optional, Dict, Sequence, Union
-from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList, Trainer 
+from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList 
 
 
 def print_c(s, c='green', *args, **kwargs):
