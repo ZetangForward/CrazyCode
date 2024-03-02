@@ -42,11 +42,11 @@ class Experiment(pl.LightningModule):
         return standard_test_reconstruct
 
 
-@hydra.main(config_path='../configs', config_name='test_mamba', version_base='1.1')
+@hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
 def main(config):
     
-    print_c(f"Experiment: {config.experiment.test_task}", "magenta")
-    
+    print_c(f"Conduct Experiment: {config.task} | State: {config.state}", "magenta")
+    import pdb; pdb.set_trace()
     # load model and tokenizer
     model = PositionMamba.from_pretrained(
         config.model.model_name_or_path, 

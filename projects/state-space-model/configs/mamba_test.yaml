@@ -1,0 +1,21 @@
+platform: &platform "amax"
+task: &task "zero_scroll"
+state: &state "test"
+id: &id "vanilla_mamba-2.8b"
+
+defaults:
+  - _self_
+  - platform: amax
+  - task: zero_scroll
+
+hydra:
+  job:
+    name: hydra_${task}
+  run:
+    dir: runs/${task}/${id}/${hydra.job.name}
+
+experiment:
+  seed: 27
+  results_save_dir: ${exp_path}/${task}/${id}/results
+  device_num: 1
+  node_num: 1
