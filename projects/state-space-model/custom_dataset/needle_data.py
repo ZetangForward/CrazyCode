@@ -83,11 +83,11 @@ class FindNeedle(pl.LightningDataModule):
             prompt += "Based on the content of the book, Question: %s\nAnswer:" % question
             all_insert_data.append({"depth": depth, "context": prompt, "needle": self.needle, "ctx_length": self.ctx_len})
         
-        self.text_data = CustomDataset(all_insert_data, self.tokenizer, split="test")
+        self.test_data = CustomDataset(all_insert_data, self.tokenizer, split="test")
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
-            self.text_data, 
+            self.test_data, 
             batch_size=1, 
             num_workers=self.cfg.nworkers, 
             pin_memory=self.cfg.pin_memory, 

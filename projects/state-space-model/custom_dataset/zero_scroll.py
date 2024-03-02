@@ -11,24 +11,24 @@ from datasets import load_dataset
 
 class ZeroScrollDataset(Dataset):
     def __init__(self, content=None, tokenizer=None, split="train", max_seq_length=512, *args, **kwargs):
-        super().__init__()
+        super(ZeroScrollDataset).__init__()
         self.split = split
         self.max_text_length = max_seq_length
         self.tokenizer = tokenizer
-        self.content = self.post_process(content)
-    
+        self.post_process(content)
+        
     def post_process(self, content):
-        dataset = []
+        self.content = []
         for key in content:
             for item in content[key]:
-                dataset.append({"input_ids": item, "subset": key})
-        return dataset
+                self.content.append({"input_ids": item, "subset": key})
         
     def __len__(self):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
         sample = self.content[index]
+        import pdb; pdb.set_trace()
         return {"input_ids": sample["input_ids"], "subset": sample["subset"]}
 
 
@@ -89,16 +89,17 @@ class ZeroScrolls(pl.LightningDataModule):
                     all_testing_data[dataset].append(model_input)
             all_testing_data = all_testing_data
         
-        self.all_testing_data = ZeroScrollDataset(
-                content=all_testing_data, 
-                tokenizer=self.tokenizer, 
-                split="test", 
-                max_seq_length=self.max_input_length
-            ),
+        self.test_data = ZeroScrollDataset(
+            content=all_testing_data, 
+            tokenizer=self.tokenizer, 
+            split="test", 
+            max_seq_length=self.max_input_length
+        )
+
         
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         return DataLoader(
-            self.all_testing_data,
+            self.test_data,
             batch_size=1,
             num_workers=self.cfg.nworkers,
             pin_memory=self.cfg.pin_memory, 
