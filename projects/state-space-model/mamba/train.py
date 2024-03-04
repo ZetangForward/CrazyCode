@@ -2,21 +2,22 @@ import torch
 import os
 import sys
 sys.path.append(os.getcwd())
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import hydra
 import importlib
 from torch import optim, Tensor 
 from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
-from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
+from lightning.pytorch import Trainer
+from lightning.pytorch.strategies import DDPStrategy
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
 from modelzipper.tutils import *
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import FusedAdam
-from lightning.pytorch import Trainer
+
 
 class CustomDatamodule(pl.LightningDataModule):
 
@@ -392,8 +393,43 @@ def main(config):
         mode='min',
         save_weights_only=True, # only save state dict
     )
+    
+    
+    
     # TODO: add deepspeed strategy
-    strategy = DeepSpeedStrategy(accelerator='gpu', config="/nvme/zecheng/modelzipper/projects/state-space-model/configs/deepspeed/stage2.json")
+    deepspeed_config = {
+        "zero_allow_untested_optimizer": True,
+        "optimizer": {
+            "type": "Adam",
+            "params": {
+                "lr": 5e-5,
+                "betas": [0.998, 0.999],
+                "eps": 1e-5,
+                "weight_decay": 1e-9,
+                "cuda_aware": True,
+            },
+        },
+        "scheduler": {
+            "type": "WarmupLR",
+            "params": {
+                "last_batch_iteration": -1,
+                "warmup_min_lr": 0,
+                "warmup_max_lr": 5e-5,
+                "warmup_num_steps": 100,
+            },
+        },
+        "zero_optimization": {
+            "stage": 2,  # Enable Stage 2 ZeRO (Optimizer/Gradient state partitioning)
+            "offload_optimizer": {"device": "cpu"},  # Enable Offloading optimizer state/calculation to the host CPU
+            "contiguous_gradients": True,  # Reduce gradient fragmentation.
+            "overlap_comm": True,  # Overlap reduce/backward operation of gradients for speed.
+            "allgather_bucket_size": 2e8,  # Number of elements to all gather at once.
+            "reduce_bucket_size": 2e8,  # Number of elements we reduce/allreduce at once.
+        },
+    }
+
+    
+    strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
 
     trainer = Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
@@ -401,7 +437,7 @@ def main(config):
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         # strategy=DDPStrategy(find_unused_parameters=False),
-        strategy=strategy,
+        strategy="deepspeed_stage_2_offload",
         precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
