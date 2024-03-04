@@ -341,7 +341,7 @@ def get_model_tokenizer(root_dir, model_config):
 
     elif "llama" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
-            model_path, use_cache=False, torch_dtype=torch.bfloat16
+            model_path, attn_implementation="flash_attention_2"
         ).to('cuda')
         tokenizer = LlamaTokenizer.from_pretrained(tokenizer_path)
 
