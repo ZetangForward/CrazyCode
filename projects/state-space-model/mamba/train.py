@@ -229,11 +229,104 @@ class Experiment(pl.LightningModule):
         }
 
 
+class TransformerExperiment(pl.LightningModule):
+    def __init__(self, model, config, tokenizer=None, state="train") -> None:
+        super(TransformerExperiment, self).__init__()
+        self.model = model
+        self.model.train()
+        self.tokenizer = tokenizer
+        self.cfg = config
+        self.platform_cfg = config.platform
+
+        try:
+            self.hold_graph = self.params['retain_first_backpass']
+        except:
+            pass
+        
+    def forward(self, input: Tensor, **kwargs) -> Tensor:
+        return self.model(input, **kwargs)
+
+
+    def training_step(self, batch, batch_idx):
+        lm_loss = self.model(**batch).loss
+        ppl = torch.exp(lm_loss)
+        
+        self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+        self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
+        return lm_loss
+
+    def validation_step(self, batch, batch_idx):
+        lm_loss = self.model(**batch).loss
+        ppl = torch.exp(lm_loss)
+        
+        self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+        self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
+        return lm_loss
+
+
+    def configure_optimizers(self):
+        # init optimizer
+        if self.cfg.optimizer.optimizer_type.lower() == "adamw":
+            optimizer = transformers.AdamW(
+                self.model.parameters(), 
+                lr=self.cfg.optimizer.lr,
+            )
+        else: # implement with adam as default 
+            betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
+            optimizer = optim.Adam(
+                self.model.parameters(), 
+                lr=self.cfg.experiment.peak_lr,
+                weight_decay=self.cfg.experiment.weight_decay, 
+                betas=betas, 
+                eps=self.cfg.experiment.eps
+            )
+        
+        # init lr scheduler
+        if self.cfg.lr_scheduler.scheduler_type == "get_cosine_schedule_with_warmup":
+            scheduler = transformers.get_cosine_schedule_with_warmup(
+                optimizer=optimizer,
+                num_warmup_steps=self.cfg.lr_scheduler.warmup_steps,
+                num_training_steps=self.cfg.experiment.num_training_steps,
+            )
+        else:
+            def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
+                
+                def lr_lambda(current_step):
+                    if current_step < warmup_steps:
+                        return current_step / warmup_steps
+                    progress = (current_step - warmup_steps) / (num_training_steps - warmup_steps)
+                    cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+                    lr = (last_lr + (peak_lr - last_lr) * cosine_decay)
+                    return lr / peak_lr
+                
+                return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
+            scheduler = get_scheduler(
+                optimizer, 
+                self.cfg.experiment.num_training_steps, 
+                self.cfg.experiment.warmup_steps, 
+                self.cfg.experiment.peak_lr, 
+                self.cfg.experiment.last_lr
+            )
+
+        lr_scheduler = {
+            'scheduler': scheduler,
+            'name': f"{self.cfg.lr_scheduler.scheduler_type}",
+            'interval': 'step',  # Ensure learning rate updates per step
+            'frequency': 1,  # Optional: If you want to make sure it updates every step
+        }
+        
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": lr_scheduler,
+        }
+
+
 def get_model_tokenizer(root_dir, model_config):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
-    
-    if "gpt-neo-1.3B" in model_path.lower():
+
+    if "gpt" in model_path.lower():
         model = GPTNeoForCausalLM.from_pretrained(
             model_path, use_cache=False, torch_dtype=torch.bfloat16
         ).to('cuda')
@@ -246,8 +339,8 @@ def get_model_tokenizer(root_dir, model_config):
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
-    if "gpt-neo" in tokenizer_path:
-        tokenizer.eos_token = "<|endoftext|>"
+    if "gpt" in tokenizer_path:
+        # tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
     
     return model, tokenizer
@@ -272,7 +365,7 @@ def main(config):
     data_module = CustomDatamodule(config.task.dataset, data_root_dir, tokenizer)
     
     # load experiment
-    experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
+    experiment = TransformerExperiment(model, config, tokenizer=tokenizer, state="train")
     
     # init logger
     tb_logger = TensorBoardLogger(
