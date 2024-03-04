@@ -42,11 +42,11 @@ class CustomDatamodule(pl.LightningDataModule):
                 **self.dataset_kwargs,
             )
         else:
-            if self.cfg.dataset.processed_data_path is not None:
+            if self.cfg.processed_data_path is not None:
                 # check if is a directory
-                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                processed_data_path = os.path.join(self.root_dir, self.cfg.processed_data_path)
                 if os.path.isdir(processed_data_path):
-                    for split in self.cfg.dataset.split:
+                    for split in self.cfg.split:  # TODO: support multiple splits
                         if "train" in split:
                             train_data = auto_read_data(os.path.join(processed_data_path, split))
                         elif "valid" in split:
@@ -67,8 +67,8 @@ class CustomDatamodule(pl.LightningDataModule):
             pass
 
         # import Dataset Class
-        dataset_module = importlib.import_module(self.cfg.dataset.module)
-        CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
+        dataset_module = importlib.import_module(self.cfg.module)
+        CustomDataset = getattr(dataset_module, self.cfg.class_name)
 
         # init dataset
         self.train_dataset = CustomDataset(
@@ -257,7 +257,7 @@ def main(config):
     model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     
     # load data
-    data_module = CustomDatamodule(config.dataset, data_root_dir, tokenizer)
+    data_module = CustomDatamodule(config.task.dataset, data_root_dir, tokenizer)
     
     # load experiment
     experiment = Experiment(model, config, tokenizer=tokenizer, state="train")

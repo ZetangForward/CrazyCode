@@ -24,10 +24,10 @@ class SimplepajamaDataset(Dataset):
             print_c(f"Clustering batch finished, time elapsed: {time.time()-bt}", "yellow")
 
     def cluster_batch_fn(self):
-        tmp = [item['source' + ' ' + 'target'] for item in self.content]
-        tok_tmp = [self.tokenizer(item, return_tensors="pt") for item in tmp]
-        sorted_tok_tmp = sorted(tok_tmp, key=lambda x: x.input_ids.size(1))
-        self.content = [item.input_ids[0] for item in sorted_tok_tmp]
+        tmp = [item['source'] + ' ' + item['target'] for item in self.content]
+        # tok_tmp = [self.tokenizer(item, return_tensors="pt") for item in tmp]
+        sorted_tok_tmp = sorted(tmp, key=lambda x: len(x.split()))
+        self.content = sorted_tok_tmp
 
     def __len__(self):
         return len(self.content)
@@ -38,8 +38,7 @@ class SimplepajamaDataset(Dataset):
             src, tgt = sample['source'], sample['target']
             str_format = src + " " + tgt
         else: # after clustering batch, already in id format
-            sample = self.content[index]
-            str_format = self.tokenizer.decode(sample, skip_special_tokens=True)
+            str_format = self.content[index]
 
         tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
             str_format,  
