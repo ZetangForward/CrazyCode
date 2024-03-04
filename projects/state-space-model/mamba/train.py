@@ -149,8 +149,10 @@ class Experiment(pl.LightningModule):
         labels = labels[:, 1:].contiguous()
 
         lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+        ppl = torch.exp(lm_loss)
         
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+        self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
         return lm_loss
 
     def validation_step(self, batch, batch_idx):
@@ -163,8 +165,10 @@ class Experiment(pl.LightningModule):
         labels = labels[:, 1:].contiguous()
 
         lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+        ppl = torch.exp(lm_loss)
         
         self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+        self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
