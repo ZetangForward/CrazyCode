@@ -6,8 +6,8 @@ import pytorch_lightning as pl
 import hydra
 import importlib
 from torch import optim, Tensor 
-from transformers import AutoTokenizer
-from pytorch_lightning.strategies import DDPStrategy, FSDPStrategy
+from transformers import AutoTokenizer, GPTNeoForCausalLM
+from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
@@ -232,15 +232,24 @@ class Experiment(pl.LightningModule):
 def get_model_tokenizer(root_dir, model_config):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+    
+    if "gpt-neo-1.3B" in model_path.lower():
+        model = GPTNeoForCausalLM.from_pretrained(
+            model_path, use_cache=False, torch_dtype=torch.bfloat16
+        ).to('cuda')
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
-    model = PositionMamba.from_pretrained(
-        model_path, use_position=model_config.use_position,
-        dtype=torch.bfloat16, device="cuda", strict=False
-    )
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    elif "mamba" in model_path.lower():
+        model = PositionMamba.from_pretrained(
+            model_path, use_position=model_config.use_position,
+            dtype=torch.bfloat16, device="cuda", strict=False
+        )
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
     if "gpt-neo" in tokenizer_path:
         tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
+    
     return model, tokenizer
 
 
