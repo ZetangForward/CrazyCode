@@ -13,7 +13,6 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
-from custom_dataset.data import CustomDataset
 from modelzipper.tutils import *
 
 
