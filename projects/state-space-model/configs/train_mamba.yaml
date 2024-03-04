@@ -27,7 +27,7 @@ lr_scheduler:
 experiment:
   seed: 27
   model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
-  save_top_k: 1
+  save_top_k: 2
   monitor_metric: "valid_lm_loss"
   beta_1: 0.9
   beta_2: 0.95
@@ -37,5 +37,5 @@ experiment:
   warmup_steps: 1000
   peak_lr: 0.0002
   last_lr: 0.00001
-  device_num: 1
+  device_num: 6
   node_num: 1
