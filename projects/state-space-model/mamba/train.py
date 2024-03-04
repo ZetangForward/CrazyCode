@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
 from modelzipper.tutils import *
 from lightning.pytorch.strategies import DeepSpeedStrategy
-from deepspeed.ops.adam import DeepSpeedCPUAdam
+from deepspeed.ops.adam import FusedAdam
+
 
 class CustomDatamodule(pl.LightningDataModule):
 
@@ -269,7 +270,7 @@ class TransformerExperiment(pl.LightningModule):
     def configure_optimizers(self):
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
-            optimizer = transformers.AdamW(  # transformers.AdamW
+            optimizer = FusedAdam(  # transformers.AdamW
                 self.model.parameters(), 
                 lr=self.cfg.optimizer.lr,
             )
@@ -398,7 +399,7 @@ def main(config):
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         # strategy=DDPStrategy(find_unused_parameters=False),
-        strategy="deepspeed_stage_2",
+        strategy=DeepSpeedStrategy(config="/nvme/zecheng/modelzipper/projects/state-space-model/configs/deepspeed/stage2.json"),
         precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
