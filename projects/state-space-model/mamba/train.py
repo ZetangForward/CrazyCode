@@ -14,6 +14,8 @@ from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
 from modelzipper.tutils import *
+from lightning.pytorch.strategies import DeepSpeedStrategy
+from deepspeed.ops.adam import DeepSpeedCPUAdam
 
 class CustomDatamodule(pl.LightningDataModule):
 
@@ -267,13 +269,13 @@ class TransformerExperiment(pl.LightningModule):
     def configure_optimizers(self):
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
-            optimizer = transformers.AdamW(
+            optimizer = DeepSpeedCPUAdam(  # transformers.AdamW
                 self.model.parameters(), 
                 lr=self.cfg.optimizer.lr,
             )
         else: # implement with adam as default 
             betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
-            optimizer = optim.Adam(
+            optimizer = DeepSpeedCPUAdam(   # optim.Adam
                 self.model.parameters(), 
                 lr=self.cfg.experiment.peak_lr,
                 weight_decay=self.cfg.experiment.weight_decay, 
@@ -341,7 +343,7 @@ def get_model_tokenizer(root_dir, model_config):
 
     elif "llama" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
-            model_path, attn_implementation="flash_attention_2"
+            model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
         tokenizer = LlamaTokenizer.from_pretrained(tokenizer_path)
 
@@ -395,14 +397,15 @@ def main(config):
         logger=tb_logger,
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
-        strategy=DDPStrategy(find_unused_parameters=False),
+        # strategy=DDPStrategy(find_unused_parameters=False),
+        strategy="deepspeed_stage_2_offload",
         precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=5 # for debugging
+        fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
