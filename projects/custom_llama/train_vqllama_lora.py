@@ -190,7 +190,6 @@ def train():
     svgllama.add_svg_begin_token_id(svg_begin_token_id)
     svgllama.set_tokenizer(llama_tokenizer)
 
-    
     # peft
     config = LoraConfig(
         r=16,

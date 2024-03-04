@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
 from modelzipper.tutils import *
 from lightning.pytorch.strategies import DeepSpeedStrategy
-from deepspeed.ops.adam import FusedAdam
+from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 
 
 class CustomDatamodule(pl.LightningDataModule):
@@ -271,7 +271,7 @@ class TransformerExperiment(pl.LightningModule):
     def configure_optimizers(self):
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
-            optimizer = FusedAdam(  # transformers.AdamW
+            optimizer = DeepSpeedCPUAdam(  # transformers.AdamW
                 self.model.parameters(), 
                 lr=self.cfg.optimizer.lr,
             )
@@ -395,29 +395,9 @@ def main(config):
     )
     
     
-    
     # TODO: add deepspeed strategy
     deepspeed_config = {
         "zero_allow_untested_optimizer": True,
-        "optimizer": {
-            "type": "Adam",
-            "params": {
-                "lr": 5e-5,
-                "betas": [0.998, 0.999],
-                "eps": 1e-5,
-                "weight_decay": 1e-9,
-                "cuda_aware": True,
-            },
-        },
-        "scheduler": {
-            "type": "WarmupLR",
-            "params": {
-                "last_batch_iteration": -1,
-                "warmup_min_lr": 0,
-                "warmup_max_lr": 5e-5,
-                "warmup_num_steps": 100,
-            },
-        },
         "zero_optimization": {
             "stage": 2,  # Enable Stage 2 ZeRO (Optimizer/Gradient state partitioning)
             "offload_optimizer": {"device": "cpu"},  # Enable Offloading optimizer state/calculation to the host CPU
@@ -444,7 +424,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=5 # for debugging
+        # fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
