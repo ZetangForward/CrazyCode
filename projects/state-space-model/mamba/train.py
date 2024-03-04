@@ -4,23 +4,135 @@ import sys
 sys.path.append(os.getcwd())
 import pytorch_lightning as pl
 import hydra
+import importlib
+from torch import optim, Tensor 
 from transformers import AutoTokenizer
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-from modelzipper.tutils import *
-from torch import optim, Tensor 
+from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
+from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
-from custom_dataset.longalign import *
+from custom_dataset.data import CustomDataset
+from modelzipper.tutils import *
+
+
+class CustomDatamodule(pl.LightningDataModule):
+
+    def __init__(self, cfg, root_dir, tokenizer):
+        super().__init__()
+        self.cfg = cfg
+        self.root_dir = root_dir
+        self.tokenizer = tokenizer
+        self.prepare_data_per_node = True
+        self.dataset_kwargs = {
+            "max_seq_length": self.cfg.max_seq_length,
+            "cluster_batch": self.cfg.cluster_batch,            
+        }
+        
+    def setup(self, stage: str = 'fit') -> None:
+        train_data, valid_data, test_data = None, None, None
+        
+        # prepare dataset
+        if self.cfg.inference_mode:  # whether in inference mode
+            self.test_data = auto_read_data(self.cfg.test_data_path)
+            self.test_dataset = CustomDataset(
+                content=self.test_data, 
+                tokenizer=self.tokenizer, 
+                split="test",
+                **self.dataset_kwargs,
+            )
+        else:
+            if self.cfg.dataset.processed_data_path is not None:
+                # check if is a directory
+                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                if os.path.isdir(processed_data_path):
+                    for split in self.cfg.dataset.split:
+                        if "train" in split:
+                            train_data = auto_read_data(os.path.join(processed_data_path, split))
+                        elif "valid" in split:
+                            valid_data = auto_read_data(os.path.join(processed_data_path, split))
+                        else:
+                            raise NotImplementedError(f"split {split} is not supported")
+                else:
+                    content = auto_read_data(processed_data_path)
+                    min_valid_num = min(1000, len(content)*0.1)
+                    valid_data = content[:min_valid_num]
+                    train_data = content[min_valid_num:]
+
+        # check data initialization     
+        assert train_data is not None, "train data is None"
+        try:
+            assert valid_data is not None, "valid data is None"
+        except:
+            pass
+
+        # import Dataset Class
+        dataset_module = importlib.import_module(self.cfg.dataset.module)
+        CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
+
+        # init dataset
+        self.train_dataset = CustomDataset(
+            content=train_data, 
+            tokenizer=self.tokenizer, 
+            split="train",
+            **self.dataset_kwargs,
+        )
+        print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
+        
+        if valid_data is not None:
+            self.valid_dataset = CustomDataset(
+                content=valid_data, 
+                tokenizer=self.tokenizer, 
+                split="valid",
+                **self.dataset_kwargs,
+            )
+            print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
+
+            
+    def train_dataloader(self) -> TRAIN_DATALOADERS:
+        return DataLoader(
+            self.train_dataset, 
+            batch_size=self.cfg.train_batch_size, 
+            num_workers=self.cfg.nworkers, 
+            pin_memory=self.cfg.pin_memory, 
+            drop_last=True, 
+            shuffle=False if self.cfg.cluster_batch else True, 
+        )
+    
+    def val_dataloader(self) -> EVAL_DATALOADERS:
+        if self.valid_dataset is not None:
+            return DataLoader(
+                self.valid_dataset, 
+                batch_size=self.cfg.val_batch_size, 
+                num_workers=self.cfg.nworkers, 
+                pin_memory=self.cfg.pin_memory, 
+                drop_last=False, 
+                shuffle=False,
+            )
+        return None
+    
+    def predict_dataloader(self) -> EVAL_DATALOADERS:
+        if self.test_dataset is not None:
+            return DataLoader(
+                self.test_dataset, batch_size=1, 
+                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+            )
+        return None
+    
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()
         self.model = model
         self.model.train()
-        self.cfg = config
-        self.exp_cfg = config.experiment
         self.tokenizer = tokenizer
+        self.cfg = config
+        self.platform_cfg = config.platform
+
+        if state == "train":
+            self.loss_fct = torch.nn.CrossEntropyLoss()
+
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -38,11 +150,24 @@ class Experiment(pl.LightningModule):
         shift_logits = lm_logits[:, :-1, :].contiguous()
         labels = labels[:, 1:].contiguous()
 
-        loss_fct = torch.nn.CrossEntropyLoss()
-        lm_loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+        lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
         
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         return lm_loss
+
+    def validation_step(self, batch, batch_idx):
+        input_ids = batch.pop("input_ids")
+        lm_logits = self.forward(input_ids).logits
+        labels = batch.pop("labels")
+        labels = labels.to(lm_logits.device)
+        
+        shift_logits = lm_logits[:, :-1, :].contiguous()
+        labels = labels[:, 1:].contiguous()
+
+        lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+        
+        self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+
 
     def configure_optimizers(self):
         # init optimizer
@@ -102,61 +227,76 @@ class Experiment(pl.LightningModule):
         }
 
 
+def get_model_tokenizer(root_dir, model_config):
+    model_path = os.path.join(root_dir, model_config.model_name_or_path)
+    tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+
+    model = PositionMamba.from_pretrained(
+        model_path, use_position=model_config.use_position,
+        dtype=torch.bfloat16, device="cuda", strict=False
+    )
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    if "gpt-neo" in tokenizer_path:
+        tokenizer.eos_token = "<|endoftext|>"
+        tokenizer.pad_token = tokenizer.eos_token
+    return model, tokenizer
+
+
+
 @hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
 def main(config):
+
+    print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
+    
+    model_root_dir = config.platform.hf_model_path
+    save_root_dir = config.platform.result_path
+    data_root_dir = config.platform.dataset_path
+
     pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
-    model, tokenizer = get_model_tokenizer(config.model, config.tokenizer)
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     
     # load data
-    data_module = LongAlignData(config.dataset, tokenizer)
+    data_module = CustomDatamodule(config.dataset, data_root_dir, tokenizer)
     
     # load experiment
     experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
     
     # init logger
     tb_logger = TensorBoardLogger(
-        save_dir=config.experiment.model_save_dir, 
-        name=f"{config.experiment.task}",
-        version=config.experiment.version
+        save_dir=os.path.join(save_root_dir, config.experiment.model_save_dir), 
+        name=f"{config.task}",
+        version=config.JOB_ID
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
+    model_monitor = ModelCheckpoint(
+        save_top_k=config.experiment.save_top_k, 
+        dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
+        monitor=config.experiment.monitor_metric,
+        filename=f"mamba-{config.task}"+"-{epoch:02d}",
+        save_last=True,
+        mode='min',
+        save_weights_only=True, # only save state dict
+    )
 
     trainer = pl.Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
-        callbacks=[
-            lr_monitor,
-            ModelCheckpoint(
-                save_top_k=1, 
-                dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
-                monitor="train_lm_loss",
-                filename=f"mamba-{config.experiment.task}"+"-{epoch:02d}",
-                save_last=True,
-                mode='min',
-                save_weights_only=True, # only save state dict
-            ),
-        ],
-        check_val_every_n_epoch=1,
+        callbacks=[lr_monitor, model_monitor],
+        check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         strategy=DDPStrategy(find_unused_parameters=False),
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=5 # for debugging
+        fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
 
-def get_model_tokenizer(model_config, tokenizer_config):
-    model = PositionMamba.from_pretrained(model_config.model_name_or_path, dtype=torch.bfloat16, device="cuda", strict=False)
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_config.tokenizer_name_or_path)
-    if "gpt-neo" in tokenizer_config.tokenizer_name_or_path:
-        tokenizer.eos_token = "<|endoftext|>"
-        tokenizer.pad_token = tokenizer.eos_token
-    return model, tokenizer
+
 
 
 if __name__ == '__main__':

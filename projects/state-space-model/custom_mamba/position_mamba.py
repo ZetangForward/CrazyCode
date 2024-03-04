@@ -419,6 +419,7 @@ class PositionMamba(nn.Module, GenerationMixin):
             n_layer=n_layer,
             vocab_size=vocab_size,
             initializer_cfg=initializer_cfg,
+            use_position=use_position,
             **backbone_kwargs,
             **factory_kwargs,
         )

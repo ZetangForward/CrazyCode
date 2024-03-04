@@ -21,12 +21,6 @@ class Experiment(pl.LightningModule):
             self.hold_graph = self.params['retain_first_backpass']
         except:
             pass
-        
-    def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
-        tensor = (normalized_tensor + 1) / 2
-        tensor = tensor * (max_val - min_val) + min_val
-        tensor = torch.round(tensor).long()
-        return tensor
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):

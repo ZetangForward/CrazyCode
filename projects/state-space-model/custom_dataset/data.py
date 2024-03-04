@@ -171,73 +171,7 @@ class AlpacaData(pl.LightningDataModule):
             drop_last=True, shuffle=True, 
         )
 
-
-class custom_datamodule(pl.LightningDataModule):
-
-    def __init__(self, cfg, tokenizer):
-        super().__init__()
-        self.cfg = cfg
-        self.tokenizer = tokenizer
-        self.prepare_data_per_node = True
-        self.dataset_kwargs = {
-            "max_text_length": self.cfg.max_seq_length,
-        }
-        
-    def setup(self, stage: str = 'fit') -> None:
-        self.test_dataset = None
-        if self.cfg.inference_mode:
-            self.test_data = auto_read_data(self.cfg.test_data_path)
-            self.test_dataset = TextFillingDataset(
-                content=self.test_data, 
-                tokenizer=self.tokenizer, 
-                full_modeling=False,
-                split="test",
-                **self.dataset_kwargs,
-            )
-        else:
-            content = auto_read_data(self.cfg.file_path)
-            min_valid_num = min(1000, len(content)*0.1)
-            self.valid_data = content[:min_valid_num]
-            self.train_data = content[min_valid_num:]
-            
-            self.train_dataset = TextFillingDataset(
-                content=self.train_data, 
-                tokenizer=self.tokenizer, 
-                split="train",
-                **self.dataset_kwargs,
-            )
-            
-            self.valid_dataset = TextFillingDataset(
-                content=self.valid_data, 
-                tokenizer=self.tokenizer, 
-                split="valid",
-                **self.dataset_kwargs,
-            )
-            print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
-            print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
-
-            
-    def train_dataloader(self) -> TRAIN_DATALOADERS:
-        return DataLoader(
-            self.train_dataset, batch_size=self.cfg.train_batch_size, 
-            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=True, shuffle=True, 
-        )
-    
-    def val_dataloader(self) -> TRAIN_DATALOADERS:
-        return DataLoader(
-            self.valid_dataset, batch_size=self.cfg.val_batch_size, 
-            num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
-        )
-    
-    def predict_dataloader(self) -> EVAL_DATALOADERS:
-        if self.test_dataset is not None:
-            return DataLoader(
-                self.test_dataset, batch_size=1, 
-                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
-            )
-        return None
-    
-    
+ 
 if __name__ == "__main__":
     file_path = "/nvme/zecheng/data/roc_stories/ROCStories_winter2017.csv"
     tokenizer = AutoTokenizer.from_pretrained("/nvme/hf_models/gpt-neo-1.3B")

@@ -1,0 +1,18 @@
+dataset:
+  data_path: "slimpajama-per-source-length-upsample-0.5B"
+  processed_data_path: "slimpajama-per-source-length-upsample-0.5B/processed"
+  split: ['train.pkl', 'valid.pkl']
+  module: 'custom_dataset.simplepajama' # Custom dataset module path
+  class_name: 'SimplepajamaDataset'  # dataset class name
+  max_seq_length: 100000
+  nworkers: 12
+  train_batch_size: 18
+  val_batch_size: 18
+  pin_memory: False
+  inference_mode: False
+  cluster_batch: True
+
+other_cfgs: null
+
+
+  

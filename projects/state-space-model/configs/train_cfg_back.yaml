@@ -1,18 +1,20 @@
 platform: &platform "amax"
 JOB_ID: &JOB_ID 1
 state: &state "train"
+model: &model "vanilla_mamba-2.8b"
 
 defaults:
   - _self_
   - platform: amax
-  - task: &task simplepajama
-  - model: &model mamba-2_8b
+  - task: simplepajama
+  - model: mamba-2_8b
 
 hydra:
   job:
-    name: hydra_${task}
+    name: hydra_${exp_task}
   run:
-    dir: ./runs/${task}-${model}/version_${JOB_ID}/${hydra.job.name}
+    dir: ./runs/${exp_task}/${model}
+
 
 optimizer:
   optimizer_type: "adamw"
@@ -22,11 +24,12 @@ lr_scheduler:
   scheduler_type: "get_cosine_schedule_with_warmup"
   warmup_steps: 0
 
+
 experiment:
   seed: 27
-  model_save_dir: ${task}-${model}/version_${JOB_ID}
-  save_top_k: 1
-  monitor_metric: "valid_lm_loss"
+  model_save_dir: ${SAVE_DIR}
+  task: ${TASK}
+  version: ${JOB_ID}
   beta_1: 0.9
   beta_2: 0.95
   weight_decay: 0.1
