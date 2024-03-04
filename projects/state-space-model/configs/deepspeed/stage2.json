@@ -3,7 +3,7 @@
         "enabled": "auto"
     },
     "optimizer": {
-        "type": "AdamW",
+        "type": "auto",
         "params": {
             "lr": "auto",
             "betas": [
@@ -15,7 +15,7 @@
         }
     },
     "scheduler": { 
-        "type": "WarmupLR",
+        "type": "auto",
         "params": {
             "warmup_min_lr": "auto",
             "warmup_max_lr": "auto",

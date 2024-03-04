@@ -16,7 +16,7 @@ from custom_mamba.position_mamba import PositionMamba
 from modelzipper.tutils import *
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import FusedAdam
-
+from lightning.pytorch import Trainer
 
 class CustomDatamodule(pl.LightningDataModule):
 
@@ -392,14 +392,16 @@ def main(config):
         mode='min',
         save_weights_only=True, # only save state dict
     )
+    # TODO: add deepspeed strategy
+    strategy = DeepSpeedStrategy(accelerator='gpu', config="/nvme/zecheng/modelzipper/projects/state-space-model/configs/deepspeed/stage2.json")
 
-    trainer = pl.Trainer(
+    trainer = Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         # strategy=DDPStrategy(find_unused_parameters=False),
-        strategy=DeepSpeedStrategy(config="/nvme/zecheng/modelzipper/projects/state-space-model/configs/deepspeed/stage2.json"),
+        strategy=strategy,
         precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
