@@ -7,7 +7,7 @@ import hydra
 import importlib
 from torch import optim, Tensor 
 from transformers import AutoTokenizer
-from pytorch_lightning.strategies import DDPStrategy
+from pytorch_lightning.strategies import DDPStrategy, FSDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
@@ -284,10 +284,10 @@ def main(config):
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         strategy=DDPStrategy(find_unused_parameters=False),
+        precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
         gradient_clip_val=1,
-        precision="bf16-mixed",
         enable_model_summary=True,
         num_sanity_val_steps=20,
         # fast_dev_run=5 # for debugging
