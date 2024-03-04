@@ -1,5 +1,5 @@
 platform: &platform "amax"
-JOB_ID: &JOB_ID 1
+JOB_ID: &JOB_ID 2
 state: &state "train"
 exp_task: &exp_task "simplepajama"
 model_name: &model_name "mamba-1.4b"
@@ -28,7 +28,7 @@ experiment:
   seed: 27
   model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
   save_top_k: 2
-  monitor_metric: "valid_lm_loss"
+  monitor_metric: "train_lm_loss"
   beta_1: 0.9
   beta_2: 0.95
   weight_decay: 0.1
@@ -37,5 +37,5 @@ experiment:
   warmup_steps: 1000
   peak_lr: 0.0002
   last_lr: 0.00001
-  device_num: 6
+  device_num: 3
   node_num: 1
