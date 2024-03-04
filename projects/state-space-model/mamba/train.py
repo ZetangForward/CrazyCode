@@ -269,14 +269,14 @@ class TransformerExperiment(pl.LightningModule):
     def configure_optimizers(self):
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
-            optimizer = DeepSpeedCPUAdam(  # transformers.AdamW
+            optimizer = transformers.AdamW(  # transformers.AdamW
                 self.model.parameters(), 
                 lr=self.cfg.optimizer.lr,
             )
         else: # implement with adam as default 
             betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
-            optimizer = DeepSpeedCPUAdam(   # optim.Adam
-                self.model.parameters(), 
+            optimizer = optim.Adam(   # optim.Adam
+                self.model.parameters(),
                 lr=self.cfg.experiment.peak_lr,
                 weight_decay=self.cfg.experiment.weight_decay, 
                 betas=betas, 
@@ -398,7 +398,7 @@ def main(config):
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         # strategy=DDPStrategy(find_unused_parameters=False),
-        strategy="deepspeed_stage_2_offload",
+        strategy="deepspeed_stage_2",
         precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
