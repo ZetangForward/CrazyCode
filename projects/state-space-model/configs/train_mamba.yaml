@@ -2,13 +2,13 @@ platform: &platform "amax"
 JOB_ID: &JOB_ID 1
 state: &state "train"
 exp_task: &exp_task "simplepajama"
-model_name: &model_name "mamba-2.8b"
+model_name: &model_name "mamba-1.4b"
 
 defaults:
   - _self_
   - platform: amax
   - task: simplepajama
-  - model: mamba-2_8b
+  - model: mamba-1_4b
 
 hydra:
   job:
@@ -26,7 +26,7 @@ lr_scheduler:
 
 experiment:
   seed: 27
-  model_save_dir: ${task}-${model}/version_${JOB_ID}
+  model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
   save_top_k: 1
   monitor_metric: "valid_lm_loss"
   beta_1: 0.9

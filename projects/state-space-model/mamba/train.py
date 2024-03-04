@@ -15,7 +15,6 @@ from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import PositionMamba
 from modelzipper.tutils import *
 
-
 class CustomDatamodule(pl.LightningDataModule):
 
     def __init__(self, cfg, root_dir, tokenizer):
@@ -176,13 +175,13 @@ class Experiment(pl.LightningModule):
                 lr=self.cfg.optimizer.lr,
             )
         else: # implement with adam as default 
-            betas = (self.exp_cfg.beta_1, self.exp_cfg.beta_2)
+            betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
             optimizer = optim.Adam(
                 self.model.parameters(), 
-                lr=self.exp_cfg.peak_lr,
-                weight_decay=self.exp_cfg.weight_decay, 
+                lr=self.cfg.experiment.peak_lr,
+                weight_decay=self.cfg.experiment.weight_decay, 
                 betas=betas, 
-                eps=self.exp_cfg.eps
+                eps=self.cfg.experiment.eps
             )
         
         # init lr scheduler
@@ -190,7 +189,7 @@ class Experiment(pl.LightningModule):
             scheduler = transformers.get_cosine_schedule_with_warmup(
                 optimizer=optimizer,
                 num_warmup_steps=self.cfg.lr_scheduler.warmup_steps,
-                num_training_steps=self.exp_cfg.num_training_steps,
+                num_training_steps=self.cfg.experiment.num_training_steps,
             )
         else:
             def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
@@ -207,10 +206,10 @@ class Experiment(pl.LightningModule):
 
             scheduler = get_scheduler(
                 optimizer, 
-                self.exp_cfg.num_training_steps, 
-                self.exp_cfg.warmup_steps, 
-                self.exp_cfg.peak_lr, 
-                self.exp_cfg.last_lr
+                self.cfg.experiment.num_training_steps, 
+                self.cfg.experiment.warmup_steps, 
+                self.cfg.experiment.peak_lr, 
+                self.cfg.experiment.last_lr
             )
 
         lr_scheduler = {
@@ -245,10 +244,11 @@ def get_model_tokenizer(root_dir, model_config):
 @hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
 def main(config):
 
-    print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
+    # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
+    print_c(OmegaConf.to_yaml(config), "yellow")
     
     model_root_dir = config.platform.hf_model_path
-    save_root_dir = config.platform.result_path
+    save_root_dir = config.platform.exp_path
     data_root_dir = config.platform.dataset_path
 
     pl.seed_everything(config.experiment.seed, workers=True)
@@ -265,7 +265,7 @@ def main(config):
     # init logger
     tb_logger = TensorBoardLogger(
         save_dir=os.path.join(save_root_dir, config.experiment.model_save_dir), 
-        name=f"{config.task}",
+        name=f"{config.exp_task}",
         version=config.JOB_ID
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
@@ -273,7 +273,7 @@ def main(config):
         save_top_k=config.experiment.save_top_k, 
         dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
         monitor=config.experiment.monitor_metric,
-        filename=f"mamba-{config.task}"+"-{epoch:02d}",
+        filename=f"mamba-{config.exp_task}"+"-{epoch:02d}",
         save_last=True,
         mode='min',
         save_weights_only=True, # only save state dict
@@ -288,9 +288,10 @@ def main(config):
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,
         gradient_clip_val=1,
+        precision="bf16-mixed",
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        fast_dev_run=5 # for debugging
+        # fast_dev_run=5 # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
