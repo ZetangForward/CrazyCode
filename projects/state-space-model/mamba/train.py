@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import hydra
 import importlib
 from torch import optim, Tensor 
-from transformers import AutoTokenizer, GPTNeoForCausalLM
+from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
 from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -339,7 +339,13 @@ def get_model_tokenizer(root_dir, model_config):
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
-    if "gpt" in tokenizer_path:
+    elif "llama" in model_path.lower():
+        model = LlamaForCausalLM.from_pretrained(
+            model_path, use_cache=False, torch_dtype=torch.bfloat16
+        ).to('cuda')
+        tokenizer = LlamaTokenizer.from_pretrained(tokenizer_path)
+
+    if "gpt" in tokenizer_path or "llama" in tokenizer_path:
         # tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
     
