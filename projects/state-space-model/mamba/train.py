@@ -240,7 +240,6 @@ def get_model_tokenizer(root_dir, model_config):
     return model, tokenizer
 
 
-
 @hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
 def main(config):
 
@@ -269,7 +268,7 @@ def main(config):
         version=config.JOB_ID
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    model_monitor = ModelCheckpoint(
+    ckpt_monitor = ModelCheckpoint(
         save_top_k=config.experiment.save_top_k, 
         dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
         monitor=config.experiment.monitor_metric,
@@ -282,7 +281,7 @@ def main(config):
     trainer = pl.Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
-        callbacks=[lr_monitor, model_monitor],
+        callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
         strategy=DDPStrategy(find_unused_parameters=False),
         max_steps=config.experiment.num_training_steps,
@@ -295,8 +294,6 @@ def main(config):
     )
 
     trainer.fit(experiment, datamodule=data_module)
-
-
 
 
 if __name__ == '__main__':
