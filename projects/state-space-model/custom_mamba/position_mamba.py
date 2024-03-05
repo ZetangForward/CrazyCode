@@ -395,7 +395,7 @@ def _init_weights(
                     p /= math.sqrt(n_residuals_per_layer * n_layer)
 
 
-class PositionMamba(nn.Module, GenerationMixin):
+class LongContextMamba(nn.Module, GenerationMixin):
     def __init__(
         self,
         d_model: int,
@@ -409,7 +409,7 @@ class PositionMamba(nn.Module, GenerationMixin):
         **backbone_kwargs,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super().__init__()
+        super(LongContextMamba).__init__()
 
         if vocab_size % pad_vocab_size_multiple != 0:
             vocab_size += pad_vocab_size_multiple - (vocab_size % pad_vocab_size_multiple)
