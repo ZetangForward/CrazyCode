@@ -63,9 +63,20 @@ class CustomDatamodule(pl.LightningDataModule):
         
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None
+         # import Dataset Class
+        dataset_module = importlib.import_module(self.cfg.module)
+        CustomDataset = getattr(dataset_module, self.cfg.class_name.lower())
         
         # prepare dataset
         if self.cfg.inference_mode:  # whether in inference mode
+            if "needle" in self.cfg.data_path.lower():
+                if self.cfg.processed_data_path is None:  # preporcess the data on-the-fly
+                    process_fn = CustomDataset.build_dataset(
+                        fpath = self.cfg.data_path, 
+                        self.tokenizer
+                    )
+
+
             self.test_data = auto_read_data(self.cfg.test_data_path)
             self.test_dataset = CustomDataset(
                 content=self.test_data, 
@@ -97,10 +108,6 @@ class CustomDatamodule(pl.LightningDataModule):
             assert valid_data is not None, "valid data is None"
         except:
             pass
-
-        # import Dataset Class
-        dataset_module = importlib.import_module(self.cfg.module)
-        CustomDataset = getattr(dataset_module, self.cfg.class_name.lower())
 
         # init dataset
         self.train_dataset = CustomDataset(
