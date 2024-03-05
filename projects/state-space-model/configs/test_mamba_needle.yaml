@@ -1,40 +1,19 @@
-SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
+platform: &platform "amax"
 JOB_ID: &JOB_ID 1
-TASK: &TASK "vanilla_mamba"
-TEST_TASK: &TEST_TASK "insert_needle"
+state: &state "test"
+exp_task: &exp_task "passkey_search"
+model_name: &model_name "mamba-1_4b"
 
 hydra:
   job:
-    id: ${JOB_ID}
-    name: hydra_${TASK}
+    name: hydra_${exp_task}
   run:
-    dir: ${SAVE_DIR}/${TASK}/${TEST_TASK}/${hydra.job.name} 
-
-dataset:
-  data_path: "/nvme/zecheng/data/needle/PaulGrahamEssays/*.txt"
-  ctx_len: 10000
-  depth: 0.5
-  needle: "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
-  nworkers: 12
-  pin_memory: False
-  inference_mode: True
-  cluster_batch: False
-
-model:
-  model_name_or_path: "/nvme/hf_models/mamba-2.8b"
-  ckpt_path: "/nvme/zecheng/ckpt/mamba_3b_alpaca/version_1/checkpoints/last.ckpt"
-  load_model_state_dict: False
-  use_position: False
-  # ckpt_path: "/nvme/zecheng/ckpt/mamba-chat/checkpoint-1000/pytorch_model.bin"
-tokenizer:
-  tokenizer_name_or_path: "/nvme/hf_models/EleutherAI/gpt-neox-20b"
+    dir: ./runs/${exp_task}-${model_name}/${state}/${hydra.job.name}
 
 experiment:
   seed: 27
   max_seq_length: 160
-  model_save_dir: ${SAVE_DIR}
-  results_save_dir: ${SAVE_DIR}/${TASK}/${TEST_TASK}/results
-  test_task: ${TEST_TASK}
-  version: ${JOB_ID}
+  model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
+  results_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}/results
   device_num: 1
   node_num: 1

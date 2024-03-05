@@ -7,8 +7,7 @@ import hydra
 from custom_dataset import *
 from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
-from custom_mamba.position_mamba import PositionMamba
-
+from utils import get_model_tokenizer, CustomDatamodule
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -39,8 +38,21 @@ class Experiment(pl.LightningModule):
 @hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
 def main(config):
     
-    print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state}", "magenta")
+    print_c(OmegaConf.to_yaml(config), "yellow")
     
+    model_root_dir = config.platform.hf_model_path
+    save_root_dir = config.platform.exp_path
+    data_root_dir = config.platform.dataset_path
+
+    # load model and tokenizer
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+    
+    # load testing data
+    data_module = CustomDatamodule(config.task.dataset, data_root_dir, tokenizer)
+    
+
+
+
     # load model and tokenizer
     model = PositionMamba.from_pretrained(
         os.path.join(config.platform.hf_model_path, config.model.model_name), 

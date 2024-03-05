@@ -7,7 +7,7 @@ import hydra
 from custom_dataset import *
 from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
-from custom_mamba.position_mamba import PositionMamba
+from custom_mamba.position_mamba import LongContextMamba
 import numpy as np
 from sklearn.decomposition import PCA
 from keras.models import Sequential
@@ -48,7 +48,7 @@ def main(config):
     print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state}", "magenta")
     
     # load model and tokenizer
-    model = PositionMamba.from_pretrained(
+    model = LongContextMamba.from_pretrained(
         os.path.join(config.platform.hf_model_path, config.model.model_name), 
         use_position=config.model.use_position,
         dtype=torch.bfloat16, 
@@ -70,6 +70,20 @@ def main(config):
     if "gpt-neo" in config.model.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token
     
+    # register hook module
+    # 定义一个全局变量或者包含所有相关tensor的容器，用来保存卷积操作的输出
+    activation = {}
+    
+    import pdb; pdb.set_trace()
+    # 定义hook函数
+    def get_activation(name):
+        def hook(model, input, output):
+            activation[name] = output.detach()
+        return hook
+    
+    model.backbone.layers[-1].conv1d.register_forward_hook(get_activation('conv1d_output'))
+
+
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     

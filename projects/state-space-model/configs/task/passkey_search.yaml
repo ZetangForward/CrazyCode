@@ -1,0 +1,16 @@
+dataset:
+  data_path: "needle/PaulGrahamEssays/*.txt"
+  processed_data_path: null
+  ctx_len: 10000
+  depth: 0.5
+  needle: "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
+  nworkers: 12
+  pin_memory: False
+  inference_mode: True
+  cluster_batch: False
+
+other_cfgs: 
+  max_generation_length: 256
+
+
+  
