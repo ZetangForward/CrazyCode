@@ -1,5 +1,5 @@
 model_name_or_path: "mamba-2.8b"
-ckpt_path: "/nvme/hf_models/mamba-2.8b/pytorch_model.bin"
+ckpt_path: "mamba-2.8b/pytorch_model.bin"
 load_model_state_dict: True
 use_position: False
 

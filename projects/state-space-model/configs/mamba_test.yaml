@@ -5,8 +5,8 @@ model: &model "vanilla_mamba-2.8b"
 
 defaults:
   - _self_
-  - platform: amax
-  - task: zero_scroll
+  - platform: *platform
+  - task: *exp_task
   - model: mamba-2_8b
 
 hydra:

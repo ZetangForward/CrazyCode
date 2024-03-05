@@ -45,6 +45,8 @@ def get_model_tokenizer(root_dir, model_config):
         # tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
     
+    print_c("model and tokenzier already loaded ~")
+
     return model, tokenizer
 
 
@@ -60,26 +62,35 @@ class CustomDatamodule(pl.LightningDataModule):
             "max_seq_length": self.cfg.max_seq_length,
             "cluster_batch": self.cfg.cluster_batch,            
         }
+        self.dataset_kwargs.update(self.cfg.other_cfgs)
         
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.module)
-        CustomDataset = getattr(dataset_module, self.cfg.class_name.lower())
+        CustomDataset = getattr(dataset_module, self.cfg.class_name)
         
         # prepare dataset
         if self.cfg.inference_mode:  # whether in inference mode
-            if "needle" in self.cfg.data_path.lower():
-                if self.cfg.processed_data_path is None:  # preporcess the data on-the-fly
-                    process_fn = CustomDataset.build_dataset(
-                        fpath = self.cfg.data_path, 
-                        self.tokenizer
+            if "needle" in self.cfg.data_path.lower():  # sanity check passkey search data
+                if self.cfg.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+                    processed_data = CustomDataset.build_dataset(
+                        fpath=os.path.join(self.root_dir, self.cfg.data_path), 
+                        key=self.cfg.key,
+                        value=self.cfg.value,
+                        ctx_len=self.cfg.max_seq_length,
+                        tokenizer=self.tokenizer,
                     )
-
-
-            self.test_data = auto_read_data(self.cfg.test_data_path)
+                    auto_save_data(...)  # auto save processed data fn
+                    raise NotImplementedError
+            
+            if self.cfg.processed_data_path is not None:
+                test_data = auto_read_data(self.cfg.processed_data_path)
+            else:
+                test_data = auto_read_data(self.cfg.test_data_path)
+            
             self.test_dataset = CustomDataset(
-                content=self.test_data, 
+                content=test_data, 
                 tokenizer=self.tokenizer, 
                 split="test",
                 **self.dataset_kwargs,

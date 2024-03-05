@@ -50,18 +50,6 @@ def main(config):
     # load testing data
     data_module = CustomDatamodule(config.task.dataset, data_root_dir, tokenizer)
     
-
-
-
-    # load model and tokenizer
-    model = PositionMamba.from_pretrained(
-        os.path.join(config.platform.hf_model_path, config.model.model_name), 
-        use_position=config.model.use_position,
-        dtype=torch.bfloat16, 
-        device="cuda", 
-        strict=False
-    )
-
     if config.model.load_model_state_dict:
         state_dict = torch.load(
             os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
@@ -69,24 +57,9 @@ def main(config):
         )
         model.load_state_dict(state_dict, strict=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        os.path.join(config.platform.hf_model_path, config.model.tokenizer_name_or_path)
-    )
-
-    if "gpt-neo" in config.model.tokenizer_name_or_path:
-        tokenizer.pad_token = tokenizer.eos_token
-    
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
-    # load data
-    if config.exp_task.lower() == "insert_needle":
-        data_module = FindNeedle(config.task, tokenizer, config.dataset.data_path)
-    elif config.exp_task.lower() == "zero_scroll":
-        data_module = ZeroScrolls(config.task.dataset, config.platform, tokenizer)
-    else:
-        data_module = custom_datamodule(config.dataset, tokenizer)
-
     tester = pl.Trainer(devices=config.experiment.device_num)
 
     b_t = time.time()

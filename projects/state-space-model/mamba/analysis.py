@@ -9,11 +9,11 @@ from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
 from custom_mamba.position_mamba import LongContextMamba
 import numpy as np
-from sklearn.decomposition import PCA
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.utils import to_categorical
-from sklearn.datasets import make_classification
+# from sklearn.decomposition import PCA
+# from keras.models import Sequential
+# from keras.layers import Dense
+# from keras.utils import to_categorical
+# from sklearn.datasets import make_classification
 
 
 class Experiment(pl.LightningModule):
@@ -73,7 +73,7 @@ def main(config):
     # register hook module
     # 定义一个全局变量或者包含所有相关tensor的容器，用来保存卷积操作的输出
     activation = {}
-    
+
     import pdb; pdb.set_trace()
     # 定义hook函数
     def get_activation(name):

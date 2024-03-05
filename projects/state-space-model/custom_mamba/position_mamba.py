@@ -409,7 +409,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
         **backbone_kwargs,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super(LongContextMamba).__init__()
+        super().__init__()
 
         if vocab_size % pad_vocab_size_multiple != 0:
             vocab_size += pad_vocab_size_multiple - (vocab_size % pad_vocab_size_multiple)
@@ -510,8 +510,8 @@ class MixerModel(nn.Module):
         dtype=None,
         use_position=False,
     ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
+        factory_kwargs = {"device": device, "dtype": dtype}
         self.residual_in_fp32 = residual_in_fp32
         self.wpe = None
         if use_position:

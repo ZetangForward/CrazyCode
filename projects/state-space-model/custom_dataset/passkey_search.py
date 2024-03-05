@@ -7,7 +7,7 @@ import torch
 import glob
 
 
-class SimplepajamaDataset(Dataset):
+class PasskeySearchDataset(Dataset):
     def __init__(self, content=None, tokenizer=None, split="train", *args, **kwargs):
         super().__init__()
         self.split = split
@@ -55,10 +55,10 @@ class SimplepajamaDataset(Dataset):
                 for j, depth in enumerate(depth_lst):
                     context_insert = cls.insert_needle(context, passkey, depth=depth)
                     needle_idx = context_insert.find(key)
-                    print_c(f"insert passkey into {tmp_ctx_len} length context, depth: {depth}", "yellow")
-                    print_c("Context has %d chars, passkey inserted at %d char location:\n" % (len(context_insert), needle_idx), 'magenta')
-                    print_c(context_insert[needle_idx - 150: needle_idx + 150], 'cyan') # look at how the needle is inserted 
-                    print_c("-"*30)
+                    # print_c(f"insert passkey into {tmp_ctx_len} length context, depth: {depth}", "yellow")
+                    # print_c("Context has %d chars, passkey inserted at %d char location:\n" % (len(context_insert), needle_idx), 'magenta')
+                    # print_c(context_insert[needle_idx - 150: needle_idx + 150], 'cyan') # look at how the needle is inserted 
+                    # print_c("-"*30)
                     passkey_context = context_insert + key
                     all_insert_data.append(
                         {
