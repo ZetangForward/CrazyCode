@@ -131,6 +131,8 @@ class Mamba(nn.Module):
         hidden_states: (B, L, D)
         Returns: same shape as hidden_states
         """
+        import pdb; pdb.set_trace()
+
         batch, seqlen, _ = hidden_states.shape
         conv_state, ssm_state = None, None
         if inference_params is not None:
@@ -587,6 +589,7 @@ class MixerModel(nn.Module):
             hidden_states, residual = layer(
                 hidden_states, residual, inference_params=inference_params
             )
+        import pdb; pdb.set_trace()
         if not self.fused_add_norm:
             residual = (hidden_states + residual) if residual is not None else hidden_states
             hidden_states = self.norm_f(residual.to(dtype=self.norm_f.weight.dtype))
