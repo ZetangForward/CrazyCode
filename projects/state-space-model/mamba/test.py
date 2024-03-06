@@ -23,16 +23,11 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output = self.model.generate(batch['input_ids'].squeeze(0), max_length=self.cfg.task.other_cfgs.max_generation_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
-        subset = batch['subset'][0]
+        input_ids = batch.get("input_ids")
+        output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
+        batch['predictions'] = output
         print_c("one sample generation ending")
-       
-        standard_test_reconstruct = {
-            "prediction": self.tokenizer.decode(output[0]),
-            "subset": subset,
-        }
-        
-        return standard_test_reconstruct
+        return batch
 
 
 @hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
@@ -72,7 +67,7 @@ def main(config):
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-
+    import pdb; pdb.set_trace()
     save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")

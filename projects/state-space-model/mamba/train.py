@@ -236,7 +236,7 @@ def main(config):
     model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     
     # load data
-    data_module = CustomDatamodule(config.task.dataset, data_root_dir, tokenizer)
+    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     
     # load experiment
     experiment = TransformerExperiment(model, config, tokenizer=tokenizer, state="train")

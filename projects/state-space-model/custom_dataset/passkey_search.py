@@ -54,7 +54,7 @@ class PasskeySearchDataset(Dataset):
                 context = cls.load_context(fpath=fpath, ctx_len=tmp_ctx_len, tokenizer=tokenizer)
                 for j, depth in enumerate(depth_lst):
                     context_insert = cls.insert_needle(context, passkey, depth=depth)
-                    needle_idx = context_insert.find(key)
+                    # needle_idx = context_insert.find(key)
                     # print_c(f"insert passkey into {tmp_ctx_len} length context, depth: {depth}", "yellow")
                     # print_c("Context has %d chars, passkey inserted at %d char location:\n" % (len(context_insert), needle_idx), 'magenta')
                     # print_c(context_insert[needle_idx - 150: needle_idx + 150], 'cyan') # look at how the needle is inserted 
@@ -73,7 +73,6 @@ class PasskeySearchDataset(Dataset):
 
         return all_insert_data
 
-
     def cluster_batch_fn(self):
         tmp = [item['source'] + ' ' + item['target'] for item in self.content]
         # tok_tmp = [self.tokenizer(item, return_tensors="pt") for item in tmp]
@@ -84,29 +83,21 @@ class PasskeySearchDataset(Dataset):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
-        if not self.cluster_batch:
-            sample = self.content[index]
-            src, tgt = sample['source'], sample['target']
-            str_format = src + " " + tgt
-        else: # after clustering batch, already in id format
-            str_format = self.content[index]
-
+        item = self.content[index]
+        passkey_context = item.pop('passkey_context')
         tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
-            str_format,  
-            truncation=True, 
-            padding="max_length",
-            max_length=self.max_seq_length,
+            passkey_context,  
             return_tensors="pt",
         )
 
         input_ids = tokenized_sequence.input_ids[0]
         attention_mask = tokenized_sequence.attention_mask[0]
-        labels = torch.where(
-            input_ids != self.tokenizer.pad_token_id, input_ids, -100
-        )
-
-        return {
+       
+        res = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
-            "labels": labels,
         }
+
+        res.update(item)
+
+        return res

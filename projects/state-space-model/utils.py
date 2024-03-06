@@ -59,35 +59,36 @@ class CustomDatamodule(pl.LightningDataModule):
         self.tokenizer = tokenizer
         self.prepare_data_per_node = True
         self.dataset_kwargs = {
-            "max_seq_length": self.cfg.max_seq_length,
-            "cluster_batch": self.cfg.cluster_batch,            
+            "max_seq_length": self.cfg.dataset.max_seq_length,
+            "cluster_batch": self.cfg.dataset.cluster_batch,            
         }
+        import pdb; pdb.set_trace()
         self.dataset_kwargs.update(self.cfg.other_cfgs)
         
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None
          # import Dataset Class
-        dataset_module = importlib.import_module(self.cfg.module)
-        CustomDataset = getattr(dataset_module, self.cfg.class_name)
+        dataset_module = importlib.import_module(self.cfg.dataset.module)
+        CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
         
         # prepare dataset
-        if self.cfg.inference_mode:  # whether in inference mode
-            if "needle" in self.cfg.data_path.lower():  # sanity check passkey search data
-                if self.cfg.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+        if self.cfg.dataset.inference_mode:  # whether in inference mode
+            if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
+                if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(
-                        fpath=os.path.join(self.root_dir, self.cfg.data_path), 
-                        key=self.cfg.key,
-                        value=self.cfg.value,
-                        ctx_len=self.cfg.max_seq_length,
+                        fpath=os.path.join(self.root_dir, self.cfg.dataset.data_path), 
+                        key=self.cfg.dataset.key,
+                        value=self.cfg.dataset.value,
+                        ctx_len=self.cfg.dataset.max_seq_length,
                         tokenizer=self.tokenizer,
                     )
                     auto_save_data(...)  # auto save processed data fn
                     raise NotImplementedError
             
-            if self.cfg.processed_data_path is not None:
-                test_data = auto_read_data(self.cfg.processed_data_path)
+            if self.cfg.dataset.processed_data_path is not None:
+                test_data = auto_read_data(self.cfg.dataset.processed_data_path)
             else:
-                test_data = auto_read_data(self.cfg.test_data_path)
+                test_data = auto_read_data(self.cfg.dataset.test_data_path)
             
             self.test_dataset = CustomDataset(
                 content=test_data, 
@@ -96,11 +97,11 @@ class CustomDatamodule(pl.LightningDataModule):
                 **self.dataset_kwargs,
             )
         else:
-            if self.cfg.processed_data_path is not None:
+            if self.cfg.dataset.processed_data_path is not None:
                 # check if is a directory
-                processed_data_path = os.path.join(self.root_dir, self.cfg.processed_data_path)
+                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 if os.path.isdir(processed_data_path):
-                    for split in self.cfg.split:  # TODO: support multiple splits
+                    for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
                             train_data = auto_read_data(os.path.join(processed_data_path, split))
                         elif "valid" in split:
@@ -142,20 +143,20 @@ class CustomDatamodule(pl.LightningDataModule):
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.train_dataset, 
-            batch_size=self.cfg.train_batch_size, 
-            num_workers=self.cfg.nworkers, 
-            pin_memory=self.cfg.pin_memory, 
+            batch_size=self.cfg.dataset.train_batch_size, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
             drop_last=True, 
-            shuffle=False if self.cfg.cluster_batch else True, 
+            shuffle=False if self.cfg.dataset.cluster_batch else True, 
         )
     
     def val_dataloader(self) -> EVAL_DATALOADERS:
         if self.valid_dataset is not None:
             return DataLoader(
                 self.valid_dataset, 
-                batch_size=self.cfg.val_batch_size, 
-                num_workers=self.cfg.nworkers, 
-                pin_memory=self.cfg.pin_memory, 
+                batch_size=self.cfg.dataset.val_batch_size, 
+                num_workers=self.cfg.dataset.nworkers, 
+                pin_memory=self.cfg.dataset.pin_memory, 
                 drop_last=False, 
                 shuffle=False,
             )
@@ -165,7 +166,7 @@ class CustomDatamodule(pl.LightningDataModule):
         if self.test_dataset is not None:
             return DataLoader(
                 self.test_dataset, batch_size=1, 
-                num_workers=self.cfg.nworkers, pin_memory=self.cfg.pin_memory, drop_last=False, shuffle=False,
+                num_workers=self.cfg.dataset.nworkers, pin_memory=self.cfg.dataset.pin_memory, drop_last=False, shuffle=False,
             )
         return None
     
