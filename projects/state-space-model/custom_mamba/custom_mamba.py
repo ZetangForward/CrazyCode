@@ -133,16 +133,20 @@ class Mamba(nn.Module):
         Returns: same shape as hidden_states
         """
         ######################## Warning
-        # For Debug and Anaylsis
-        ########################
+        #### For Debug and Anaylsis ####
         self.use_fast_path = False
+        self.causal_conv1d_update = False
+        self.selective_state_update = False
+        ########################
 
         batch, seqlen, _ = hidden_states.shape
         conv_state, ssm_state = None, None
         if inference_params is not None:
+            
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
+                
                 out, _, _ = self.step(hidden_states, conv_state, ssm_state)
                 return out
 
@@ -177,7 +181,7 @@ class Mamba(nn.Module):
             x, z = xz.chunk(2, dim=1)
             # Compute short convolution
             if conv_state is not None:
-                conv_state.copy_(x[:, :, -self.d_conv :])  # Update state (B D W)
+                conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W)
             if causal_conv1d_fn is None:
                 x = self.act(self.conv1d(x)[..., :seqlen])
             else:
@@ -226,7 +230,11 @@ class Mamba(nn.Module):
         x, z = xz.chunk(2, dim=-1)  # (B D)
 
         # Conv step
-        import pdb; pdb.set_trace()
+
+        ########## TODO: Debug mode
+        causal_conv1d_update = None
+        ###########################
+        
         if causal_conv1d_update is None:
             conv_state.copy_(torch.roll(conv_state, shifts=-1, dims=-1))  # Update state (B D W)
             conv_state[:, :, -1] = x
@@ -303,7 +311,6 @@ class Mamba(nn.Module):
             inference_params.key_value_memory_dict[self.layer_idx] = (conv_state, ssm_state)
         else:
             conv_state, ssm_state = inference_params.key_value_memory_dict[self.layer_idx]
-            # TODO: What if batch size changes between generation, and we reuse the same states?
             if initialize_states:
                 conv_state.zero_()
                 ssm_state.zero_()
@@ -406,6 +413,7 @@ def decode(
     input_ids,
     model,
     max_length,
+    min_length,  # new: add a min_length parameters
     top_k=1,
     top_p=0.0,
     temperature=1.0,
@@ -482,7 +490,7 @@ def decode(
         return token.unsqueeze(1)
 
     def should_stop(current_token, inference_params):
-        if inference_params.seqlen_offset == 0:
+        if inference_params.seqlen_offset == 0 or inference_params.seqlen_offset < min_length:
             return False
         if eos_token_id is not None and (current_token == eos_token_id).all():
             return True
@@ -498,10 +506,12 @@ def decode(
             torch.distributed.barrier()
         start.record()
     scores, sequences = [], [input_ids]
+
     while not should_stop(sequences[-1], inference_params):
         scores.append(get_logits(sequences[-1], inference_params))
         inference_params.seqlen_offset += sequences[-1].shape[1]
         sequences.append(sample_tokens(scores[-1], inference_params))
+    
     if enable_timing:
         end.record()
         if tensor_parallel > 1:
@@ -520,6 +530,7 @@ class GenerationMixin:
         self,
         input_ids,
         max_length,
+        min_length,
         top_k=1,
         top_p=0.0,
         temperature=1.0,
@@ -528,7 +539,7 @@ class GenerationMixin:
         **kwargs,
     ):
         output = decode(
-            input_ids, self, max_length, top_k=top_k, top_p=top_p, temperature=temperature, 
+            input_ids, self, max_length, min_length, top_k=top_k, top_p=top_p, temperature=temperature, 
         )
         if not output_scores:
             output.scores = None
@@ -723,12 +734,12 @@ class MixerModel(nn.Module):
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
         residual = None
-        import pdb; pdb.set_trace()
+        
         for layer in self.layers:
             hidden_states, residual = layer(
                 hidden_states, residual, inference_params=inference_params
             )
-        import pdb; pdb.set_trace()
+        
         if not self.fused_add_norm:
             residual = (hidden_states + residual) if residual is not None else hidden_states
             hidden_states = self.norm_f(residual.to(dtype=self.norm_f.weight.dtype))

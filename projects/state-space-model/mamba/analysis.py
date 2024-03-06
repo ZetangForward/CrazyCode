@@ -39,11 +39,11 @@ class Experiment(pl.LightningModule):
             input_ids = input_ids.squeeze(0)
         print_c(f"input length: {input_ids.shape}")
         output = self.model.generate(
-            input_ids, max_length=input_ids.size(-1),
-            eos_token_id=self.tokenizer.eos_token_id
+            input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+            min_length=input_ids.size(-1) + 10, eos_token_id=self.tokenizer.eos_token_id
         )
         batch['predictions'] = output
-        import pdb; pdb.set_trace()
+        
         return batch
 
 
@@ -94,7 +94,7 @@ def main(config):
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    import pdb; pdb.set_trace()
+    
     save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
