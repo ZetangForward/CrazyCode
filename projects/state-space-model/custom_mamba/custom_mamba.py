@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
-from mamba_ssm.utils.generation import GenerationMixin
+from mamba_ssm.utils.generation import GenerationMixin, decode
 from einops import rearrange, repeat
 from modelzipper.tutils import *
 from torch import Tensor 
@@ -398,6 +398,29 @@ def _init_weights(
                 nn.init.kaiming_uniform_(p, a=math.sqrt(5))
                 with torch.no_grad():
                     p /= math.sqrt(n_residuals_per_layer * n_layer)
+
+
+class GenerationMixin:
+    def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
+        raise NotImplementedError
+
+    def generate(
+        self,
+        input_ids,
+        max_length,
+        top_k=1,
+        top_p=0.0,
+        temperature=1.0,
+        return_dict_in_generate=False,
+        output_scores=False,
+        **kwargs,
+    ):
+        output = decode(
+            input_ids, self, max_length, top_k=top_k, top_p=top_p, temperature=temperature, 
+        )
+        if not output_scores:
+            output.scores = None
+        return output if return_dict_in_generate else output.sequences
 
 
 class LongContextMamba(nn.Module, GenerationMixin):
