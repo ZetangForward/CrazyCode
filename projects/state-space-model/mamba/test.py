@@ -26,7 +26,6 @@ class Experiment(pl.LightningModule):
         input_ids = batch.get("input_ids")
         output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
         batch['predictions'] = output
-        print_c("one sample generation ending")
         return batch
 
 
