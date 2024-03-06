@@ -137,6 +137,7 @@ class Mamba(nn.Module):
         self.use_fast_path = False
         self.causal_conv1d_update = False
         self.selective_state_update = False
+        causal_conv1d_fn = None
         ########################
 
         batch, seqlen, _ = hidden_states.shape
@@ -151,7 +152,7 @@ class Mamba(nn.Module):
                 return out
 
         # We do matmul and transpose BLH -> HBL at the same time
-        xz = rearrange(
+        xz = rearrange(  # [1, 8192, 550]
             self.in_proj.weight @ rearrange(hidden_states, "b l d -> d (b l)"),
             "d (b l) -> b d l",
             l=seqlen,
@@ -159,7 +160,7 @@ class Mamba(nn.Module):
         if self.in_proj.bias is not None:
             xz = xz + rearrange(self.in_proj.bias.to(dtype=xz.dtype), "d -> d 1")
 
-        A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
+        A = -torch.exp(self.A_log.float())  # (d_inner, d_state) [4096, 16]
         # In the backward pass we write dx and dz next to each other to avoid torch.cat
         if self.use_fast_path and inference_params is None:  # Doesn't support outputting the states
             out = mamba_inner_fn(
@@ -178,10 +179,10 @@ class Mamba(nn.Module):
                 delta_softplus=True,
             )
         else:
-            x, z = xz.chunk(2, dim=1)
+            x, z = xz.chunk(2, dim=1) # [1, 4096, 550] / [1, 4096, 550]
             # Compute short convolution
             if conv_state is not None:
-                conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W)
+                conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
             if causal_conv1d_fn is None:
                 x = self.act(self.conv1d(x)[..., :seqlen])
             else:
@@ -196,12 +197,12 @@ class Mamba(nn.Module):
             # We're careful here about the layout, to avoid extra transposes.
             # We want dt to have d as the slowest moving dimension
             # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
-            x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d)
-            dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
-            dt = self.dt_proj.weight @ dt.t()
-            dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)
-            B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
-            C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()
+            x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d) [550, 160]
+            dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1) # [550, 128], [550, 16], [550, 16]
+            dt = self.dt_proj.weight @ dt.t()  # [1, 4096, 550]
+            dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)  # [1, 4096, 550]
+            B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()  # [1, 16, 550]
+            C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()  # [1, 16, 550]
             assert self.activation in ["silu", "swish"]
             y = selective_scan_fn(
                 x,
@@ -216,7 +217,7 @@ class Mamba(nn.Module):
                 return_last_state=ssm_state is not None,
             )
             if ssm_state is not None:
-                y, last_state = y
+                y, last_state = y  # y->[1, 4096, 550] / last_state->[1, 4096, 16]
                 ssm_state.copy_(last_state)
             y = rearrange(y, "b d l -> b l d")
             out = self.out_proj(y)
