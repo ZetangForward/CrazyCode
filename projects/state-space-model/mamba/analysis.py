@@ -8,6 +8,17 @@ from custom_dataset import *
 from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
+import matplotlib.pyplot as plt
+
+
+def analysis_cov1d_kernel(module):
+    weights = module.weight.data.cpu().numpy()
+    for i, weight in enumerate(weights):
+        plt.plot(weight[0], label=f'Conv Kernel {i}')
+    plt.title('Convolution Kernels Weights')
+    plt.xlabel('Kernel Size')
+    plt.legend()
+    plt.show()
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -58,6 +69,24 @@ def main(config):
     tester = pl.Trainer(devices=config.experiment.device_num)
 
     b_t = time.time()
+
+    activation = {}
+    def get_activation(name):
+        def hook(model, input, output):
+            activation[name] = output.detach()
+        return hook
+    import pdb; pdb.set_trace()
+    # model.backbone.layers[-1].mixer.conv1d.register_forward_hook(get_activation('conv1d_output'))
+
+    weights = model.backbone.layers[-1].mixer.conv1d.weight.float().data.cpu().numpy()
+    for i, weight in enumerate(weights):
+        plt.plot(weight[0], label=f'Conv Kernel {i}')
+    plt.title('Convolution Kernels Weights')
+    plt.xlabel('Kernel Size')
+    plt.legend()
+    plt.show()
+    
+    import pdb; pdb.set_trace() 
     
     predictions = tester.predict(
         model=experiment,
