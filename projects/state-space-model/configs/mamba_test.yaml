@@ -1,5 +1,5 @@
 platform: &platform "amax"
-exp_task: &exp_task "zero_scroll"
+exp_task: &exp_task "passkey_search"
 state: &state "test"
 model_name: &model_name "mamba-1_4b"
 
