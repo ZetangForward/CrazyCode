@@ -582,6 +582,7 @@ class MixerModel(nn.Module):
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
         residual = None
+        import pdb; pdb.set_trace()
         for layer in self.layers:
             hidden_states, residual = layer(
                 hidden_states, residual, inference_params=inference_params
