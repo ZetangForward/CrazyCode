@@ -46,7 +46,6 @@ def main(config):
     print_c(OmegaConf.to_yaml(config), "yellow")
     
     model_root_dir = config.platform.hf_model_path
-    save_root_dir = config.platform.exp_path
     data_root_dir = config.platform.dataset_path
 
     # load model and tokenizer
