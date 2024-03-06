@@ -43,7 +43,7 @@ def main(config):
     model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     
     # load testing data
-    data_module = CustomDatamodule(config.task.dataset, data_root_dir, tokenizer)
+    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     
     if config.model.load_model_state_dict:
         state_dict = torch.load(

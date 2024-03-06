@@ -62,7 +62,6 @@ class CustomDatamodule(pl.LightningDataModule):
             "max_seq_length": self.cfg.dataset.max_seq_length,
             "cluster_batch": self.cfg.dataset.cluster_batch,            
         }
-        import pdb; pdb.set_trace()
         self.dataset_kwargs.update(self.cfg.other_cfgs)
         
     def setup(self, stage: str = 'fit') -> None:
