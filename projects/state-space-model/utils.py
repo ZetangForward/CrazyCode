@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
-from custom_mamba.position_mamba import LongContextMamba
+from custom_mamba.custom_mamba import LongContextMamba
 from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
 from modelzipper.tutils import *
 
@@ -21,7 +21,10 @@ def get_model_tokenizer(root_dir, model_config):
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "mamba" in model_path.lower():
-        model = MambaForCausalLM.from_pretrained(model_path).to('cuda').to(torch.bfloat16)
+        model = LongContextMamba.from_pretrained(
+            model_path, use_position=model_config.use_position,
+            dtype=torch.bfloat16, device="cuda", strict=False
+        )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "llama" in model_path.lower():

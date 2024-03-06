@@ -78,7 +78,6 @@ def main(config):
     # register hook to get the output of the last layer
     hook = model.backbone.layers[-1].mixer.conv1d.register_forward_hook(conv_hook_fn)
 
-    
 
     def get_activation(name):
         def hook(model, input, output):
