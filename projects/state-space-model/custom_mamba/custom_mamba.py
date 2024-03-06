@@ -234,6 +234,7 @@ class Mamba(nn.Module):
 
         ########## TODO: Debug mode
         causal_conv1d_update = None
+        selective_state_update = None
         ###########################
         
         if causal_conv1d_update is None:
