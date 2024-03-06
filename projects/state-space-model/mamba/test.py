@@ -44,7 +44,8 @@ def main(config):
     
     # load testing data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
-    
+    data_module.setup(stage='predict')
+
     if config.model.load_model_state_dict:
         state_dict = torch.load(
             os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
@@ -58,10 +59,10 @@ def main(config):
     tester = pl.Trainer(devices=config.experiment.device_num)
 
     b_t = time.time()
-
+    
     predictions = tester.predict(
         model=experiment,
-        datamodule=data_module,
+        dataloaders=data_module.predict_dataloader(),
         return_predictions=True,
         ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
     )

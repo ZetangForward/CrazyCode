@@ -179,6 +179,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
         return None
     
+    
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         assert self.test_dataset is not None, "test dataset should not be None"
         predict_loader = DataLoader(
