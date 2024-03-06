@@ -33,7 +33,7 @@ class Experiment(pl.LightningModule):
 def main(config):
     
     print_c(OmegaConf.to_yaml(config), "yellow")
-    
+    import pdb; pdb.set_trace()
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
     data_root_dir = config.platform.dataset_path
@@ -67,7 +67,6 @@ def main(config):
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    import pdb; pdb.set_trace()
     save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")

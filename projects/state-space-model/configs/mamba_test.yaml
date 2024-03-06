@@ -1,22 +1,22 @@
 platform: &platform "amax"
 exp_task: &exp_task "zero_scroll"
 state: &state "test"
-model: &model "mamba-2_8b"
+model_name: &model_name "mamba-2_8b"
 
 defaults:
   - _self_
   - platform: *platform
   - task: *exp_task
-  - model: *model
+  - model: *model_name
 
 hydra:
   job:
     name: hydra_${exp_task}
   run:
-    dir: ./runs/${exp_task}/*model
+    dir: ./runs/${exp_task}/${model}
 
 experiment:
   seed: 27
-  results_save_dir: ${exp_task}/*model/results
+  results_save_dir: ${exp_task}/${model_name}/results
   device_num: 1
   node_num: 1

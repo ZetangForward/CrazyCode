@@ -6,7 +6,7 @@ import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import LongContextMamba
-from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
+from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
 from modelzipper.tutils import *
 
 
@@ -21,10 +21,7 @@ def get_model_tokenizer(root_dir, model_config):
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "mamba" in model_path.lower():
-        model = LongContextMamba.from_pretrained(
-            model_path, use_position=model_config.use_position,
-            dtype=torch.bfloat16, device="cuda", strict=False
-        )
+        model = MambaForCausalLM.from_pretrained(model_path).to('cuda').to(torch.bfloat16)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "llama" in model_path.lower():
@@ -179,7 +176,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
         return None
     
-    
+
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         assert self.test_dataset is not None, "test dataset should not be None"
         predict_loader = DataLoader(
