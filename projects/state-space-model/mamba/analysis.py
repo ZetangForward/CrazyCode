@@ -34,6 +34,9 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        import pdb; pdb.set_trace()
+        if input_ids.dim() == 3:
+            input_ids = input_ids.squeeze(0)
         input_ids = batch.get("input_ids")
         output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
         batch['predictions'] = output
@@ -83,7 +86,7 @@ def main(config):
         model=experiment,
         dataloaders=data_module.predict_dataloader(),
         return_predictions=True,
-        ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
+        ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
