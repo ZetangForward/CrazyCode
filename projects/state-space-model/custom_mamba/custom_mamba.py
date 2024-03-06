@@ -131,7 +131,10 @@ class Mamba(nn.Module):
         hidden_states: (B, L, D)
         Returns: same shape as hidden_states
         """
-        import pdb; pdb.set_trace()
+        ######################## Warning
+        # For Debug and Anaylsis
+        ########################
+        self.use_fast_path = False
 
         batch, seqlen, _ = hidden_states.shape
         conv_state, ssm_state = None, None
@@ -222,6 +225,7 @@ class Mamba(nn.Module):
         x, z = xz.chunk(2, dim=-1)  # (B D)
 
         # Conv step
+        import pdb; pdb.set_trace()
         if causal_conv1d_update is None:
             conv_state.copy_(torch.roll(conv_state, shifts=-1, dims=-1))  # Update state (B D W)
             conv_state[:, :, -1] = x

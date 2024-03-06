@@ -37,7 +37,10 @@ class Experiment(pl.LightningModule):
         input_ids = batch.get("input_ids")
         if input_ids.dim() == 3:
             input_ids = input_ids.squeeze(0)
-        output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
+        print_c(f"input length: {input_ids.shape}")
+        output = self.model.generate(
+            input_ids, min_new_tokens=10, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+            max_new_tokens=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
         batch['predictions'] = output
         return batch
 
