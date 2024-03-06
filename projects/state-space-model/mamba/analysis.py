@@ -78,26 +78,6 @@ def main(config):
     # register hook to get the output of the last layer
     hook = model.backbone.layers[-1].mixer.conv1d.register_forward_hook(conv_hook_fn)
 
-    def get_activation(name):
-        def hook(model, input, output):
-            conv_outputs[name] = output.detach()
-        return hook
-    import pdb; pdb.set_trace()
-    # model.backbone.layers[-1].mixer.conv1d.register_forward_hook(get_activation('conv1d_output'))
-    weights = model.backbone.layers[-1].mixer.conv1d.weight.float().data.cpu().numpy()
-    weights_reshaped = weights.reshape((weights.shape[0], -1))  # 形状现在是 (5120, 4)
-    pca = PCA(n_components=2)
-    pca_weights = pca.fit_transform(weights_reshaped)
-    # 可视化PCA的结果，每个点代表一个卷积核权重向量在主成分空间中的位置
-    plt.figure(figsize=(8, 6))
-    plt.scatter(pca_weights[:, 0], pca_weights[:, 1], alpha=0.7)
-    plt.title('PCA of Weights')
-    plt.xlabel('Principal Component 1')
-    plt.ylabel('Principal Component 2')
-    plt.savefig("/nvme/zecheng/modelzipper/projects/state-space-model/analysis/cov1d/last_layer.png")
-
-    import pdb; pdb.set_trace() 
-    
     b_t = time.time()
     predictions = tester.predict(
         model=experiment,
