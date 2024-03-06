@@ -70,7 +70,16 @@ def main(config):
     ## Analysis function Lens
     #########################
     # register hook to get the output of the last layer
-    activation = {}
+    conv_outputs = []
+
+    def conv_hook_fn(module, input, output):
+        conv_outputs.append(output.clone().detach())
+
+    # register hook to get the output of the last layer
+    hook = model.backbone.layers[-1].mixer.conv1d.register_forward_hook(conv_hook_fn)
+
+    
+
     def get_activation(name):
         def hook(model, input, output):
             activation[name] = output.detach()

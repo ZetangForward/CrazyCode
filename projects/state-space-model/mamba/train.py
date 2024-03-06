@@ -10,8 +10,6 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
-from torch.utils.data import DataLoader
 from modelzipper.tutils import *
 from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
