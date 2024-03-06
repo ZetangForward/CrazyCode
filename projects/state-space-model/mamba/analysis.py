@@ -84,8 +84,8 @@ def main(config):
     plt.title('Convolution Kernels Weights')
     plt.xlabel('Kernel Size')
     plt.legend()
-    plt.show()
-    
+    plt.savefig("/nvme/zecheng/modelzipper/projects/state-space-model/analysis/cov1d/last_layer.png")
+
     import pdb; pdb.set_trace() 
     
     predictions = tester.predict(

@@ -24,8 +24,8 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         input_ids = batch.get("input_ids")
-        output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
-        batch['predictions'] = output
+        output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length)
+        batch['predictions'] = output[0]
         return batch
 
 
