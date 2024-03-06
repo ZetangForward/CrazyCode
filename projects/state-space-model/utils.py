@@ -1,21 +1,13 @@
 import torch
 import os
-import sys
+# import pytorch_lightning as pl
 import lightning.pytorch as pl
-import hydra
 import importlib
-from torch import optim, Tensor 
-from lightning.pytorch import Trainer
-from lightning.pytorch.strategies import DDPStrategy
-from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
-from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
 from custom_mamba.position_mamba import LongContextMamba
-from modelzipper.tutils import *
-from lightning.pytorch.strategies import DeepSpeedStrategy
-from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
+from modelzipper.tutils import *
 
 
 def get_model_tokenizer(root_dir, model_config):
@@ -62,8 +54,19 @@ class CustomDatamodule(pl.LightningDataModule):
             "max_seq_length": self.cfg.dataset.max_seq_length,
             "cluster_batch": self.cfg.dataset.cluster_batch,            
         }
-        self.dataset_kwargs.update(self.cfg.other_cfgs)
         
+        if self.cfg.other_cfgs is not None:
+            self.dataset_kwargs.update(self.cfg.other_cfgs)
+    
+    def load_data_with_root_dir(self, fpath):
+        '''
+        read data with root dir
+        '''
+        if not self.root_dir in fpath:
+            fpath = os.path.join(self.root_dir, fpath)
+        return auto_read_data(fpath)
+
+
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None
          # import Dataset Class
@@ -85,9 +88,9 @@ class CustomDatamodule(pl.LightningDataModule):
                     raise NotImplementedError
             
             if self.cfg.dataset.processed_data_path is not None:
-                test_data = auto_read_data(self.cfg.dataset.processed_data_path)
+                test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
             else:
-                test_data = auto_read_data(self.cfg.dataset.test_data_path)
+                test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
             
             self.test_dataset = CustomDataset(
                 content=test_data, 
@@ -102,43 +105,57 @@ class CustomDatamodule(pl.LightningDataModule):
                 if os.path.isdir(processed_data_path):
                     for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
-                            train_data = auto_read_data(os.path.join(processed_data_path, split))
+                            train_data = self.load_data_with_root_dir(os.path.join(processed_data_path, split))
                         elif "valid" in split:
-                            valid_data = auto_read_data(os.path.join(processed_data_path, split))
+                            valid_data = self.load_data_with_root_dir(os.path.join(processed_data_path, split))
                         else:
                             raise NotImplementedError(f"split {split} is not supported")
                 else:
-                    content = auto_read_data(processed_data_path)
+                    content = self.load_data_with_root_dir(processed_data_path)
                     min_valid_num = min(1000, len(content)*0.1)
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
-
-        # check data initialization     
-        assert train_data is not None, "train data is None"
-        try:
-            assert valid_data is not None, "valid data is None"
-        except:
-            pass
-
-        # init dataset
-        self.train_dataset = CustomDataset(
-            content=train_data, 
-            tokenizer=self.tokenizer, 
-            split="train",
-            **self.dataset_kwargs,
-        )
-        print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
         
-        if valid_data is not None:
-            self.valid_dataset = CustomDataset(
-                content=valid_data, 
+        if stage == "fit":  # training mode
+            # check data initialization  
+            assert train_data is not None, f"train data should not be None during {stage} stage"
+            try:
+                assert valid_data is not None, f"valid data is None during {stage} stage"
+            except:
+                pass
+            
+            # init dataset
+            self.train_dataset = CustomDataset(
+                content=train_data, 
                 tokenizer=self.tokenizer, 
-                split="valid",
+                split="train",
                 **self.dataset_kwargs,
             )
-            print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
-
+            print_c(f"num of train samples: {len(self.train_dataset)}", color='magenta')
             
+            if valid_data is not None: 
+                self.valid_dataset = CustomDataset(
+                    content=valid_data, 
+                    tokenizer=self.tokenizer, 
+                    split="valid",
+                    **self.dataset_kwargs,
+                )
+                print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
+        
+        else: # testing mode
+            assert test_data is not None, f"test data should not be None during {stage} stage"
+
+            # init dataset
+            self.test_dataset = CustomDataset(
+                content=test_data, 
+                tokenizer=self.tokenizer, 
+                split="test",
+                **self.dataset_kwargs,
+            )
+            
+            print_c(f"num of testing samples: {len(self.test_dataset)}", color='magenta')
+            
+
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.train_dataset, 
@@ -148,7 +165,8 @@ class CustomDatamodule(pl.LightningDataModule):
             drop_last=True, 
             shuffle=False if self.cfg.dataset.cluster_batch else True, 
         )
-    
+        
+
     def val_dataloader(self) -> EVAL_DATALOADERS:
         if self.valid_dataset is not None:
             return DataLoader(
@@ -162,10 +180,13 @@ class CustomDatamodule(pl.LightningDataModule):
         return None
     
     def predict_dataloader(self) -> EVAL_DATALOADERS:
-        if self.test_dataset is not None:
-            return DataLoader(
-                self.test_dataset, batch_size=1, 
-                num_workers=self.cfg.dataset.nworkers, pin_memory=self.cfg.dataset.pin_memory, drop_last=False, shuffle=False,
-            )
-        return None
-    
+        assert self.test_dataset is not None, "test dataset should not be None"
+        predict_loader = DataLoader(
+            self.test_dataset, 
+            batch_size=1, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
+            drop_last=False, 
+            shuffle=False,
+        )
+        return predict_loader

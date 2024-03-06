@@ -60,7 +60,7 @@ def main(config):
     b_t = time.time()
 
     predictions = tester.predict(
-        experiment, 
+        model=experiment,
         datamodule=data_module,
         return_predictions=True,
         ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None

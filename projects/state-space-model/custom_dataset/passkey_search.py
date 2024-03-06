@@ -83,6 +83,7 @@ class PasskeySearchDataset(Dataset):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
+        import pdb; pdb.set_trace()
         item = self.content[index]
         passkey_context = item.pop('passkey_context')
         tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask

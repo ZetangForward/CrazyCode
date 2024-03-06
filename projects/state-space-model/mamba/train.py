@@ -125,7 +125,7 @@ class Experiment(pl.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
         }
-
+    
 
 class TransformerExperiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
@@ -239,7 +239,7 @@ def main(config):
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     
     # load experiment
-    experiment = TransformerExperiment(model, config, tokenizer=tokenizer, state="train")
+    experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
     
     # init logger
     tb_logger = TensorBoardLogger(
@@ -247,6 +247,7 @@ def main(config):
         name=f"{config.exp_task}",
         version=config.JOB_ID
     )
+
     lr_monitor = LearningRateMonitor(logging_interval='step')
     ckpt_monitor = ModelCheckpoint(
         save_top_k=config.experiment.save_top_k, 
@@ -258,30 +259,29 @@ def main(config):
         save_weights_only=True, # only save state dict
     )
     
-    
-    # TODO: add deepspeed strategy
-    deepspeed_config = {
-        "zero_allow_untested_optimizer": True,
-        "zero_optimization": {
-            "stage": 2,  # Enable Stage 2 ZeRO (Optimizer/Gradient state partitioning)
-            "offload_optimizer": {"device": "cpu"},  # Enable Offloading optimizer state/calculation to the host CPU
-            "contiguous_gradients": True,  # Reduce gradient fragmentation.
-            "overlap_comm": True,  # Overlap reduce/backward operation of gradients for speed.
-            "allgather_bucket_size": 2e8,  # Number of elements to all gather at once.
-            "reduce_bucket_size": 2e8,  # Number of elements we reduce/allreduce at once.
-        },
-    }
+    # # TODO: add deepspeed strategy
+    # deepspeed_config = {
+    #     "zero_allow_untested_optimizer": True,
+    #     "zero_optimization": {
+    #         "stage": 2,  # Enable Stage 2 ZeRO (Optimizer/Gradient state partitioning)
+    #         "offload_optimizer": {"device": "cpu"},  # Enable Offloading optimizer state/calculation to the host CPU
+    #         "contiguous_gradients": True,  # Reduce gradient fragmentation.
+    #         "overlap_comm": True,  # Overlap reduce/backward operation of gradients for speed.
+    #         "allgather_bucket_size": 2e8,  # Number of elements to all gather at once.
+    #         "reduce_bucket_size": 2e8,  # Number of elements we reduce/allreduce at once.
+    #     },
+    # }
 
     
-    strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
+    # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
 
     trainer = Trainer(
         default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
         logger=tb_logger,
         callbacks=[lr_monitor, ckpt_monitor],
         check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
-        # strategy=DDPStrategy(find_unused_parameters=False),
-        strategy="deepspeed_stage_2_offload",
+        strategy=DDPStrategy(find_unused_parameters=False),
+        # strategy="deepspeed_stage_2_offload",
         precision="bf16-mixed",
         max_steps=config.experiment.num_training_steps,
         devices=config.experiment.device_num,

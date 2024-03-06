@@ -1,14 +1,14 @@
 platform: &platform "amax"
-JOB_ID: &JOB_ID 1
+JOB_ID: &JOB_ID 3
 state: &state "train"
 exp_task: &exp_task "simplepajama"
-model_name: &model_name "openllama-v2-3b"
+model_name: &model_name "mamba-1_4b"
 
 defaults:
   - _self_
-  - platform: amax
-  - task: simplepajama
-  - model: openllama-v2-3b
+  - platform: *platform
+  - task: *exp_task
+  - model: *model_name
 
 hydra:
   job:
@@ -28,7 +28,7 @@ experiment:
   seed: 27
   model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
   save_top_k: 2
-  monitor_metric: "valid_lm_loss"
+  monitor_metric: "train_lm_loss"
   beta_1: 0.9
   beta_2: 0.95
   weight_decay: 0.1
