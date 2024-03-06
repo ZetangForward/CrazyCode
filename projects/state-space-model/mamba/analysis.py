@@ -9,7 +9,7 @@ from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
 import matplotlib.pyplot as plt
-
+from sklearn.decomposition import PCA
 
 def analysis_cov1d_kernel(module):
     weights = module.weight.data.cpu().numpy()
@@ -79,11 +79,15 @@ def main(config):
     # model.backbone.layers[-1].mixer.conv1d.register_forward_hook(get_activation('conv1d_output'))
 
     weights = model.backbone.layers[-1].mixer.conv1d.weight.float().data.cpu().numpy()
-    for i, weight in enumerate(weights):
-        plt.plot(weight[0], label=f'Conv Kernel {i}')
-    plt.title('Convolution Kernels Weights')
-    plt.xlabel('Kernel Size')
-    plt.legend()
+    weights_reshaped = weights.reshape((weights.shape[0], -1))  # 形状现在是 (5120, 4)
+    pca = PCA(n_components=2)
+    pca_weights = pca.fit_transform(weights_reshaped)
+    # 可视化PCA的结果，每个点代表一个卷积核权重向量在主成分空间中的位置
+    plt.figure(figsize=(8, 6))
+    plt.scatter(pca_weights[:, 0], pca_weights[:, 1], alpha=0.7)
+    plt.title('PCA of Weights')
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
     plt.savefig("/nvme/zecheng/modelzipper/projects/state-space-model/analysis/cov1d/last_layer.png")
 
     import pdb; pdb.set_trace() 
