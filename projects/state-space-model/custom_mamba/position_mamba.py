@@ -362,7 +362,6 @@ class Block(nn.Module):
         return self.mixer.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
 
 
-
 def _init_weights(
     module,
     n_layer,
@@ -406,6 +405,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
         device=None,
         dtype=None,
         use_position=None,
+        analysis=None,
         **backbone_kwargs,
     ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -420,6 +420,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
             vocab_size=vocab_size,
             initializer_cfg=initializer_cfg,
             use_position=use_position,
+            analysis=analysis,
             **backbone_kwargs,
             **factory_kwargs,
         )
@@ -509,6 +510,7 @@ class MixerModel(nn.Module):
         device=None,
         dtype=None,
         use_position=False,
+        analysis=False,
     ) -> None:
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -517,7 +519,7 @@ class MixerModel(nn.Module):
         if use_position:
             self.wpe = nn.Embedding(max_position_embeddings, d_model, **factory_kwargs)
         self.embedding = nn.Embedding(vocab_size, d_model, **factory_kwargs)
-        
+        self.analysis = analysis
         # We change the order of residual and layer norm:
         # Instead of LN -> Attn / MLP -> Add, we do:
         # Add -> LN -> Attn / MLP / Mixer, returning both the residual branch (output of Add) and

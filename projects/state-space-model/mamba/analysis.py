@@ -7,14 +7,7 @@ import hydra
 from custom_dataset import *
 from custom_dataset.zero_scroll import *
 from modelzipper.tutils import *
-from custom_mamba.position_mamba import LongContextMamba
-import numpy as np
-# from sklearn.decomposition import PCA
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from keras.utils import to_categorical
-# from sklearn.datasets import make_classification
-
+from utils import get_model_tokenizer, CustomDatamodule
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -30,31 +23,27 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output = self.model.generate(batch['input_ids'].squeeze(0), max_length=self.cfg.task.other_cfgs.max_generation_length, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
-        subset = batch['subset'][0]
-        print_c("one sample generation ending")
-       
-        standard_test_reconstruct = {
-            "prediction": self.tokenizer.decode(output[0]),
-            "subset": subset,
-        }
-        
-        return standard_test_reconstruct
+        input_ids = batch.get("input_ids")
+        output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length, eos_token_id=self.tokenizer.eos_token_id)
+        batch['predictions'] = output
+        return batch
 
 
 @hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
 def main(config):
     
-    print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state}", "magenta")
+    print_c(OmegaConf.to_yaml(config), "yellow")
     
+    model_root_dir = config.platform.hf_model_path
+    save_root_dir = config.platform.exp_path
+    data_root_dir = config.platform.dataset_path
+
     # load model and tokenizer
-    model = LongContextMamba.from_pretrained(
-        os.path.join(config.platform.hf_model_path, config.model.model_name), 
-        use_position=config.model.use_position,
-        dtype=torch.bfloat16, 
-        device="cuda", 
-        strict=False
-    )
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+    
+    # load testing data
+    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+    data_module.setup(stage='predict')
 
     if config.model.load_model_state_dict:
         state_dict = torch.load(
@@ -63,51 +52,22 @@ def main(config):
         )
         model.load_state_dict(state_dict, strict=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        os.path.join(config.platform.hf_model_path, config.model.tokenizer_name_or_path)
-    )
-
-    if "gpt-neo" in config.model.tokenizer_name_or_path:
-        tokenizer.pad_token = tokenizer.eos_token
-    
-    # register hook module
-    # 定义一个全局变量或者包含所有相关tensor的容器，用来保存卷积操作的输出
-    activation = {}
-
-    import pdb; pdb.set_trace()
-    # 定义hook函数
-    def get_activation(name):
-        def hook(model, input, output):
-            activation[name] = output.detach()
-        return hook
-    
-    model.backbone.layers[-1].conv1d.register_forward_hook(get_activation('conv1d_output'))
-
-
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
-    # load data
-    if config.exp_task.lower() == "insert_needle":
-        data_module = FindNeedle(config.task, tokenizer, config.dataset.data_path)
-    elif config.exp_task.lower() == "zero_scroll":
-        data_module = ZeroScrolls(config.task.dataset, config.platform, tokenizer)
-    else:
-        data_module = custom_datamodule(config.dataset, tokenizer)
-
     tester = pl.Trainer(devices=config.experiment.device_num)
 
     b_t = time.time()
-
+    
     predictions = tester.predict(
-        experiment, 
-        datamodule=data_module,
+        model=experiment,
+        dataloaders=data_module.predict_dataloader(),
         return_predictions=True,
         ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-
+    import pdb; pdb.set_trace()
     save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
