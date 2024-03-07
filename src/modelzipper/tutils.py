@@ -20,6 +20,7 @@ import transformers
 import argparse
 import re
 import gc
+import glob
 import fire
 import accelerate
 import torch.nn as nn
@@ -30,6 +31,7 @@ from termcolor import colored
 from typing import Any, Mapping, Tuple, List, Optional, Dict, Sequence, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList 
 from omegaconf import OmegaConf
+
 
 def print_c(s, c='green', *args, **kwargs):
     """
@@ -180,14 +182,24 @@ def auto_mkdir(dir_path):
     return dir_path
 
 
-def auto_read_dir(dir_path):
+def auto_read_dir(dir_path, file_suffix=None):
     """
-    automatically read all files from a directory
+    Automatically read all files with a specific suffix from a directory.
     
-    return a list contains all file names
+    Args:
+        dir_path (str): The directory path to search for files.
+        file_suffix (str): The file suffix to search for. if not provided return all files
+
+    Returns:
+        file_names (list): A list containing all file names with the specified suffix.
     """
-    file_names = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
-    print_c(f"number of files: {len(file_names)}")
+    if file_suffix is None:
+        file_names = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
+    else:
+        search_pattern = os.path.join(dir_path, f"*{file_suffix}")
+        file_names = glob.glob(search_pattern)
+    
+    print_c(f"number of files with {file_suffix} suffix: {len(file_names)}")
     return file_names
 
 

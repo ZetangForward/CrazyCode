@@ -159,6 +159,9 @@ class Mamba(nn.Module):
                 out, _, _ = self.step(hidden_states, conv_state, ssm_state)
                 return out
 
+        ### analysis step : save text hidden state
+        auto_save_data(hidden_states, "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/input_seq_embedding.pkl")
+
         # We do matmul and transpose BLH -> HBL at the same time
         xz = rearrange(  # [1, 8192, 550]
             self.in_proj.weight @ rearrange(hidden_states, "b l d -> d (b l)"),
