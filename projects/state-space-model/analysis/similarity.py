@@ -99,15 +99,15 @@ def analysis_cov1d_compress(fpath, highlight_start=18, highlight_end=40):
     x_labels = ['20%', '40%', '60%', '80%', '100%']
     x_positions = np.arange(len(x_labels))
     
-    for j in len(per_layer_scores.keys()):
+    for index, j in enumerate(per_layer_scores.keys()):
         for k in range(per_layer_scores[j].shape[0]):  # 循环每一种压缩程度
-            axs[j].plot(x_positions, per_layer_scores[j][k, :], marker='o', label=f'Conv1d-State-{k}')
-        axs[j].set_xticks(x_positions)
-        axs[j].set_xticklabels(x_labels)
-        axs[j].set_xlabel('Percentage of Text')
-        axs[j].set_ylabel('Percentage of Top Indices')
-        axs[j].set_title(f'Layer {j+1}')
-        axs[j].legend()  # 添加图例
+            axs[index].plot(x_positions, per_layer_scores[j][k, :], marker='o', label=f'Conv1d-State-{k}')
+        axs[index].set_xticks(x_positions)
+        axs[index].set_xticklabels(x_labels)
+        axs[index].set_xlabel('Percentage of Text')
+        axs[index].set_ylabel('Percentage of Top Indices')
+        axs[index].set_title(f'Layer {j+1}')
+        axs[index].legend()  # 将图例放在右上角
 
     plt.tight_layout()
     plt.savefig("analysis/figures/partition_scores_line_plot.png")
