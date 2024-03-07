@@ -73,8 +73,15 @@ def auto_read_data(file_path, return_format="list"):
     Returns:
         list or str: The data read from the file, in the specified format.
     """
-    print_c(f"begin to read data from {file_path} ...")
+
     file_type = file_path.split('.')[-1].lower()  
+
+    # Get the size of the file right after it's been written to
+    file_size = os.path.getsize(file_path)
+    # Convert the size to a more readable format
+    readable_size = convert_size(file_size)
+
+    print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
     
     if file_type == 'jsonl':  
         with open(file_path, 'r', encoding='utf-8') as file:  
@@ -182,24 +189,31 @@ def auto_mkdir(dir_path):
     return dir_path
 
 
-def auto_read_dir(dir_path, file_suffix=None):
+def auto_read_dir(dir_path, file_prefix=None, file_suffix=None):
     """
     Automatically read all files with a specific suffix from a directory.
     
     Args:
         dir_path (str): The directory path to search for files.
-        file_suffix (str): The file suffix to search for. if not provided return all files
+        file_prefix (str): The file prefix to search for. If None, all prefixes are matched.
+        file_suffix (str): The file suffix to search for. If None, all suffixes are matched.
 
     Returns:
         file_names (list): A list containing all file names with the specified suffix.
     """
-    if file_suffix is None:
+    if file_suffix is None and file_prefix is None:
         file_names = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
     else:
-        search_pattern = os.path.join(dir_path, f"*{file_suffix}")
+        # If a file prefix is provided, include it in the search pattern, otherwise use wildcard.
+        file_prefix_pattern = f"{file_prefix}*" if file_prefix else '*'
+        
+        # If a file suffix is provided, include it in the search pattern, otherwise use wildcard.
+        file_suffix_pattern = f"*{file_suffix}" if file_suffix else '*'
+        
+        search_pattern = os.path.join(dir_path, f"{file_prefix_pattern}*{file_suffix_pattern}")
         file_names = glob.glob(search_pattern)
     
-    print_c(f"number of files with {file_suffix} suffix: {len(file_names)}")
+    print_c(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)})
     return file_names
 
 
