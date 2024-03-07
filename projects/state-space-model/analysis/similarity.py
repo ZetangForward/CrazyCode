@@ -11,18 +11,17 @@ from modelzipper.tutils import *
 def analysis_cov1d_compress(fpath):
     file_names = auto_read_dir(fpath, file_prefix="passkey", file_suffix=".pkl")
     file_names = sorted(file_names, key=lambda x: int(os.path.basename(x).split("-")[-1].split(".")[0]))
+    
     text_embedding_file = auto_read_dir(fpath, file_prefix="input_seq_embedding", file_suffix=".pkl")[0]
     text_embedding = auto_read_data(text_embedding_file) # torch.Size([1, 550, 2048])
     if text_embedding.dim() == 3:
         text_embedding = text_embedding.squeeze(0)
 
-    # 创建一个大图布，其中 nrows 和 ncols 根据你的文件数量来确定
-    fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(200, 50))  # 举例子，5行4列
-    axs = axs.flatten()  # 将多维的axs数组展平，便于迭代
-    import pdb; pdb.set_trace()
+    fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(200, 50)) 
+    axs = axs.flatten() 
     for idx, file_name in enumerate(file_names):
         layer_idx = int(os.path.basename(file_name).split("-")[-1].split(".")[0])
-        hidden_state = auto_read_data(file_name)  # 自定义的读取数据函数
+        hidden_state = auto_read_data(file_name) 
         
         if hidden_state.dim() == 3:
             hidden_state = hidden_state.squeeze(0)
@@ -45,7 +44,7 @@ def analysis_cov1d_compress(fpath):
 
         # 使用当前子图绘制
         ax = axs[idx]
-        ax.imshow(similarity_matrix_np, cmap='Reds', aspect='auto', alpha=0.3)  # 使用'Reds'颜色映射
+        ax.imshow(similarity_matrix_np, cmap='Reds', aspect='auto', alpha=0.3) 
         ax.imshow(mask, cmap='hot', aspect='auto', alpha=0.9)
         ax.axis('off')
         ax.set_title(f"Layer {layer_idx}")
