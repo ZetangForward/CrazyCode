@@ -23,14 +23,13 @@ def analysis_cov1d_compress(fpath):
         if hidden_state.dim() == 3:
             hidden_state = hidden_state.squeeze(0)
 
-        hidden_state = hidden_state.permute(0, 1)
+        hidden_state = hidden_state.permute(1, 0)
 
         if hidden_state.size(-1) != text_embedding.size(-1):
             h_avg_pooled = F.avg_pool1d(hidden_state, kernel_size=2, stride=2)  # 4, 2048
 
         similarity_matrix = torch.zeros(4, 550).to(h_avg_pooled.device)  # for recording the similarity between each hidden state and the text embedding
         for i, h in enumerate(h_avg_pooled):
-            import pdb; pdb.set_trace()
             cos_sim = F.cosine_similarity(h.unsqueeze(0), text_embedding)
             similarity_matrix[i] = cos_sim
 
