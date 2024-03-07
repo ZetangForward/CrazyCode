@@ -33,7 +33,7 @@ def analysis_cov1d_compress(fpath):
             cos_sim = F.cosine_similarity(h.unsqueeze(0), text_embedding)
             similarity_matrix[i] = cos_sim
 
-        similarity_matrix_np = similarity_matrix.numpy()
+        similarity_matrix_np = similarity_matrix.cpu().numpy()
 
         # 绘制热力图
         plt.imshow(similarity_matrix_np, cmap='hot', interpolation='nearest')
