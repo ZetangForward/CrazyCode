@@ -1,4 +1,5 @@
 projects/custom_llama
 projects/ModelAlign/wandb
 projects/state-space-model/runs
-projects/state-space-model/analysis
+projects/state-space-model/analysis/figures
+projects/state-space-model/analysis/inner_state

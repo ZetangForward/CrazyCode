@@ -98,6 +98,16 @@ def auto_read_data(file_path, return_format="list"):
     return data  
 
 
+def convert_size(size_bytes):
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_name[i]}"
+
+
 def auto_save_data(lst: List, file_path):
     """
     Save a list of items to a file.
@@ -147,7 +157,12 @@ def auto_save_data(lst: List, file_path):
     else:
         raise ValueError(f"file_type {suffix_} not supported!")
     
-    print_c(f"Save file to {file_path} | len: {len(lst)}")
+    # Get the size of the file right after it's been written to
+    file_size = os.path.getsize(file_path)
+    # Convert the size to a more readable format
+    readable_size = convert_size(file_size)
+
+    print_c(f"Save file to {file_path} | len: {len(lst)} |  size: {readable_size}")
 
 
 def auto_mkdir(dir_path):

@@ -149,9 +149,10 @@ class Mamba(nn.Module):
             ### analysis step : save cov_state
 
             if conv_state is not None:
-                if self.layer_idx in [0, 11, 23, 35, 47]:
+                if self.layer_idx in [0, 11, 23, 35, 47]:  # save 5 hidden states
+                    print_c(f"layer-{self.layer_idx}", "yellow")
                     auto_save_data(conv_state, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/passkeysearch-layer-{self.layer_idx}.pkl")
-                    
+
 
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
