@@ -10,38 +10,50 @@ from modelzipper.tutils import *
 
 def analysis_cov1d_compress(fpath):
     file_names = auto_read_dir(fpath, file_prefix="passkey", file_suffix=".pkl")
+    file_name = sorted(file_names, key=lambda x: int(os.path.basename(x).split("-")[-1].split(".")[0]))[-1]
     text_embedding_file = auto_read_dir(fpath, file_prefix="input_seq_embedding", file_suffix=".pkl")[0]
     text_embedding = auto_read_data(text_embedding_file) # torch.Size([1, 550, 2048])
     if text_embedding.dim() == 3:
         text_embedding = text_embedding.squeeze(0)
-    for file_name in file_names:
-        import pdb; pdb.set_trace()
-        
+
+    # 创建一个大图布，其中 nrows 和 ncols 根据你的文件数量来确定
+    fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(200, 50))  # 举例子，5行4列
+    axs = axs.flatten()  # 将多维的axs数组展平，便于迭代
+
+    for idx, file_name in enumerate(file_names):
         layer_idx = int(os.path.basename(file_name).split("-")[-1].split(".")[0])
-        hidden_state = auto_read_data(file_name)  # torch.Size([1, 4096, 4])
+        hidden_state = auto_read_data(file_name)  # 自定义的读取数据函数
         
         if hidden_state.dim() == 3:
             hidden_state = hidden_state.squeeze(0)
-
+        
         hidden_state = hidden_state.permute(1, 0)
 
         if hidden_state.size(-1) != text_embedding.size(-1):
-            h_avg_pooled = F.avg_pool1d(hidden_state, kernel_size=2, stride=2)  # 4, 2048
+            h_avg_pooled = F.avg_pool1d(hidden_state, kernel_size=2, stride=2)
 
-        similarity_matrix = torch.zeros(4, 550).to(h_avg_pooled.device)  # for recording the similarity between each hidden state and the text embedding
+        similarity_matrix = torch.zeros(4, 550).to(h_avg_pooled.device)
         for i, h in enumerate(h_avg_pooled):
             cos_sim = F.cosine_similarity(h.unsqueeze(0), text_embedding)
             similarity_matrix[i] = cos_sim
 
         similarity_matrix_np = similarity_matrix.cpu().numpy()
+        top_indices = np.argpartition(similarity_matrix_np, -50, axis=1)[:, -50:]
+        mask = np.zeros_like(similarity_matrix_np, dtype=bool)
+        for i in range(similarity_matrix_np.shape[0]):
+            mask[i, top_indices[i]] = True
 
-        # 绘制热力图
-        plt.imshow(similarity_matrix_np, cmap='hot', interpolation='nearest')
-        plt.colorbar()
-        plt.xlabel('Text Embedding Index')
-        plt.ylabel('Hidden State Index')
-        plt.savefig(f"analysis/figures/cosine_similarity_heatmap_layer_{layer_idx}.png")
+        # 使用当前子图绘制
+        ax = axs[idx]
+        ax.imshow(similarity_matrix_np, cmap='Reds', aspect='auto', alpha=0.3)  # 使用'Reds'颜色映射
+        ax.imshow(mask, cmap='hot', aspect='auto', alpha=0.9)
+        ax.axis('off')
+        ax.set_title(f"Layer {layer_idx}")
 
+    # 调整子图位置
+    plt.tight_layout()
+    plt.savefig("analysis/figures/cosine_similarity_heatmap_combined.png")
+    plt.show()
 
 if __name__ == "__main__":
     argparse = ArgumentParser()
