@@ -30,6 +30,7 @@ def analysis_cov1d_compress(fpath):
 
         similarity_matrix = torch.zeros(4, 550).to(h_avg_pooled.device)  # for recording the similarity between each hidden state and the text embedding
         for i, h in enumerate(h_avg_pooled):
+            import pdb; pdb.set_trace()
             cos_sim = F.cosine_similarity(h.unsqueeze(0), text_embedding)
             similarity_matrix[i] = cos_sim
 
