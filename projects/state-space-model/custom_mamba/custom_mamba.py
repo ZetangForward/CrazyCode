@@ -145,9 +145,16 @@ class Mamba(nn.Module):
         if inference_params is not None:
             
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
+
+            ### analysis step : save cov_state
+
+            if conv_state is not None:
+                if self.layer_idx in [0, 11, 23, 35, 47]:
+                    auto_save_data(conv_state, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/passkeysearch-layer-{self.layer_idx}.pkl")
+                    
+
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
-                
                 out, _, _ = self.step(hidden_states, conv_state, ssm_state)
                 return out
 
@@ -288,6 +295,9 @@ class Mamba(nn.Module):
         ssm_state = torch.zeros(
             batch_size, self.d_model * self.expand, self.d_state, device=device, dtype=ssm_dtype
         )
+
+        # add new inference cache
+
         return conv_state, ssm_state
 
 
@@ -597,7 +607,6 @@ class LongContextMamba(nn.Module, GenerationMixin):
 
     def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
         return self.backbone.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
-
 
     def forward(self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0):
         """
