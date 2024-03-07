@@ -148,7 +148,7 @@ class Mamba(nn.Module):
 
             ### analysis step : save cov_state
 
-            if conv_state is not None:
+            if conv_state is not None and inference_params.seqlen_offset:
                 if self.layer_idx in [0, 11, 23, 35, 47]:  # save 5 hidden states
                     print_c(f"layer-{self.layer_idx}", "yellow")
                     auto_save_data(conv_state, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/passkeysearch-layer-{self.layer_idx}.pkl")
@@ -160,7 +160,8 @@ class Mamba(nn.Module):
                 return out
 
         ### analysis step : save text hidden state
-        auto_save_data(hidden_states, "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/input_seq_embedding.pkl")
+        if self.layer_idx == 0:
+            auto_save_data(hidden_states, "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/input_seq_embedding.pkl")
 
         # We do matmul and transpose BLH -> HBL at the same time
         xz = rearrange(  # [1, 8192, 550]
