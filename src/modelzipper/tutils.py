@@ -213,7 +213,7 @@ def auto_read_dir(dir_path, file_prefix=None, file_suffix=None):
         search_pattern = os.path.join(dir_path, f"{file_prefix_pattern}*{file_suffix_pattern}")
         file_names = glob.glob(search_pattern)
     
-    print_c(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)})
+    print_c(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)}")
     return file_names
 
 
