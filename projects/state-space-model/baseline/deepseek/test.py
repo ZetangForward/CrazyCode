@@ -5,7 +5,7 @@ import torch
 import hydra 
 import lightning.pytorch as pl
 from modelzipper.tutils import *
-from model import LlamaForCausalLM
+from model import LlamaForCausalLM, LlamaModel
 from utils import get_model_tokenizer, CustomDatamodule
 
 class Experiment(pl.LightningModule):
@@ -33,7 +33,7 @@ class Experiment(pl.LightningModule):
             depth = batch['depth'].cpu().item(),
             ctx_length = batch['ctx_length'].cpu().item()
         )
-        import pdb; pdb.set_trace()
+
         label = batch['labels'][0]
         
         standard_test_reconstruct = {
@@ -54,7 +54,7 @@ def main(config):
     data_root_dir = config.platform.dataset_path
 
     # load model and tokenizer
-    model = transformers.AutoModel.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path))
+    model = LlamaModel.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path))
     tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_root_dir, config.model.tokenizer_name_or_path))
         
     # load experiment (and model checkpoint)
