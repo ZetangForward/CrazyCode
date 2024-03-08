@@ -49,7 +49,7 @@ class Experiment(pl.LightningModule):
         return batch
 
 
-@hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
+@hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
     
     print_c(OmegaConf.to_yaml(config), "yellow")
@@ -73,19 +73,19 @@ def main(config):
 
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
-    tester = pl.Trainer(devices=config.experiment.device_num)
+    tester = pl.Trainer(devices=config.experiment.device_num, precision="bf16")
     
     #########################
     ## Analysis function Lens
     #########################
     # register hook to get the output of the last layer
-    conv_outputs = []
+    # conv_outputs = []
 
-    def conv_hook_fn(module, input, output):
-        conv_outputs.append(output.clone().detach())
+    # def conv_hook_fn(module, input, output):
+    #     conv_outputs.append(output.clone().detach())
 
-    # register hook to get the output of the last layer
-    hook = model.backbone.layers[-1].mixer.conv1d.register_forward_hook(conv_hook_fn)
+    # # register hook to get the output of the last layer
+    # hook = model.backbone.layers[-1].mixer.conv1d.register_forward_hook(conv_hook_fn)
 
     b_t = time.time()
     predictions = tester.predict(
