@@ -6,8 +6,8 @@ import hydra
 import transformers
 import pytorch_lightning as pl
 from custom_dataset.data import custom_datamodule
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from modelzipper.tutils import *
+from .model import LlamaForCausalLM
 
 
 class Experiment(pl.LightningModule):
@@ -47,7 +47,7 @@ def main(config):
     print_c(f"Experiment: {config.experiment.task}", "magenta")
     
     # load model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
+    model = LlamaForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
 
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
