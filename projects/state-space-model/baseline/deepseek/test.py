@@ -6,7 +6,7 @@ import hydra
 import pytorch_lightning as pl
 from modelzipper.tutils import *
 from model import LlamaForCausalLM
-
+from utils import get_model_tokenizer, CustomDatamodule
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -19,12 +19,6 @@ class Experiment(pl.LightningModule):
             self.hold_graph = self.params['retain_first_backpass']
         except:
             pass
-        
-    def denormalize_func(self, normalized_tensor, min_val=0, max_val=200):
-        tensor = (normalized_tensor + 1) / 2
-        tensor = tensor * (max_val - min_val) + min_val
-        tensor = torch.round(tensor).long()
-        return tensor
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
@@ -43,31 +37,33 @@ class Experiment(pl.LightningModule):
 def main(config):
     
     print_c(OmegaConf.to_yaml(config), "yellow")
-    
-    # load model and tokenizer
-    model = LlamaForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
-    tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
 
-    if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
-        tokenizer.pad_token = tokenizer.eos_token
+    model_root_dir = config.platform.hf_model_path
+    save_root_dir = config.platform.result_path
+    data_root_dir = config.platform.dataset_path
+
+    # load model and tokenizer
+    model = LlamaForCausalLM.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path), torch_dtype=torch.bfloat16).to('cuda')
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_root_dir, config.model.tokenizer_name_or_path))
         
     # load experiment (and model checkpoint)
-    experiment = Experiment.load_from_checkpoint(config.model.ckpt_path, model=model, config=config, tokenizer=tokenizer)
+    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
     
     import pdb; pdb.set_trace()
     
-    # load data
-    data_module = custom_datamodule(config.dataset, tokenizer)
+    # load testing data
+    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+    data_module.setup(stage='predict')
 
     tester = pl.Trainer(devices=config.experiment.device_num)
 
     b_t = time.time()
 
     predictions = tester.predict(
-        experiment, 
-        datamodule=data_module,
+        model=experiment,
+        dataloaders=data_module.predict_dataloader(),
         return_predictions=True,
-        ckpt_path=config.model.ckpt_path  # second pass for safety
+        ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
