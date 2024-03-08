@@ -15,12 +15,17 @@ class PasskeySearchDataset(Dataset):
         self.tokenizer = tokenizer
         self.max_seq_length = kwargs["max_seq_length"]
         self.cluster_batch = kwargs["cluster_batch"]
+        self.filter_length(kwargs["testing_max_ctx"])
 
-        if self.cluster_batch: 
-            print_c("Requires clustering batch, begin to process", "yellow")
-            bt = time.time()
-            self.cluster_batch_fn()
-            print_c(f"Clustering batch finished, time elapsed: {time.time()-bt}", "yellow")
+    def filter_length(self, max_ctx_length=12000):
+        new_content = []
+        print_c(f"begin to filter the context length | total {len(self.content)} instances", "yellow")
+        for item in self.content:
+            if item['ctx_length'] <= max_ctx_length:
+                new_content.append(item)
+        self.content = new_content
+        print_c(f"filtering finished | total {len(self.content)} instances", "yellow")
+
 
     @classmethod
     def load_context(cls, fpath, ctx_len=10000, tokenizer=None):
@@ -42,6 +47,7 @@ class PasskeySearchDataset(Dataset):
         needle_place = int(depth * c_len)
         context = ".".join(context[:needle_place]) + " ." + needle + ". ".join(context[needle_place:])
         return context
+
 
     @classmethod
     def build_dataset(cls, fpath, key, value, ctx_len, tokenizer):

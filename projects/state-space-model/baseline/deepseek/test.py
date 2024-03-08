@@ -2,12 +2,10 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import torch   
-import hydra  
-import transformers
+import hydra 
 import pytorch_lightning as pl
-from custom_dataset.data import custom_datamodule
 from modelzipper.tutils import *
-from .model import LlamaForCausalLM
+from model import LlamaForCausalLM
 
 
 class Experiment(pl.LightningModule):
@@ -44,7 +42,7 @@ class Experiment(pl.LightningModule):
 @hydra.main(config_path='../../configs', config_name='test_config', version_base='1.1')
 def main(config):
     
-    print_c(f"Experiment: {config.experiment.task}", "magenta")
+    print_c(OmegaConf.to_yaml(config), "yellow")
     
     # load model and tokenizer
     model = LlamaForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
@@ -56,6 +54,7 @@ def main(config):
     # load experiment (and model checkpoint)
     experiment = Experiment.load_from_checkpoint(config.model.ckpt_path, model=model, config=config, tokenizer=tokenizer)
     
+    import pdb; pdb.set_trace()
     
     # load data
     data_module = custom_datamodule(config.dataset, tokenizer)
