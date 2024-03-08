@@ -34,12 +34,12 @@ class Experiment(pl.LightningModule):
             ctx_length = batch['ctx_length'].cpu().item()
         )
 
-        label = batch['labels'][0]
-        
-        standard_test_reconstruct = {
-            "prediction": self.tokenizer.decode(output[0]),
-            "golden": self.tokenizer.decode(label),
-        }
+        # label = batch['labels'][0]
+        standard_test_reconstruct = None
+        # standard_test_reconstruct = {
+        #     "prediction": self.tokenizer.decode(output[0]),
+        #     # "golden": self.tokenizer.decode(label),
+        # }
         
         return standard_test_reconstruct
     
@@ -54,7 +54,7 @@ def main(config):
     data_root_dir = config.platform.dataset_path
 
     # load model and tokenizer
-    model = LlamaModel.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path))
+    model = LlamaModel.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path), torch_dtype=torch.bfloat16).to('cuda:6')
     tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_root_dir, config.model.tokenizer_name_or_path))
         
     # load experiment (and model checkpoint)
