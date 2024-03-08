@@ -150,17 +150,15 @@ class Mamba(nn.Module):
             if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
                 if self.layer_idx == 47:  # save last hidden states
                     print_c(f"layer-{self.layer_idx}", "yellow")
-                    auto_save_data(conv_state, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl")
-
+                    auto_save_data(
+                        conv_state, 
+                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
+                    )
 
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
                 out, _, _ = self.step(hidden_states, conv_state, ssm_state)
                 return out
-
-        ### analysis step : save text hidden state
-        if self.layer_idx == 0:
-            auto_save_data(hidden_states, "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/input_seq_embedding.pkl")
 
         # We do matmul and transpose BLH -> HBL at the same time
         xz = rearrange(  # [1, 8192, 550]
@@ -191,6 +189,11 @@ class Mamba(nn.Module):
             )
         else:
             x, z = xz.chunk(2, dim=1) # [1, 4096, 550] / [1, 4096, 550]
+
+            ### analysis step : save text hidden state
+            if self.layer_idx == 0 and x.size(-1) % 50 == 0:
+                auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{x.size(-1)}/input_seq_embedding.pkl")
+
             # Compute short convolution
             if conv_state is not None:
                 conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
