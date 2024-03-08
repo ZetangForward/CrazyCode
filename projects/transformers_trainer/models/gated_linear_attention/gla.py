@@ -31,8 +31,6 @@ class GatedLinearAttention(nn.Module):
 
         self.post_init()
 
-
-
     def post_init(self):
         nn.init.xavier_uniform_(self.q_proj.weight, gain=2 ** -2.5)
         nn.init.xavier_uniform_(self.k_proj.weight, gain=2 ** -2.5)

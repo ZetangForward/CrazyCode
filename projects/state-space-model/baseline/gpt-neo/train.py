@@ -14,9 +14,8 @@ from modelzipper.tutils import *
 from torch import optim, Tensor 
 
 
-
 class Experiment(pl.LightningModule):
-
+    
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()
         self.model = model

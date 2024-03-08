@@ -1,36 +1,22 @@
-SAVE_DIR: &SAVE_DIR "/nvme/zecheng/ckpt"
-JOB_ID: &JOB_ID 1
-TASK: &TASK "text_infilling_gpt"
+platform: &platform "amax"
+exp_task: &exp_task "passkey_search"
+state: &state "test"
+model_name: &model_name "mamba-1_4b"
+
+defaults:
+  - _self_
+  - platform: *platform
+  - task: *exp_task
+  - model: *model_name
 
 hydra:
   job:
-    id: ${JOB_ID}
-    name: hydra_${TASK}
+    name: hydra_${exp_task}
   run:
-    dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/${hydra.job.name} 
-
-dataset:
-  test_data_path: "/nvme/zecheng/data/roc_stories/processed_2017/test.jsonl"
-  max_seq_length: 512
-  train_batch_size: 16
-  val_batch_size: 16
-  nworkers: 12
-  pin_memory: False
-  inference_mode: True
-  cluster_batch: False
-
-model:
-  model_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
-  ckpt_path: "/nvme/zecheng/ckpt/${TASK}/version_${JOB_ID}/checkpoints/last.ckpt"
-  
-tokenizer:
-  tokenizer_name_or_path: "/nvme/hf_models/gpt-neo-1.3B"
+    dir: ./runs/${exp_task}/${model}
 
 experiment:
   seed: 27
-  model_save_dir: ${SAVE_DIR}
-  results_save_dir: ${SAVE_DIR}/${TASK}/version_${JOB_ID}/results
-  task: ${TASK}
-  version: ${JOB_ID}
+  results_save_dir: ${exp_task}/${model_name}/results
   device_num: 1
   node_num: 1

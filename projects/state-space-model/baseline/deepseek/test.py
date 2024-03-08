@@ -6,7 +6,7 @@ import hydra
 import transformers
 import pytorch_lightning as pl
 from custom_dataset.data import custom_datamodule
-from transformers import GPTNeoXForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from modelzipper.tutils import *
 
 
@@ -41,15 +41,14 @@ class Experiment(pl.LightningModule):
         return standard_test_reconstruct
     
 
-@hydra.main(config_path='../../configs', config_name='test_gpt', version_base='1.1')
+@hydra.main(config_path='../../configs', config_name='test_config', version_base='1.1')
 def main(config):
     
     print_c(f"Experiment: {config.experiment.task}", "magenta")
     
     # load model and tokenizer
-    model = transformers.GPTNeoXForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
+    model = AutoModelForCausalLM.from_pretrained(config.model.model_name_or_path).to('cuda')
     tokenizer = AutoTokenizer.from_pretrained(config.tokenizer.tokenizer_name_or_path)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
 
     if "gpt-neo" in config.tokenizer.tokenizer_name_or_path:
         tokenizer.pad_token = tokenizer.eos_token

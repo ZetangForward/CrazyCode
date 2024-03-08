@@ -1,7 +1,7 @@
 platform: &platform "amax"
 exp_task: &exp_task "passkey_search"
 state: &state "test"
-model_name: &model_name "mamba-1_4b"
+model_name: &model_name "gptneo-1_3b"
 
 defaults:
   - _self_

@@ -199,7 +199,7 @@ class Mamba(nn.Module):
             if self.layer_idx == 0 and x.size(-1) % 50 == 0:
                 auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{x.size(-1)}/input_seq_embedding.pkl")
             #########################################
-                
+            
             # Compute short convolution
             if conv_state is not None:
                 conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
@@ -783,8 +783,6 @@ class MixerModel(nn.Module):
             depth = round(first_match_position / input_ids.shape[-1], 2)
             depth = str(depth).replace('.', '_')
 
-            
-        
         for layer in self.layers:
             hidden_states, residual = layer(
                 hidden_states, residual, inference_params=inference_params, depth=depth,
