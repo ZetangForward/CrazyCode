@@ -38,6 +38,10 @@ except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
 
 
+# for analysis
+depth = "0_00"
+
+
 class Mamba(nn.Module):
     def __init__(
         self,
@@ -127,7 +131,7 @@ class Mamba(nn.Module):
 
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
 
-    def forward(self, hidden_states, inference_params=None):
+    def forward(self, hidden_states, inference_params=None, depth=None):
         """
         hidden_states: (B, L, D)
         Returns: same shape as hidden_states
@@ -152,7 +156,7 @@ class Mamba(nn.Module):
                     print_c(f"layer-{self.layer_idx}", "yellow")
                     auto_save_data(
                         conv_state, 
-                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
+                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
                     )
 
             if inference_params.seqlen_offset > 0:
@@ -190,10 +194,12 @@ class Mamba(nn.Module):
         else:
             x, z = xz.chunk(2, dim=1) # [1, 4096, 550] / [1, 4096, 550]
 
-            ### analysis step : save text hidden state
+            #########################################
+            # analysis step : save text hidden state
             if self.layer_idx == 0 and x.size(-1) % 50 == 0:
                 auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{x.size(-1)}/input_seq_embedding.pkl")
-
+            #########################################
+                
             # Compute short convolution
             if conv_state is not None:
                 conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
@@ -364,7 +370,7 @@ class Block(nn.Module):
             ), "Only LayerNorm and RMSNorm are supported for fused_add_norm"
 
     def forward(
-        self, hidden_states: Tensor, residual: Optional[Tensor] = None, inference_params=None
+        self, hidden_states: Tensor, residual: Optional[Tensor] = None, inference_params=None, depth=None
     ):
         r"""Pass the input through the encoder layer.
 
@@ -388,7 +394,7 @@ class Block(nn.Module):
                 residual_in_fp32=self.residual_in_fp32,
                 eps=self.norm.eps,
             )
-        hidden_states = self.mixer(hidden_states, inference_params=inference_params)
+        hidden_states = self.mixer(hidden_states, inference_params=inference_params, depth=depth)
         return hidden_states, residual
 
     def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
@@ -738,6 +744,9 @@ class MixerModel(nn.Module):
         input_shape = input_ids.shape
         device = input_ids.device if input_ids is not None else inputs_embeds.device
         position_embeds = None
+        
+        global depth
+
         if self.wpe is not None and position_ids is None:
             if inference_params is not None:
                 position_ids = torch.arange(inference_params.seqlen_offset, input_shape[-1] + inference_params.seqlen_offset, dtype=torch.long, device=device)
@@ -752,10 +761,33 @@ class MixerModel(nn.Module):
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
         residual = None
+
+        ####################
+        ## just for analysis 
+        ####################
+
+        if inference_params.seqlen_offset == 0:
+
+            # 定义你要匹配的 tensor
+            match_tensor = torch.tensor([510, 1682, 2181, 281, 513, 275, 5003, 10765, 310]).to(input_ids.device)
+
+            # 使用 eq() 函数来匹配 input_ids 中的元素是否在 match_tensor 中
+            match_result = input_ids.eq(match_tensor.unsqueeze(1))
+
+            # 使用 nonzero() 函数找到匹配的元素的位置
+            indices = match_result.nonzero()
+
+            # 获取第一个匹配的位置
+            first_match_position = indices[0][1].item() if indices.numel() > 0 else None
+
+            depth = round(first_match_position / input_ids.shape[-1], 2)
+            depth = str(depth).replace('.', '_')
+
+            
         
         for layer in self.layers:
             hidden_states, residual = layer(
-                hidden_states, residual, inference_params=inference_params
+                hidden_states, residual, inference_params=inference_params, depth=depth,
             )
         
         if not self.fused_add_norm:

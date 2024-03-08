@@ -13,7 +13,7 @@ dataset:
   cluster_batch: False
 
 other_cfgs: 
-  max_generation_length: 256
+  max_generation_length: 48
   testing_max_ctx: 32000
 
 
