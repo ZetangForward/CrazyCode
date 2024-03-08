@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.getcwd())
 import torch   
 import hydra 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from modelzipper.tutils import *
 from model import LlamaForCausalLM
 from utils import get_model_tokenizer, CustomDatamodule
@@ -22,7 +22,18 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        output = self.model.generate(batch['input_ids'], max_new_tokens=64, temperature=0.9, top_p=0.7, eos_token_id=self.tokenizer.eos_token_id)
+        
+        output = self.model(
+            batch['input_ids'], 
+            # max_new_tokens=64,
+            # eos_token_id=self.tokenizer.eos_token_id,
+            # use_cache=True,
+            output_attentions=True,
+            return_dict=True,
+            depth = batch['depth'].cpu().item(),
+            ctx_length = batch['ctx_length'].cpu().item()
+        )
+        import pdb; pdb.set_trace()
         label = batch['labels'][0]
         
         standard_test_reconstruct = {
@@ -43,13 +54,11 @@ def main(config):
     data_root_dir = config.platform.dataset_path
 
     # load model and tokenizer
-    model = LlamaForCausalLM.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path), torch_dtype=torch.bfloat16).to('cuda')
+    model = transformers.AutoModel.from_pretrained(os.path.join(model_root_dir, config.model.model_name_or_path))
     tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_root_dir, config.model.tokenizer_name_or_path))
         
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
-    
-    import pdb; pdb.set_trace()
     
     # load testing data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
@@ -63,7 +72,7 @@ def main(config):
         model=experiment,
         dataloaders=data_module.predict_dataloader(),
         return_predictions=True,
-        ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
+        ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
