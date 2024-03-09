@@ -215,7 +215,7 @@ class Mamba(nn.Module):
             #########################################
             # analysis step : save conv1d state
             str_depth = str(depth).replace(".", "_")[:4]
-            if self.layer_idx == 47:
+            if self.layer_idx == 47 and ctx_length <= 20000:
                  conv_state = x[:, :, -self.d_conv:].squeeze(0)
                  auto_save_data(
                     conv_state, 

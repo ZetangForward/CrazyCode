@@ -6,7 +6,97 @@ import matplotlib.pyplot as plt
 from modelzipper.tutils import *
 
 
-def anaylsis_single_file_conv1d(embedding_path, fpath, output_path, depth=None):
+def anaylsis_single_file_conv1d(dir, output_path, passkey_length: int = None, depth=None):
+    """
+    analysis single context length
+    """
+    cov1d_state_paths = auto_read_dir(dir, file_prefix='passk', file_suffix=".pkl")
+    embedding_path = auto_read_dir(dir, file_prefix='input_seq_embedding', file_suffix=".pkl")[0]
+    embedding = auto_read_data(embedding_path)
+
+    ctx_length = int(os.path.basename(dir).split("-")[-1])
+
+    print_c(f"ctx_length: {ctx_length}", "yellow")
+    cov1d_state_paths = sorted(cov1d_state_paths, key=lambda x: int(os.path.basename(x).split("-")[-3].replace('_', '.')))
+
+    fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(200, 50))
+    plt.subplots_adjust(hspace=0.5)  # 调整子图之间的垂直间距
+    axs = axs.flatten() 
+    layers, per_depth_scores = [], {}
+    
+
+    with tqdm(total=len(cov1d_state_paths), desc="Drawing Figure ...") as pbar:
+        idx = 0
+        for fpath in cov1d_state_paths:
+
+            analysis_depth = eval(os.path.basename(fpath).split("-")[-3].replace('_', '.'))
+            
+            if analysis_depth not in [0.2, 0.4, 0.6, 0.8, 1.0]:
+                continue
+            
+            hidden_state = auto_read_data(fpath)
+
+            if hidden_state.dim() == 3:
+                hidden_state = hidden_state.squeeze(0)
+                
+            hidden_state = hidden_state.permute(1, 0)
+            
+
+            similarity_matrix = torch.zeros(hidden_state.size(0), ctx_length).to(hidden_state.device)
+            for i, h in enumerate(hidden_state):
+                cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
+                similarity_matrix[i] = cos_sim
+
+            similarity_matrix_np = similarity_matrix.cpu().numpy()
+            top_indices = np.argpartition(similarity_matrix_np, -10, axis=1)[:, -20:]
+
+            # 统计每个区间出发的关键点
+            ### 真实数据的位置
+            highlight_mask = np.zeros_like(similarity_matrix_np, dtype=bool)
+            highlight_start = int(ctx_length * analysis_depth)
+            highlight_mask[:, highlight_start: highlight_start + passkey_length] = True
+            # 创建一个新的掩码,将highlight_mask部分设置为绿色
+            green_mask = np.zeros((*similarity_matrix_np.shape, 3))
+            green_mask[highlight_mask, 1] = 1.0  # 绿色通道设为1  
+
+            ### 划分每个区间
+            num_partitions = 5
+            partition_length = similarity_matrix.size(-1) // num_partitions  # 每个分区的长度
+            partition_scores = np.zeros((top_indices.shape[0], num_partitions))  # 存储每个分区的得分
+
+            # 对 top_indices 进行排序
+            top_indices_sorted = np.sort(top_indices, axis=1)
+
+            # 计算每个分区的得分
+            for j in range(num_partitions):
+                start_idx = j * partition_length
+                end_idx = start_idx + partition_length
+                # 计算每个分区中top_indices的数量
+                for k in range(top_indices_sorted.shape[0]):  # 遍历每个压缩的状态
+                    count_in_partition = np.sum((top_indices_sorted[k, :] >= start_idx) & (top_indices_sorted[k, :] < end_idx))
+                    partition_scores[k, j] = count_in_partition / 10.0  # 计算比例
+            
+            per_depth_scores[str(analysis_depth)] = partition_scores
+            
+            mask = np.zeros_like(similarity_matrix_np, dtype=bool)
+            for i in range(similarity_matrix_np.shape[0]):
+                mask[i, top_indices[i]] = True
+
+            ax = axs[idx]
+            ax.imshow(similarity_matrix_np, cmap='Reds', aspect='auto', alpha=0.3) 
+            ax.imshow(mask, cmap='hot', aspect='auto', alpha=0.9)
+            ax.imshow(green_mask, aspect='auto', alpha=0.3)  # 显示红色掩码
+
+            # 绘制竖线表示切分位置
+            for j in range(1, num_partitions):
+                ax.axvline(x=j * partition_length, color='yellow', linestyle='--', linewidth=20)
+
+
+            idx += 1
+            pbar.update(1)
+
+
+
     ctx_length = int(os.path.basename(fpath).split("-")[2])
     analysis_layer = int(os.path.basename(fpath).split("-")[-1].split(".")[0])
     
