@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 import glob
 
-class MQAR(Dataset):
+class MQARDataset(Dataset):
     def __init__(self, content=None, tokenizer=None, split="train", *args, **kwargs):
         super().__init__()
         self.split = split

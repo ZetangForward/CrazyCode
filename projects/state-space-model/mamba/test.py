@@ -33,7 +33,7 @@ class Experiment(pl.LightningModule):
 
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
-    
+    import pdb;pdb.set_trace()
     print_c(OmegaConf.to_yaml(config), "yellow")
 
     model_root_dir = config.platform.hf_model_path
