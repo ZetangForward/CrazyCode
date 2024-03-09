@@ -152,13 +152,13 @@ class Mamba(nn.Module):
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
 
             ### analysis step : save cov_state
-            if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
-                if self.layer_idx == 47:  # save last hidden states
-                    print_c(f"layer-{self.layer_idx}", "yellow")
-                    auto_save_data(
-                        conv_state, 
-                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
-                    )
+            # if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
+            #     if self.layer_idx == 47:  # save last hidden states
+            #         print_c(f"layer-{self.layer_idx}", "yellow")
+            #         auto_save_data(
+            #             conv_state, 
+            #             f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
+            #         )
 
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
@@ -762,7 +762,8 @@ class MixerModel(nn.Module):
         
         # for analysis
         #### global depth
-        
+        inputs_embeds = self.embedding(input_ids)
+
         if self.use_relative_position or self.use_abs_position:
             if position_ids is None:
                 if inference_params is not None:
@@ -773,13 +774,10 @@ class MixerModel(nn.Module):
                     position_ids = position_ids.unsqueeze(0)
 
             if self.use_abs_position:
-                position_embeds = self.wpe(position_ids)
+                position_embeds = self.wpe(position_ids).to(inputs_embeds.dtype)
             elif self.use_relative_position:
                 angles = position_ids.unsqueeze(-1) / self.freqs.to(position_ids.dtype).unsqueeze(0)
-                position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1)
-        import pdb; pdb.set_trace()
-        
-        inputs_embeds = self.embedding(input_ids)
+                position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1).to(inputs_embeds.dtype)
         
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
@@ -789,26 +787,26 @@ class MixerModel(nn.Module):
         ## just for analysis 
         ####################
 
-        if inference_params.seqlen_offset == 0:
+        # if inference_params.seqlen_offset == 0:
 
-            # 定义你要匹配的 tensor
-            match_tensor = torch.tensor([510, 1682, 2181, 281, 513, 275, 5003, 10765, 310]).to(input_ids.device)
+        #     # 定义你要匹配的 tensor
+        #     match_tensor = torch.tensor([510, 1682, 2181, 281, 513, 275, 5003, 10765, 310]).to(input_ids.device)
 
-            # 使用 eq() 函数来匹配 input_ids 中的元素是否在 match_tensor 中
-            match_result = input_ids.eq(match_tensor.unsqueeze(1))
+        #     # 使用 eq() 函数来匹配 input_ids 中的元素是否在 match_tensor 中
+        #     match_result = input_ids.eq(match_tensor.unsqueeze(1))
 
-            # 使用 nonzero() 函数找到匹配的元素的位置
-            indices = match_result.nonzero()
+        #     # 使用 nonzero() 函数找到匹配的元素的位置
+        #     indices = match_result.nonzero()
 
-            # 获取第一个匹配的位置
-            first_match_position = indices[0][1].item() if indices.numel() > 0 else None
+        #     # 获取第一个匹配的位置
+        #     first_match_position = indices[0][1].item() if indices.numel() > 0 else None
 
-            depth = round(first_match_position / input_ids.shape[-1], 2)
-            depth = str(depth).replace('.', '_')
+        #     depth = round(first_match_position / input_ids.shape[-1], 2)
+        #     depth = str(depth).replace('.', '_')
 
         for layer in self.layers:
             hidden_states, residual = layer(
-                hidden_states, residual, inference_params=inference_params, depth=depth,
+                hidden_states, residual, inference_params=inference_params,
             )
         
         if not self.fused_add_norm:
