@@ -26,6 +26,8 @@ setup(
         'nltk',
         'torchmetrics',
         'bert_score',
+        'fire',
+        'accelerate',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -40,5 +42,5 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    python_requires='>=3.8',
+    python_requires='>=3.7',
 )
