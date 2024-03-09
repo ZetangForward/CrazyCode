@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
 
+
 def analysis_cov1d_kernel(module):
     weights = module.weight.data.cpu().numpy()
     for i, weight in enumerate(weights):
@@ -20,6 +21,7 @@ def analysis_cov1d_kernel(module):
     plt.xlabel('Kernel Size')
     plt.legend()
     plt.show()
+
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:

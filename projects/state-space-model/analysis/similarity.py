@@ -42,10 +42,9 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
                 hidden_state = hidden_state.squeeze(0)
             hidden_state = hidden_state.permute(1, 0)
             
-            similarity_matrix = torch.zeros(hidden_state.size(0), embedding.size(-1)).to(hidden_state.device)
+            similarity_matrix = torch.zeros(embedding.size(0), embedding.size(-1)).to(hidden_state.device)
             for i, h in enumerate(hidden_state):
                 cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
-                import pdb; pdb.set_trace()
                 similarity_matrix[i] = cos_sim
 
             similarity_matrix_np = similarity_matrix.cpu().numpy()
