@@ -26,13 +26,13 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     axs = axs.flatten() 
     per_depth_scores = {}
     
-    analysis_depth = [0.2, 0.4, 0.6, 0.8, 1.0]
-    with tqdm(total=len(analysis_depth), desc="Drawing Figure ...") as pbar:
+    analysis_depths = [0.2, 0.4, 0.6, 0.8, 1.0]
+    with tqdm(total=len(analysis_depths), desc="Drawing Figure ...") as pbar:
         idx = 0
         for fpath in cov1d_state_paths:
             analysis_depth = eval(os.path.basename(fpath).split("-")[-3].replace('_', '.'))
-            
-            if analysis_depth not in analysis_depth:
+
+            if analysis_depth not in analysis_depths:
                 continue
             
             hidden_state = auto_read_data(fpath)
@@ -58,37 +58,40 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
             green_mask = np.zeros((*similarity_matrix_np.shape, 3))
             green_mask[highlight_mask, 1] = 1.0  # 绿色通道设为1  
 
-            ### 划分每个区间
-            num_partitions = 5
-            partition_length = similarity_matrix.size(-1) // num_partitions  # 每个分区的长度
-            partition_scores = np.zeros((top_indices.shape[0], num_partitions))  # 存储每个分区的得分
+            # 裁剪similarity_matrix和green_mask
+            num_segments = 5
+            segment_length = similarity_matrix.size(-1) // num_segments
+            cropped_similarity_matrices = []
+            cropped_green_masks = []
+            for i in range(num_segments):
+                start_idx = i * segment_length
+                end_idx = start_idx + segment_length
+                cropped_similarity_matrix = similarity_matrix[:, start_idx:end_idx]
+                cropped_green_mask = green_mask[:, start_idx:end_idx, :]
+                cropped_similarity_matrices.append(cropped_similarity_matrix)
+                cropped_green_masks.append(cropped_green_mask)
 
-            # 对 top_indices 进行排序
-            top_indices_sorted = np.sort(top_indices, axis=1)
+            # 调整similarity_matrix的大小
+            resized_similarity_matrices = []
+            for cropped_similarity_matrix in cropped_similarity_matrices:
+                resized_similarity_matrix = F.interpolate(cropped_similarity_matrix.unsqueeze(0), size=(500,)).squeeze(0)
+                resized_similarity_matrices.append(resized_similarity_matrix)
 
-            # 计算每个分区的得分
-            for j in range(num_partitions):
-                start_idx = j * partition_length
-                end_idx = start_idx + partition_length
-                # 计算每个分区中top_indices的数量
-                for k in range(top_indices_sorted.shape[0]):  # 遍历每个压缩的状态
-                    count_in_partition = np.sum((top_indices_sorted[k, :] >= start_idx) & (top_indices_sorted[k, :] < end_idx))
-                    partition_scores[k, j] = count_in_partition / 10.0  # 计算比例
-            
-            per_depth_scores[str(analysis_depth)] = partition_scores
-            
+            # 拼接裁剪后的similarity_matrix和green_mask
+            concat_similarity_matrix = torch.cat(resized_similarity_matrices, dim=1)
+            concat_green_mask = torch.from_numpy(np.concatenate(cropped_green_masks, axis=1))
             mask = np.zeros_like(similarity_matrix_np, dtype=bool)
             for i in range(similarity_matrix_np.shape[0]):
                 mask[i, top_indices[i]] = True
-
+            # 绘制图像
             ax = axs[idx]
-            ax.imshow(similarity_matrix_np, cmap='Reds', aspect='auto', alpha=0.3) 
+            ax.imshow(concat_similarity_matrix.cpu().numpy(), cmap='Reds', aspect='auto', alpha=0.3)
             ax.imshow(mask, cmap='hot', aspect='auto', alpha=0.9)
-            ax.imshow(green_mask, aspect='auto', alpha=0.3)  # 显示红色掩码
+            ax.imshow(concat_green_mask.cpu().numpy(), aspect='auto', alpha=0.3)
 
             # 绘制竖线表示切分位置
-            for j in range(1, num_partitions):
-                ax.axvline(x=j * partition_length, color='yellow', linestyle='--', linewidth=20)
+            for j in range(1, num_segments):
+                ax.axvline(x=j * num_segments, color='yellow', linestyle='--', linewidth=20)
 
             idx += 1
             pbar.update(1)
