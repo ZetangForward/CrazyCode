@@ -26,14 +26,13 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     axs = axs.flatten() 
     per_depth_scores = {}
     
-
-    with tqdm(total=len(cov1d_state_paths), desc="Drawing Figure ...") as pbar:
+    analysis_depth = [0.2, 0.4, 0.6, 0.8, 1.0]
+    with tqdm(total=len(analysis_depth), desc="Drawing Figure ...") as pbar:
         idx = 0
         for fpath in cov1d_state_paths:
-
             analysis_depth = eval(os.path.basename(fpath).split("-")[-3].replace('_', '.'))
             
-            if analysis_depth not in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            if analysis_depth not in analysis_depth:
                 continue
             
             hidden_state = auto_read_data(fpath)
@@ -42,10 +41,9 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
                 hidden_state = hidden_state.squeeze(0)
             hidden_state = hidden_state.permute(1, 0)
             
-            similarity_matrix = torch.zeros(hidden_state.size(0), embedding.size(-1)).to(hidden_state.device)
+            similarity_matrix = torch.zeros(hidden_state.size(0), embedding.size(0)).to(hidden_state.device)
             for i, h in enumerate(hidden_state):
                 cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
-                import pdb; pdb.set_trace()
                 similarity_matrix[i] = cos_sim
 
             similarity_matrix_np = similarity_matrix.cpu().numpy()
@@ -96,6 +94,7 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
             pbar.update(1)
 
     # 调整子图位置
+    print_c("begin to save figure ...")
     plt.tight_layout()
     plt.savefig(f"analysis/figures/cosine_similarity_heatmap_ctx_length-{ctx_length}.png")
 
