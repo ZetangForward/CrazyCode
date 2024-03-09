@@ -378,7 +378,7 @@ class Block(nn.Module):
             ), "Only LayerNorm and RMSNorm are supported for fused_add_norm"
 
     def forward(
-        self, hidden_states: Tensor, residual: Optional[Tensor] = None, inference_params=None, depth=None
+        self, hidden_states: Tensor, residual: Optional[Tensor] = None, inference_params=None, depth=None, ctx_length=None,
     ):
         r"""Pass the input through the encoder layer.
 
@@ -402,7 +402,7 @@ class Block(nn.Module):
                 residual_in_fp32=self.residual_in_fp32,
                 eps=self.norm.eps,
             )
-        hidden_states = self.mixer(hidden_states, inference_params=inference_params, depth=depth)
+        hidden_states = self.mixer(hidden_states, inference_params=inference_params, depth=depth, ctx_length=ctx_length)
         return hidden_states, residual
 
     def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
@@ -451,7 +451,6 @@ class MixerModel(nn.Module):
         use_abs_position=False,
         use_relative_position=False,
         analysis=False,
-        depth=None,
     ) -> None:
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -603,8 +602,6 @@ class LongContextMambaAna(nn.Module, GenerationMixin):
             use_abs_position=use_abs_position,
             use_relative_position=use_relative_position,
             analysis=analysis,
-            depth=depth,
-            ctx_length=ctx_length,
             **backbone_kwargs,
             **factory_kwargs,
         )
