@@ -36,7 +36,6 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         input_ids = batch.get("input_ids")
-        import pdb; pdb.set_trace()
         if input_ids.dim() == 3:
             input_ids = input_ids.squeeze(0)
         depth = batch.get('depth').item()
