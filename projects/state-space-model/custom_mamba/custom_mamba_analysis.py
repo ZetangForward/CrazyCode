@@ -21,7 +21,7 @@ from mamba_ssm.utils.generation import update_graph_cache, InferenceParams, samp
 try:
     from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 except ImportError:
-    causal_conv1d_fn, causal_conv1d_update = None
+    causal_conv1d_fn, causal_conv1d_update = None, None
 
 try:
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
@@ -37,10 +37,6 @@ try:
     from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
 except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
-
-
-# for analysis
-# depth = "0_00"
 
 
 class Mamba(nn.Module):
@@ -132,7 +128,7 @@ class Mamba(nn.Module):
 
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
 
-    def forward(self, hidden_states, inference_params=None, depth=None):
+    def forward(self, hidden_states, depth=None, ctx_length=None, inference_params=None):
         """
         hidden_states: (B, L, D)
         Returns: same shape as hidden_states
@@ -152,13 +148,13 @@ class Mamba(nn.Module):
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
 
             ### analysis step : save cov_state
-            if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
-                if self.layer_idx == 47:  # save last hidden states
-                    print_c(f"layer-{self.layer_idx}", "yellow")
-                    auto_save_data(
-                        conv_state, 
-                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
-                    )
+            # if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
+            #     if self.layer_idx == 47:  # save last hidden states
+            #         print_c(f"layer-{self.layer_idx}", "yellow")
+            #         auto_save_data(
+            #             conv_state, 
+            #             f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
+            #         )
 
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
@@ -198,8 +194,8 @@ class Mamba(nn.Module):
 
             #########################################
             # analysis step : save text hidden state
-            # if self.layer_idx == 0 and x.size(-1) % 50 == 0:
-            #     auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{x.size(-1)}/input_seq_embedding.pkl")
+            if self.layer_idx == 0:
+                auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/input_seq_embedding.pkl")
             #########################################
             
             # Compute short convolution
@@ -215,6 +211,16 @@ class Mamba(nn.Module):
                     self.conv1d.bias,
                     self.activation,
                 )
+            
+            #########################################
+            # analysis step : save conv1d state
+            str_depth = str(depth).replace(".", "_")
+            if self.layer_idx == 47:
+                 auto_save_data(
+                    conv_state, 
+                    f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}-layer-{self.layer_idx}.pkl"
+                )
+            #########################################
 
             # We're careful here about the layout, to avoid extra transposes.
             # We want dt to have d as the slowest moving dimension
@@ -403,152 +409,6 @@ class Block(nn.Module):
         return self.mixer.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
 
 
-def _init_weights(
-    module,
-    n_layer,
-    initializer_range=0.02,  # Now only used for embedding layer.
-    rescale_prenorm_residual=True,
-    n_residuals_per_layer=1,  # Change to 2 if we have MLP
-):
-    if isinstance(module, nn.Linear):
-        if module.bias is not None:
-            if not getattr(module.bias, "_no_reinit", False):
-                nn.init.zeros_(module.bias)
-    elif isinstance(module, nn.Embedding):
-        nn.init.normal_(module.weight, std=initializer_range)
-
-    if rescale_prenorm_residual:
-        # Reinitialize selected weights subject to the OpenAI GPT-2 Paper Scheme:
-        #   > A modified initialization which accounts for the accumulation on the residual path with model depth. Scale
-        #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of residual layers.
-        #   >   -- GPT-2 :: https://openai.com/blog/better-language-models/
-        #
-        # Reference (Megatron-LM): https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/model/gpt_model.py
-        for name, p in module.named_parameters():
-            if name in ["out_proj.weight", "fc2.weight"]:
-                # Special Scaled Initialization --> There are 2 Layer Norms per Transformer Block
-                # Following Pytorch init, except scale by 1/sqrt(2 * n_layer)
-                # We need to reinit p since this code could be called multiple times
-                # Having just p *= scale would repeatedly scale it down
-                nn.init.kaiming_uniform_(p, a=math.sqrt(5))
-                with torch.no_grad():
-                    p /= math.sqrt(n_residuals_per_layer * n_layer)
-
-
-@torch.inference_mode()
-def decode(
-    input_ids,
-    model,
-    max_length,
-    min_length,  # new: add a min_length parameters
-    top_k=1,
-    top_p=0.0,
-    temperature=1.0,
-    eos_token_id=None,
-    teacher_outputs=None,
-    vocab_size=None,
-    tensor_parallel=1,
-    cg=False,
-    enable_timing=False,
-):
-    """Decoding, either greedy or with top-k or top-p sampling.
-    If top-k = 0, don't limit the number of candidates (pure sampling).
-    Top-k and top-p can be used together. If top_k > 0 and top_p > 0, then top-k is applied first,
-    then top-p.
-    We assume that all sequences in the same batch have the same length.
-
-    Arguments:
-        input_ids: (batch, seq_len)
-        max_length: int
-        teacher_outputs (optional): (batch, seq_len). If provided, instead of sampling from the
-            logits, the next token is taken from the teacher_outputs. Useful for testing.
-    Returns: GreedySearchDecoderOnlyOutput or SampleDecoderOnlyOutput, with the following fields:
-        sequences: (batch, max_length)
-        scores: tuples of (batch, vocab_size)
-    """
-    batch_size, seqlen_og = input_ids.shape
-    teacher_output_len = teacher_outputs.shape[1] if teacher_outputs is not None else 0
-    if cg:
-        if not hasattr(model, "_decoding_cache"):
-            model._decoding_cache = None
-        model._decoding_cache = update_graph_cache(
-            model,
-            model._decoding_cache,
-            batch_size,
-            seqlen_og,
-            max_length,
-            tensor_parallel=tensor_parallel,
-        )
-        inference_params = model._decoding_cache.inference_params
-        inference_params.reset(max_length, batch_size)
-    else:
-        inference_params = InferenceParams(max_seqlen=max_length, max_batch_size=batch_size)
-
-    def get_logits(input_ids, inference_params):
-        decoding = inference_params.seqlen_offset > 0
-        if decoding:
-            position_ids = torch.full(
-                (batch_size, 1),
-                inference_params.seqlen_offset,
-                dtype=torch.long,
-                device=input_ids.device,
-            )
-        else:
-            position_ids = None
-        if not cg or not decoding:
-            logits = model(
-                input_ids,
-                position_ids=position_ids,
-                inference_params=inference_params,
-                num_last_tokens=1,
-            ).logits.squeeze(dim=1)
-        else:
-            logits = model._decoding_cache.run(
-                input_ids, position_ids, inference_params.seqlen_offset
-            ).squeeze(dim=1)
-        return logits[..., :vocab_size] if vocab_size is not None else logits
-
-    def sample_tokens(logits, inference_params):
-        if teacher_outputs is None or teacher_output_len <= inference_params.seqlen_offset:
-            token = sample(logits, top_k=top_k, top_p=top_p, temperature=temperature)
-        else:
-            token = teacher_outputs[:, inference_params.seqlen_offset]
-        # return rearrange(token, "b -> b 1")
-        return token.unsqueeze(1)
-
-    def should_stop(current_token, inference_params):
-        if inference_params.seqlen_offset == 0 or inference_params.seqlen_offset < min_length:
-            return False
-        if eos_token_id is not None and (current_token == eos_token_id).all():
-            return True
-        if inference_params.seqlen_offset >= max_length - 1:
-            return True
-        return False
-
-    start = torch.cuda.Event(enable_timing=enable_timing)
-    end = torch.cuda.Event(enable_timing=enable_timing)
-
-    if enable_timing:
-        if tensor_parallel > 1:
-            torch.distributed.barrier()
-        start.record()
-    scores, sequences = [], [input_ids]
-
-    while not should_stop(sequences[-1], inference_params):
-        scores.append(get_logits(sequences[-1], inference_params))
-        inference_params.seqlen_offset += sequences[-1].shape[1]
-        sequences.append(sample_tokens(scores[-1], inference_params))
-    
-    if enable_timing:
-        end.record()
-        if tensor_parallel > 1:
-            torch.distributed.barrier()
-        torch.cuda.synchronize()
-        print(f"Prompt processing + decoding time: {(start.elapsed_time(end)):.0f}ms")
-    output_cls = GreedySearchDecoderOnlyOutput if top_k == 1 else SampleDecoderOnlyOutput
-    return output_cls(sequences=torch.cat(sequences, dim=1), scores=tuple(scores))
-
-
 class GenerationMixin:
     def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
         raise NotImplementedError
@@ -573,105 +433,6 @@ class GenerationMixin:
         return output if return_dict_in_generate else output.sequences
 
 
-class LongContextMamba(nn.Module, GenerationMixin):
-    def __init__(
-        self,
-        d_model: int,
-        n_layer: int,
-        vocab_size: int,
-        initializer_cfg=None,
-        pad_vocab_size_multiple: int = 1,
-        device=None,
-        dtype=None,
-        use_position=None,
-        analysis=None,
-        **backbone_kwargs,
-    ) -> None:
-        factory_kwargs = {"device": device, "dtype": dtype}
-        super().__init__()
-
-        if vocab_size % pad_vocab_size_multiple != 0:
-            vocab_size += pad_vocab_size_multiple - (vocab_size % pad_vocab_size_multiple)
-
-        self.backbone = MixerModel(
-            d_model=d_model,
-            n_layer=n_layer,
-            vocab_size=vocab_size,
-            initializer_cfg=initializer_cfg,
-            use_position=use_position,
-            analysis=analysis,
-            **backbone_kwargs,
-            **factory_kwargs,
-        )
-        self.lm_head = nn.Linear(d_model, vocab_size, bias=False, **factory_kwargs)
-
-        # Initialize weights and apply final processing
-        self.apply(
-            partial(
-                _init_weights,
-                n_layer=n_layer,
-                **(initializer_cfg if initializer_cfg is not None else {}),
-            )
-        )
-        self.tie_weights()
-
-
-    def tie_weights(self):
-        self.lm_head.weight = self.backbone.embedding.weight
-
-
-    def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
-        return self.backbone.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
-
-    def forward(self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0):
-        """
-        "position_ids" is just to be compatible with Transformer generation. We don't use it.
-        num_last_tokens: if > 0, only return the logits for the last n tokens
-        """
-        hidden_states = self.backbone(input_ids, inference_params=inference_params)
-        if num_last_tokens > 0:
-            hidden_states = hidden_states[:, -num_last_tokens:]
-        lm_logits = self.lm_head(hidden_states)
-        CausalLMOutput = namedtuple("CausalLMOutput", ["logits"])
-        return CausalLMOutput(logits=lm_logits)
-
-    @classmethod
-    def from_pretrained(cls, pretrained_model_name, device=None, dtype=None, strict=True, **kwargs):
-        config = load_config_hf(pretrained_model_name)
-        model = cls(**config, device=device, dtype=dtype, **kwargs)
-        model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype), strict=strict)
-        return model
-
-
-def create_block(
-    d_model,
-    ssm_cfg=None,
-    norm_epsilon=1e-5,
-    rms_norm=False,
-    residual_in_fp32=False,
-    fused_add_norm=False,
-    layer_idx=None,
-    device=None,
-    dtype=None,
-):
-    if ssm_cfg is None:
-        ssm_cfg = {}
-    factory_kwargs = {"device": device, "dtype": dtype}
-    mixer_cls = partial(Mamba, layer_idx=layer_idx, **ssm_cfg, **factory_kwargs)
-    norm_cls = partial(
-        nn.LayerNorm if not rms_norm else RMSNorm, eps=norm_epsilon, **factory_kwargs
-    )
-    block = Block(
-        d_model,
-        mixer_cls,
-        norm_cls=norm_cls,
-        fused_add_norm=fused_add_norm,
-        residual_in_fp32=residual_in_fp32,
-    )
-    block.layer_idx = layer_idx
-    return block
-
-
 class MixerModel(nn.Module):
     def __init__(
         self,
@@ -690,6 +451,7 @@ class MixerModel(nn.Module):
         use_abs_position=False,
         use_relative_position=False,
         analysis=False,
+        depth=None,
     ) -> None:
         super().__init__()
         factory_kwargs = {"device": device, "dtype": dtype}
@@ -754,7 +516,7 @@ class MixerModel(nn.Module):
             for i, layer in enumerate(self.layers)
         }
 
-    def forward(self, input_ids, position_ids=None, inference_params=None):
+    def forward(self, input_ids, position_ids=None, depth=None, ctx_length=None, inference_params=None):
         input_shape = input_ids.shape
         device = input_ids.device if input_ids is not None else inputs_embeds.device
         position_embeds = None
@@ -776,7 +538,6 @@ class MixerModel(nn.Module):
             elif self.use_relative_position:
                 angles = position_ids.unsqueeze(-1) / self.freqs.to(position_ids.dtype).unsqueeze(0)
                 position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1)
-        import pdb; pdb.set_trace()
         
         inputs_embeds = self.embedding(input_ids)
         
@@ -788,26 +549,9 @@ class MixerModel(nn.Module):
         ## just for analysis 
         ####################
 
-        if inference_params.seqlen_offset == 0:
-
-            # 定义你要匹配的 tensor
-            match_tensor = torch.tensor([510, 1682, 2181, 281, 513, 275, 5003, 10765, 310]).to(input_ids.device)
-
-            # 使用 eq() 函数来匹配 input_ids 中的元素是否在 match_tensor 中
-            match_result = input_ids.eq(match_tensor.unsqueeze(1))
-
-            # 使用 nonzero() 函数找到匹配的元素的位置
-            indices = match_result.nonzero()
-
-            # 获取第一个匹配的位置
-            first_match_position = indices[0][1].item() if indices.numel() > 0 else None
-
-            depth = round(first_match_position / input_ids.shape[-1], 2)
-            depth = str(depth).replace('.', '_')
-
         for layer in self.layers:
             hidden_states, residual = layer(
-                hidden_states, residual, inference_params=inference_params, depth=depth,
+                hidden_states, residual, inference_params=inference_params, depth=depth, ctx_length=ctx_length
             )
         
         if not self.fused_add_norm:
@@ -826,3 +570,143 @@ class MixerModel(nn.Module):
                 residual_in_fp32=self.residual_in_fp32,
             )
         return hidden_states
+
+
+class LongContextMambaAna(nn.Module, GenerationMixin):
+    def __init__(
+        self,
+        d_model: int,
+        n_layer: int,
+        vocab_size: int,
+        initializer_cfg=None,
+        pad_vocab_size_multiple: int = 1,
+        device=None,
+        dtype=None,
+        use_abs_position=False,
+        use_relative_position=False,
+        analysis=None,
+        depth=None,
+        ctx_length=None,
+        **backbone_kwargs,
+    ) -> None:
+        factory_kwargs = {"device": device, "dtype": dtype}
+        super().__init__()
+
+        if vocab_size % pad_vocab_size_multiple != 0:
+            vocab_size += pad_vocab_size_multiple - (vocab_size % pad_vocab_size_multiple)
+
+        self.backbone = MixerModel(
+            d_model=d_model,
+            n_layer=n_layer,
+            vocab_size=vocab_size,
+            initializer_cfg=initializer_cfg,
+            use_abs_position=use_abs_position,
+            use_relative_position=use_relative_position,
+            analysis=analysis,
+            depth=depth,
+            ctx_length=ctx_length,
+            **backbone_kwargs,
+            **factory_kwargs,
+        )
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False, **factory_kwargs)
+
+        # Initialize weights and apply final processing
+        self.apply(
+            partial(
+                _init_weights,
+                n_layer=n_layer,
+                **(initializer_cfg if initializer_cfg is not None else {}),
+            )
+        )
+        self.tie_weights()
+
+
+    def tie_weights(self):
+        self.lm_head.weight = self.backbone.embedding.weight
+
+
+    def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
+        return self.backbone.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
+
+    def forward(self, input_ids, depth=None, ctx_length=None, position_ids=None, inference_params=None, num_last_tokens=0):
+        """
+        "position_ids" is just to be compatible with Transformer generation. We don't use it.
+        num_last_tokens: if > 0, only return the logits for the last n tokens
+        """
+        hidden_states = self.backbone(
+            input_ids, inference_params=inference_params, depth=depth, ctx_length=ctx_length
+        )
+        if num_last_tokens > 0:
+            hidden_states = hidden_states[:, -num_last_tokens:]
+        lm_logits = self.lm_head(hidden_states)
+        CausalLMOutput = namedtuple("CausalLMOutput", ["logits"])
+        return CausalLMOutput(logits=lm_logits)
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name, device=None, dtype=None, strict=True, **kwargs):
+        config = load_config_hf(pretrained_model_name)
+        model = cls(**config, device=device, dtype=dtype, **kwargs)
+        model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype), strict=strict)
+        return model
+
+
+def _init_weights(
+    module,
+    n_layer,
+    initializer_range=0.02,  # Now only used for embedding layer.
+    rescale_prenorm_residual=True,
+    n_residuals_per_layer=1,  # Change to 2 if we have MLP
+):
+    if isinstance(module, nn.Linear):
+        if module.bias is not None:
+            if not getattr(module.bias, "_no_reinit", False):
+                nn.init.zeros_(module.bias)
+    elif isinstance(module, nn.Embedding):
+        nn.init.normal_(module.weight, std=initializer_range)
+
+    if rescale_prenorm_residual:
+        # Reinitialize selected weights subject to the OpenAI GPT-2 Paper Scheme:
+        #   > A modified initialization which accounts for the accumulation on the residual path with model depth. Scale
+        #   > the weights of residual layers at initialization by a factor of 1/√N where N is the # of residual layers.
+        #   >   -- GPT-2 :: https://openai.com/blog/better-language-models/
+        #
+        # Reference (Megatron-LM): https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/model/gpt_model.py
+        for name, p in module.named_parameters():
+            if name in ["out_proj.weight", "fc2.weight"]:
+                # Special Scaled Initialization --> There are 2 Layer Norms per Transformer Block
+                # Following Pytorch init, except scale by 1/sqrt(2 * n_layer)
+                # We need to reinit p since this code could be called multiple times
+                # Having just p *= scale would repeatedly scale it down
+                nn.init.kaiming_uniform_(p, a=math.sqrt(5))
+                with torch.no_grad():
+                    p /= math.sqrt(n_residuals_per_layer * n_layer)
+
+
+def create_block(
+    d_model,
+    ssm_cfg=None,
+    norm_epsilon=1e-5,
+    rms_norm=False,
+    residual_in_fp32=False,
+    fused_add_norm=False,
+    layer_idx=None,
+    device=None,
+    dtype=None,
+):
+    if ssm_cfg is None:
+        ssm_cfg = {}
+    factory_kwargs = {"device": device, "dtype": dtype}
+    mixer_cls = partial(Mamba, layer_idx=layer_idx, **ssm_cfg, **factory_kwargs)
+    norm_cls = partial(
+        nn.LayerNorm if not rms_norm else RMSNorm, eps=norm_epsilon, **factory_kwargs
+    )
+    block = Block(
+        d_model,
+        mixer_cls,
+        norm_cls=norm_cls,
+        fused_add_norm=fused_add_norm,
+        residual_in_fp32=residual_in_fp32,
+    )
+    block.layer_idx = layer_idx
+    return block
+

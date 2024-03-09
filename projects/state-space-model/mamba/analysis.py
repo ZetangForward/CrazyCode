@@ -10,6 +10,7 @@ from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from custom_mamba.custom_mamba_analysis import LongContextMambaAna
 
 def analysis_cov1d_kernel(module):
     weights = module.weight.data.cpu().numpy()
@@ -35,21 +36,18 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         input_ids = batch.get("input_ids")
+        import pdb; pdb.set_trace()
         if input_ids.dim() == 3:
             input_ids = input_ids.squeeze(0)
-        print_c(f"input length: {input_ids.shape}")
-
-        output = self.model.generate(
-            input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
-            min_length=input_ids.size(-1) + 10, 
-            eos_token_id=self.tokenizer.eos_token_id, 
-        )
+        depth = batch.get('depth').item()
+        ctx_length = batch.get('ctx_length').item()
+        output = self.model(input_ids, analysis=True, depth=depth, ctx_length=ctx_length)
         batch['predictions'] = output
         
         return batch
 
 
-@hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
+@hydra.main(config_path='../configs', config_name='analysis_config', version_base='1.1')
 def main(config):
     
     print_c(OmegaConf.to_yaml(config), "yellow")
@@ -57,19 +55,19 @@ def main(config):
     model_root_dir = config.platform.hf_model_path
     data_root_dir = config.platform.dataset_path
 
+    model_path = os.path.join(model_root_dir, config.model.model_name_or_path)
+    tokenizer_path = os.path.join(model_root_dir, config.model.tokenizer_name_or_path)
+
     # load model and tokenizer
-    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+    model = LongContextMambaAna.from_pretrained(
+        model_path, use_relative_position=False,
+        dtype=torch.bfloat16, device="cuda", strict=False
+    )
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     
     # load testing data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     data_module.setup(stage='predict')
-
-    if config.model.load_model_state_dict:
-        state_dict = torch.load(
-            os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-            map_location='cuda'
-        )
-        model.load_state_dict(state_dict, strict=True)
 
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)

@@ -6,8 +6,29 @@ import matplotlib.pyplot as plt
 from modelzipper.tutils import *
 
 
+def anaylsis_single_file_conv1d(embedding_path, fpath, output_path, depth=None):
+    ctx_length = int(os.path.basename(fpath).split("-")[2])
+    analysis_layer = int(os.path.basename(fpath).split("-")[-1].split(".")[0])
+    
+    if depth is None:
+        depth = eval(fpath.split("/")[-2].split("-")[-1].replace("_", "."))
+    
+    save_file_name = f"{output_path}/conv1d_analysis_depth-{depth}_ctx-{ctx_length}_layer-{analysis_layer}.png"
 
-def analysis_cov1d_compress(fpath, highlight_start=18, highlight_end=40):
+    hidden_state = auto_read_data(fpath)
+
+    if hidden_state.dim() == 3:
+        hidden_state = hidden_state.squeeze(0)
+    
+    embedding = auto_read_data(embedding_path)
+
+    similarity_matrix = torch.zeros(hidden_state.size(0), ctx_length).to(hidden_state.device)
+    for i, h in enumerate(hidden_state):
+        cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
+        similarity_matrix[i] = cos_sim
+
+
+def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=40):
     # read text embedding
     text_embedding_file = auto_read_dir(fpath, file_prefix="input_seq_embedding", file_suffix=".pkl")[0]
     text_embedding = auto_read_data(text_embedding_file) # torch.Size([1, 550, 2048])
@@ -129,11 +150,11 @@ def analysis_cov1d_compress(fpath, highlight_start=18, highlight_end=40):
 
 if __name__ == "__main__":
     argparse = ArgumentParser()
+    argparse.add_argument("--anaylysis_dir", type=str, default="analysis/inner_state")
     argparse.add_argument("--fpath", type=str, default="analysis/inner_state")
     argparse.add_argument("--tokenizer_name_or_path", type=str, default="analysis/inner_state")
 
     args = argparse.parse_args()
-
 
     analysis_cov1d_compress(
         args.fpath, 
