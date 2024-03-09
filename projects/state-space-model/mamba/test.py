@@ -27,7 +27,7 @@ class Experiment(pl.LightningModule):
         return batch
 
 
-@hydra.main(config_path='../configs', config_name='mamba_test', version_base='1.1')
+@hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
     
     print_c(OmegaConf.to_yaml(config), "yellow")

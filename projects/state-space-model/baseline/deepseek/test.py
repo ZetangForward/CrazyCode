@@ -38,7 +38,7 @@ class Experiment(pl.LightningModule):
         )
 
         save_res = {
-            "output": output.squeeze(0),
+            "output": output.squeeze(0).cpu().tolist(),
             'depth': batch['depth'].item(),
             'ctx': batch['ctx_length'].item()
         }
