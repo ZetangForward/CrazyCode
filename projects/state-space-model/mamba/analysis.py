@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import torch   
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import hydra  
 from custom_dataset import *
 from custom_dataset.zero_scroll import *

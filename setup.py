@@ -27,6 +27,8 @@ setup(
         'torchmetrics',
         'bert_score',
         'fire',
+        'lightning',
+        'einops',
         'accelerate',
     ],
     classifiers=[
