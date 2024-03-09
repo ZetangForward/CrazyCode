@@ -26,14 +26,15 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     axs = axs.flatten() 
     per_depth_scores = {}
     
-
-    with tqdm(total=len(cov1d_state_paths), desc="Drawing Figure ...") as pbar:
+    analysis_depths = [0.2, 0.4, 0.6, 0.8, 1.0]
+    
+    with tqdm(total=len(analysis_depths), desc="Drawing Figure ...") as pbar:
         idx = 0
         for fpath in cov1d_state_paths:
 
             analysis_depth = eval(os.path.basename(fpath).split("-")[-3].replace('_', '.'))
             
-            if analysis_depth not in [0.2, 0.4, 0.6, 0.8, 1.0]:
+            if analysis_depth not in analysis_depths:
                 continue
             
             hidden_state = auto_read_data(fpath)
