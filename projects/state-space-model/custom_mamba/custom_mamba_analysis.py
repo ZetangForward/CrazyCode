@@ -214,8 +214,10 @@ class Mamba(nn.Module):
             
             #########################################
             # analysis step : save conv1d state
+            import pdb; pdb.set_trace()
             str_depth = str(depth).replace(".", "_")
             if self.layer_idx == 47:
+                 conv_state = x[:, :, -self.d_conv:]
                  auto_save_data(
                     conv_state, 
                     f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}-layer-{self.layer_idx}.pkl"
