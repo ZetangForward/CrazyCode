@@ -880,8 +880,8 @@ class LlamaModel(LlamaPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        depth = str(depth).replace('.', '_')
-        auto_save_data(inputs_embeds, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/transformers_inner_state/{ctx_length}/{depth}/embedding.pkl")
+        # depth = str(depth).replace('.', '_')
+        # auto_save_data(inputs_embeds, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/transformers_inner_state/{ctx_length}/{depth}/embedding.pkl")
 
         past_seen_tokens = 0
         if use_cache:  # kept for BC (cache positions)
@@ -945,8 +945,9 @@ class LlamaModel(LlamaPreTrainedModel):
 
         ############################
         ########### for analysis
-        attention_scores = layer_outputs[1][0]
-        auto_save_data(attention_scores, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/transformers_inner_state/{ctx_length}/{depth}/attention_scores.pkl")
+        # import pdb; pdb.set_trace()
+        # attention_scores = layer_outputs[1][0]
+        # auto_save_data(attention_scores, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/transformers_inner_state/{ctx_length}/{depth}/attention_scores.pkl")
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
