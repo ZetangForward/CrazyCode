@@ -19,6 +19,11 @@ def anaylsis_single_file_conv1d(embedding_path, fpath, output_path, depth=None):
 
     if hidden_state.dim() == 3:
         hidden_state = hidden_state.squeeze(0)
+
+        if hidden_state.dim() == 3:
+            hidden_state = hidden_state.squeeze(0)
+        
+        hidden_state = hidden_state.permute(1, 0)
     
     embedding = auto_read_data(embedding_path)
 
@@ -26,6 +31,7 @@ def anaylsis_single_file_conv1d(embedding_path, fpath, output_path, depth=None):
     for i, h in enumerate(hidden_state):
         cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
         similarity_matrix[i] = cos_sim
+
 
 
 def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=40):
