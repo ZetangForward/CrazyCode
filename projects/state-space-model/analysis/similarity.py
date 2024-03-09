@@ -6,23 +6,26 @@ import matplotlib.pyplot as plt
 from modelzipper.tutils import *
 
 
-def anaylsis_single_file_conv1d(dir, output_path, passkey_length: int = None, depth=None):
+def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     """
     analysis single context length
     """
     cov1d_state_paths = auto_read_dir(dir, file_prefix='passk', file_suffix=".pkl")
     embedding_path = auto_read_dir(dir, file_prefix='input_seq_embedding', file_suffix=".pkl")[0]
     embedding = auto_read_data(embedding_path)
+    if embedding.dim() == 3:
+        embedding = embedding.squeeze(0)
+    embedding = embedding.permute(1, 0)
 
     ctx_length = int(os.path.basename(dir).split("-")[-1])
 
     print_c(f"ctx_length: {ctx_length}", "yellow")
-    cov1d_state_paths = sorted(cov1d_state_paths, key=lambda x: int(os.path.basename(x).split("-")[-3].replace('_', '.')))
+    cov1d_state_paths = sorted(cov1d_state_paths, key=lambda x: eval(os.path.basename(x).split("-")[-3].replace('_', '.')))
 
     fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(200, 50))
     plt.subplots_adjust(hspace=0.5)  # 调整子图之间的垂直间距
     axs = axs.flatten() 
-    layers, per_depth_scores = [], {}
+    per_depth_scores = {}
     
 
     with tqdm(total=len(cov1d_state_paths), desc="Drawing Figure ...") as pbar:
@@ -39,10 +42,7 @@ def anaylsis_single_file_conv1d(dir, output_path, passkey_length: int = None, de
             if hidden_state.dim() == 3:
                 hidden_state = hidden_state.squeeze(0)
                 
-            hidden_state = hidden_state.permute(1, 0)
-            
-
-            similarity_matrix = torch.zeros(hidden_state.size(0), ctx_length).to(hidden_state.device)
+            similarity_matrix = torch.zeros(hidden_state.size(0), embedding.size(-1)).to(hidden_state.device)
             for i, h in enumerate(hidden_state):
                 cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
                 similarity_matrix[i] = cos_sim
@@ -91,36 +91,12 @@ def anaylsis_single_file_conv1d(dir, output_path, passkey_length: int = None, de
             for j in range(1, num_partitions):
                 ax.axvline(x=j * partition_length, color='yellow', linestyle='--', linewidth=20)
 
-
             idx += 1
             pbar.update(1)
 
-
-
-    ctx_length = int(os.path.basename(fpath).split("-")[2])
-    analysis_layer = int(os.path.basename(fpath).split("-")[-1].split(".")[0])
-    
-    if depth is None:
-        depth = eval(fpath.split("/")[-2].split("-")[-1].replace("_", "."))
-    
-    save_file_name = f"{output_path}/conv1d_analysis_depth-{depth}_ctx-{ctx_length}_layer-{analysis_layer}.png"
-
-    hidden_state = auto_read_data(fpath)
-
-    if hidden_state.dim() == 3:
-        hidden_state = hidden_state.squeeze(0)
-
-        if hidden_state.dim() == 3:
-            hidden_state = hidden_state.squeeze(0)
-        
-        hidden_state = hidden_state.permute(1, 0)
-    
-    embedding = auto_read_data(embedding_path)
-
-    similarity_matrix = torch.zeros(hidden_state.size(0), ctx_length).to(hidden_state.device)
-    for i, h in enumerate(hidden_state):
-        cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
-        similarity_matrix[i] = cos_sim
+    # 调整子图位置
+    plt.tight_layout()
+    plt.savefig(f"analysis/figures/cosine_similarity_heatmap_ctx_length-{ctx_length}.png")
 
 
 
@@ -246,14 +222,20 @@ def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=4
 
 if __name__ == "__main__":
     argparse = ArgumentParser()
-    argparse.add_argument("--anaylysis_dir", type=str, default="analysis/inner_state")
-    argparse.add_argument("--fpath", type=str, default="analysis/inner_state")
-    argparse.add_argument("--tokenizer_name_or_path", type=str, default="analysis/inner_state")
+    argparse.add_argument("--dir", type=str, default="analysis/inner_state")
+    argparse.add_argument("--fpath", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
+    argparse.add_argument("--tokenizer_name_or_path", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
 
     args = argparse.parse_args()
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path)
 
-    analysis_cov1d_compress(
-        args.fpath, 
-        highlight_start=18, 
-        highlight_end=40
-    )
+    passkey = "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
+    passkey_length = len(tokenizer(passkey)['input_ids'])
+
+    anaylsis_single_file_conv1d(args.dir, passkey_length)
+
+    # analysis_cov1d_compress(
+    #     args.fpath, 
+    #     highlight_start=18, 
+    #     highlight_end=40
+    # )
