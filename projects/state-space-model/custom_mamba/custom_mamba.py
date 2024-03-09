@@ -593,7 +593,6 @@ class LongContextMamba(nn.Module, GenerationMixin):
 
         if vocab_size % pad_vocab_size_multiple != 0:
             vocab_size += pad_vocab_size_multiple - (vocab_size % pad_vocab_size_multiple)
-
         self.backbone = MixerModel(
             d_model=d_model,
             n_layer=n_layer,

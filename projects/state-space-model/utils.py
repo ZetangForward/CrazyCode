@@ -22,7 +22,7 @@ def get_model_tokenizer(root_dir, model_config):
 
     elif "mamba" in model_path.lower():
         model = LongContextMamba.from_pretrained(
-            model_path, use_position=model_config.use_position,
+            model_path, use_relative_position=True,
             dtype=torch.bfloat16, device="cuda", strict=False
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)

@@ -2,8 +2,8 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import torch   
-import pytorch_lightning as pl
 import hydra  
+import lightning.pytorch as pl
 from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
 
@@ -22,7 +22,11 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         input_ids = batch.get("input_ids")
-        output = self.model.generate(input_ids, max_length=self.cfg.task.other_cfgs.max_generation_length)
+        output = self.model.generate(
+            input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+            min_length=input_ids.size(-1) + 10, 
+            eos_token_id=self.tokenizer.eos_token_id, 
+        )
         batch['predictions'] = output[0]
         return batch
 
@@ -61,7 +65,7 @@ def main(config):
         model=experiment,
         dataloaders=data_module.predict_dataloader(),
         return_predictions=True,
-        ckpt_path=config.model.ckpt_path if not config.model.load_model_state_dict else None
+        ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
     )
     
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
