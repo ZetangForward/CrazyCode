@@ -15,7 +15,7 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     embedding = auto_read_data(embedding_path)
     if embedding.dim() == 3:
         embedding = embedding.squeeze(0)
-
+    embedding = embedding.permute(1, 0)
     ctx_length = int(os.path.basename(dir).split("-")[-1])
 
     print_c(f"ctx_length: {ctx_length}", "yellow")
@@ -40,11 +40,10 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
 
             if hidden_state.dim() == 3:
                 hidden_state = hidden_state.squeeze(0)
-                
-            similarity_matrix = torch.zeros(hidden_state.size(0), embedding.size(-1)).to(hidden_state.device)
+            hidden_state = hidden_state.permute(1, 0)
             
+            similarity_matrix = torch.zeros(hidden_state.size(0), embedding.size(-1)).to(hidden_state.device)
             for i, h in enumerate(hidden_state):
-                import pdb; pdb.set_trace()
                 cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
                 similarity_matrix[i] = cos_sim
 
