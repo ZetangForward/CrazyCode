@@ -1,6 +1,6 @@
 dataset:
   data_path: "slimpajama-per-source-length-upsample-0.5B"
-  processed_data_path: "slimpajama-per-source-length-upsample-0.5B/processed"
+  processed_data_path: slimpajama-per-source-length-upsample-0.5B/processed
   split: ['train.pkl', 'valid.pkl']
   module: 'custom_dataset.simplepajama' # Custom dataset module path
   class_name: 'SimplepajamaDataset'  # dataset class name

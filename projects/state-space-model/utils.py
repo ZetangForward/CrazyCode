@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from custom_mamba.custom_mamba import LongContextMamba
 from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
 from modelzipper.tutils import *
-
+from datasets import load_from_disk
 
 def get_model_tokenizer(root_dir, model_config):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
@@ -22,7 +22,7 @@ def get_model_tokenizer(root_dir, model_config):
 
     elif "mamba" in model_path.lower():
         model = LongContextMamba.from_pretrained(
-            model_path, use_relative_position=True,
+            model_path, use_relative_position=model_config.use_relative_position,
             dtype=torch.bfloat16, device="cuda", strict=False
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
@@ -64,6 +64,8 @@ class CustomDatamodule(pl.LightningDataModule):
         '''
         if not self.root_dir in fpath:
             fpath = os.path.join(self.root_dir, fpath)
+        if 'hf' in fpath:
+            return load_from_disk(fpath)
         return auto_read_data(fpath)
 
 
@@ -102,6 +104,7 @@ class CustomDatamodule(pl.LightningDataModule):
             if self.cfg.dataset.processed_data_path is not None:
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                
                 if os.path.isdir(processed_data_path):
                     for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
@@ -115,7 +118,13 @@ class CustomDatamodule(pl.LightningDataModule):
                     min_valid_num = min(1000, len(content)*0.1)
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
-        
+            else:
+                if "hf" in self.cfg.dataset.data_path.lower():
+                    if "pajama" in self.cfg.dataset.data_path.lower():
+                        all_data = self.load_data_with_root_dir(self.cfg.dataset.data_path)
+                        import pdb; pdb.set_trace()  
+                        ...
+
         if stage == "fit":  # training mode
             # check data initialization  
             assert train_data is not None, f"train data should not be None during {stage} stage"
