@@ -21,7 +21,7 @@ class MQARDataset(Dataset):
 
     @classmethod
     def build_dataset(cls, vocab_size, num_examples, input_seq_len, num_kv_pairs, power_a, tokenizer, random_non_queries=True):
-
+        import pdb;pdb.set_trace()
         context_size = num_kv_pairs * 2
         # create keys so that each key is present exactly once in each example
         key_vocab_size = vocab_size // 2
@@ -63,4 +63,5 @@ class MQARDataset(Dataset):
         # replace all the 0 with random values
         if random_non_queries:
             inputs[inputs == 0] = torch.randint(vocab_size, size=inputs.shape)[inputs == 0]
+
         return 

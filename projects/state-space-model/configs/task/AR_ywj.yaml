@@ -1,8 +1,10 @@
 dataset:
   data_path: ""
+  processed_data_path: 
   module: 'custom_dataset.AR_ywj' # Custom dataset module path
   class_name: 'MQARDataset'  # dataset class name
   nworkers: 12
+  max_seq_length: 32000
   inference_mode: True
   cluster_batch: False
   vocab_size: 8192
