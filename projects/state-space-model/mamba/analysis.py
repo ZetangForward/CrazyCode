@@ -100,7 +100,7 @@ def main(config):
         return_predictions=True,
         ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
     )
-    import pdb; pdb.set_trace()
+
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
     
     save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
