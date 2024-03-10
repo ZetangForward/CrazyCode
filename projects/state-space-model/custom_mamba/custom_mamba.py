@@ -754,8 +754,12 @@ class MixerModel(nn.Module):
             if self.use_abs_position:
                 position_embeds = self.wpe(position_ids).to(inputs_embeds.dtype)
             elif self.use_relative_position:  # TODO: DEBUG
-                angles = position_ids.unsqueeze(-1) / self.freqs.to(position_ids.dtype).to(position_ids.device).unsqueeze(0)
+                freqs = self.freqs.to(position_ids.dtype).to(position_ids.device)
+                # Add a small constant to avoid division by zero
+                freqs += 1e-7
+                angles = position_ids.unsqueeze(-1) / freqs.unsqueeze(0)
                 position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1).to(inputs_embeds.dtype)
+            
         import pdb; pdb.set_trace()
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
