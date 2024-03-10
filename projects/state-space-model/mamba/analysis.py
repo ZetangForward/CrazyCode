@@ -37,16 +37,21 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        input_ids = batch.get("input_ids")
+        input_ids = batch.pop("input_ids")
         if input_ids.dim() == 3:
             input_ids = input_ids.squeeze(0)
         depth = batch.get('depth').item()
         ctx_length = batch.get('ctx_length').item()
+        
+        if ctx_length % 1000 != 0:
+            pass
+        
         output = self.model.generate(
             input_ids, depth=depth, ctx_length=ctx_length,
-            min_length=10, max_length=100)
+            min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32)
         batch['predictions'] = output
-        
+        batch['depth'] = depth
+        batch['ctx_length'] = ctx_length
         return batch
 
 
@@ -95,7 +100,7 @@ def main(config):
         return_predictions=True,
         ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
     )
-    
+    import pdb; pdb.set_trace()
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
     
     save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")

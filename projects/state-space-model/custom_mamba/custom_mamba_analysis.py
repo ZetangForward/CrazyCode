@@ -206,7 +206,7 @@ class Mamba(nn.Module):
             #########################################
             # analysis step : save conv1d state (first step: offset == 0)
             str_depth = str(depth).replace(".", "_")[:4]
-            if ctx_length % 1000 == 0 and inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0:
+            if ctx_length % 1000 == 0 and inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0 and depth % 0.1 == 0:
                  auto_save_data(
                     conv_state, 
                     f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{inference_params.seqlen_offset}.pkl"
@@ -274,7 +274,7 @@ class Mamba(nn.Module):
         #########################################
         # analysis step : save conv1d state (first step: offset == 0)
         str_depth = str(depth).replace(".", "_")[:4]
-        if self.layer_idx == 47 and seqlen_offset % 10 == 0 and ctx_length % 1000 == 0:
+        if self.layer_idx == 47 and seqlen_offset % 10 == 0 and ctx_length % 1000 == 0 and depth % 0.1 == 0:
             auto_save_data(
                 conv_state, 
                 f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{seqlen_offset}.pkl"
