@@ -87,6 +87,19 @@ class CustomDatamodule(pl.LightningDataModule):
                     auto_save_data(...)  # auto save processed data fn
                     raise NotImplementedError
             
+            if "ar" in self.cfg.dataset.module.lower():  # sanity check passkey search data
+                if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+                    processed_data = CustomDataset.build_dataset(
+                        vocab_size=self.cfg.dataset.vocab_size, 
+                        num_examples=self.cfg.dataset.num_examples,
+                        input_seq_len=self.cfg.dataset.input_seq_len,
+                        num_kv_pairs=self.cfg.dataset.num_kv_pairs,
+                        power_a=self.cfg.dataset.test_power_a,
+                        tokenizer=self.tokenizer,
+                    )
+                    auto_save_data(...)  # auto save processed data fn
+                    raise NotImplementedError
+            
             if self.cfg.dataset.processed_data_path is not None:
                 test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
             else:
