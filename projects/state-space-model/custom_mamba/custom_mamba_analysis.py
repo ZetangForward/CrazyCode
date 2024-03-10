@@ -147,18 +147,9 @@ class Mamba(nn.Module):
             
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
 
-            ### analysis step : save cov_state
-            # if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
-            #     if self.layer_idx == 47:  # save last hidden states
-            #         print_c(f"layer-{self.layer_idx}", "yellow")
-            #         auto_save_data(
-            #             conv_state, 
-            #             f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
-            #         )
-
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
-                out, _, _ = self.step(hidden_states, conv_state, ssm_state)
+                out, _, _ = self.step(hidden_states, conv_state, ssm_state, depth=depth, ctx_length=ctx_length, seqlen_offset=inference_params.seqlen_offset)
                 return out
 
         # We do matmul and transpose BLH -> HBL at the same time
@@ -194,7 +185,7 @@ class Mamba(nn.Module):
 
             #########################################
             # analysis step : save text hidden state
-            if self.layer_idx == 0 and inference_params.seqlen_offset == 0:
+            if ctx_length % 1000 == 0 and self.layer_idx == 0 and inference_params.seqlen_offset == 0:
                 auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/input_seq_embedding.pkl")
             #########################################
             
@@ -213,9 +204,9 @@ class Mamba(nn.Module):
                 )
             
             #########################################
-            # analysis step : save conv1d state
+            # analysis step : save conv1d state (first step: offset == 0)
             str_depth = str(depth).replace(".", "_")[:4]
-            if inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0:
+            if ctx_length % 1000 == 0 and inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0:
                  auto_save_data(
                     conv_state, 
                     f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{inference_params.seqlen_offset}.pkl"
@@ -252,14 +243,13 @@ class Mamba(nn.Module):
         return out
 
 
-    def step(self, hidden_states, conv_state, ssm_state):
+    def step(self, hidden_states, conv_state, ssm_state, ctx_length, depth, seqlen_offset):
         dtype = hidden_states.dtype
         assert hidden_states.shape[1] == 1, "Only support decoding with 1 token at a time for now"
         xz = self.in_proj(hidden_states.squeeze(1))  # (B 2D)
         x, z = xz.chunk(2, dim=-1)  # (B D)
 
         # Conv step
-
         ########## TODO: Debug mode
         causal_conv1d_update = None
         selective_state_update = None
@@ -280,6 +270,16 @@ class Mamba(nn.Module):
                 self.conv1d.bias,
                 self.activation,
             )
+
+        #########################################
+        # analysis step : save conv1d state (first step: offset == 0)
+        str_depth = str(depth).replace(".", "_")[:4]
+        if self.layer_idx == 47 and seqlen_offset % 10 == 0 and ctx_length % 1000 == 0:
+            auto_save_data(
+                conv_state, 
+                f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{seqlen_offset}.pkl"
+            )
+        #########################################
 
         x_db = self.x_proj(x)  # (B dt_rank+2*d_state)
         dt, B, C = torch.split(x_db, [self.dt_rank, self.d_state, self.d_state], dim=-1)
