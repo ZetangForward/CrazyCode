@@ -25,7 +25,8 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     plt.subplots_adjust(hspace=0.5)  # 调整子图之间的垂直间距
     axs = axs.flatten() 
     per_depth_scores = {}
-    
+    per_conv1d_scores = {}
+
     analysis_depths = [0.2, 0.4, 0.6, 0.8, 1.0]
     
     with tqdm(total=len(analysis_depths), desc="Drawing Figure ...") as pbar:
@@ -78,12 +79,13 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
                     count_in_partition = np.sum((top_indices_sorted[k, :] >= start_idx) & (top_indices_sorted[k, :] < end_idx))
                     partition_scores[k, j] = count_in_partition / 10.0  # 计算比例
             
-            per_depth_scores[str(analysis_depth)] = partition_scores
+            per_depth_scores[analysis_depth] = partition_scores
             
             mask = np.zeros_like(similarity_matrix_np, dtype=bool)
             for i in range(similarity_matrix_np.shape[0]):
                 mask[i, top_indices[i]] = True
 
+            # 假设highlight_start是高亮区域的开始位置，passkey_length是高亮区域的长度
             ax = axs[idx]
             ax.imshow(similarity_matrix_np, cmap='Reds', aspect='auto', alpha=0.3) 
             ax.imshow(mask, cmap='hot', aspect='auto', alpha=0.9)
@@ -98,8 +100,36 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
 
     # 调整子图位置
     print_c("begin to save figure ...")
+    # plt.tight_layout()
+    # plt.savefig(f"analysis/figures/cosine_similarity_heatmap_ctx_length-{ctx_length}.png")
+
+    # 绘制 per depth score 折线图
+    print_c("begin to save line figure ...")
+    fig, axs = plt.subplots(nrows=1, ncols=5, figsize=(25, 5))
+    axs = axs.flatten()
+
+    x_labels = ['20%', '40%', '60%', '80%', '100%']
+    x_positions = np.arange(len(x_labels))
+    
+    for index, analysis_depth in enumerate(analysis_depths):
+        for j, s in per_depth_scores[analysis_depth]:
+            axs[analysis_depths.index(analysis_depth)].plot(x_positions, s, marker='o', label=f'Conv1d-State-{j}')
+        axs[index].set_xticks(x_positions)
+        axs[index].set_xticklabels(x_labels)
+        axs[index].set_xlabel('Percentage of Context')
+        axs[index].set_ylabel('Percentage of Top Indices (out of 50)')
+        axs[index].set_title(f'Passkey Depth {analysis_depth}')
+        axs[index].legend()  
+
+        line_position = x_positions[index]
+    
+        # 绘制竖线
+        axs[index].axvline(x=line_position, color='yellow', linestyle='--', linewidth=10)
+
+
+    # 调整子图位置
     plt.tight_layout()
-    plt.savefig(f"analysis/figures/cosine_similarity_heatmap_ctx_length-{ctx_length}.png")
+    plt.savefig(f"analysis/figures/cosine_similarity_line_figure_offset-ctx_length-{ctx_length}.png")
 
 
 
