@@ -75,6 +75,7 @@ class CustomDatamodule(pl.LightningDataModule):
         
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
+            import pdb;pdb.set_trace()
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
                 if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(
@@ -82,6 +83,19 @@ class CustomDatamodule(pl.LightningDataModule):
                         key=self.cfg.dataset.key,
                         value=self.cfg.dataset.value,
                         ctx_len=self.cfg.dataset.max_seq_length,
+                        tokenizer=self.tokenizer,
+                    )
+                    auto_save_data(...)  # auto save processed data fn
+                    raise NotImplementedError
+            
+            if "ar" in self.cfg.dataset.module.lower():
+                if self.cfg.dataset.processed_data_path is None:
+                    processed_data = CustomDataset.build_dataset(
+                        vocab_size=self.cfg.dataset.vocab_size, 
+                        input_seq_len=self.cfg.dataset.input_seq_len,
+                        num_kv_pairs=self.cfg.dataset.num_kv_pairs,
+                        num_examples=self.cfg.dataset.num_examples,
+                        test_power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
                     auto_save_data(...)  # auto save processed data fn
