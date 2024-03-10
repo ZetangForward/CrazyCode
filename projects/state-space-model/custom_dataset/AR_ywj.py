@@ -17,16 +17,13 @@ class MQARDataset(Dataset):
         self.content = content
         self.tokenizer = tokenizer
 
-
-
-
     @classmethod
     def build_dataset(cls, 
                       vocab_size, 
                       input_seq_len, 
                       num_kv_pairs,
                       num_examples, 
-                      test_power_a, 
+                      power_a, 
                       tokenizer,
                       random_non_queries = True,
                       ):
@@ -73,9 +70,4 @@ class MQARDataset(Dataset):
         # replace all the 0 with random values
         if random_non_queries:
             inputs[inputs == 0] = torch.randint(vocab_size, size=inputs.shape)[inputs == 0]
-        return DataSegment(
-            inputs, 
-            labels, 
-            slices={"num_kv_pairs": num_kv_pairs, "input_seq_len": input_seq_len}
-        )
-        return all_insert_data
+        return None

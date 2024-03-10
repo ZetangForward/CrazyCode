@@ -95,7 +95,7 @@ class CustomDatamodule(pl.LightningDataModule):
                         input_seq_len=self.cfg.dataset.input_seq_len,
                         num_kv_pairs=self.cfg.dataset.num_kv_pairs,
                         num_examples=self.cfg.dataset.num_examples,
-                        test_power_a=self.cfg.dataset.test_power_a,
+                        power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
                     auto_save_data(...)  # auto save processed data fn
