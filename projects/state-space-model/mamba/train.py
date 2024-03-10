@@ -4,14 +4,12 @@ import sys
 sys.path.append(os.getcwd())
 import lightning.pytorch as pl
 import hydra
-import importlib
 from torch import optim, Tensor 
 from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from modelzipper.tutils import *
-from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from utils import get_model_tokenizer, CustomDatamodule
 
