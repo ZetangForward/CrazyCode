@@ -38,5 +38,5 @@ experiment:
   peak_lr: 0.0002
   last_lr: 0.00001
   debug: True
-  device_num: 1
+  device_num: 4
   node_num: 1
