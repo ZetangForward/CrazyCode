@@ -49,7 +49,7 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
             for i, h in enumerate(hidden_state):
                 cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
                 similarity_matrix[i] = cos_sim
-            import pdb; pdb.set_trace()
+            
             similarity_matrix_np = similarity_matrix.cpu().numpy()
             top_indices = np.argpartition(similarity_matrix_np, -10, axis=1)[:, -20:]
 
@@ -112,7 +112,7 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     x_positions = np.arange(len(x_labels))
     
     for index, analysis_depth in enumerate(analysis_depths):
-        for j, s in per_depth_scores[analysis_depth]:
+        for j, s in enumerate(per_depth_scores[analysis_depth]):
             axs[analysis_depths.index(analysis_depth)].plot(x_positions, s, marker='o', label=f'Conv1d-State-{j}')
         axs[index].set_xticks(x_positions)
         axs[index].set_xticklabels(x_labels)
