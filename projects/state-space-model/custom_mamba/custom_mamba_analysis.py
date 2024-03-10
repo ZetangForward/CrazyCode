@@ -194,7 +194,7 @@ class Mamba(nn.Module):
 
             #########################################
             # analysis step : save text hidden state
-            if self.layer_idx == 0:
+            if self.layer_idx == 0 and inference_params.seqlen_offset == 0:
                 auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/input_seq_embedding.pkl")
             #########################################
             
@@ -215,11 +215,10 @@ class Mamba(nn.Module):
             #########################################
             # analysis step : save conv1d state
             str_depth = str(depth).replace(".", "_")[:4]
-            if self.layer_idx == 47 and ctx_length <= 20000:
-                 conv_state = x[:, :, -self.d_conv:].squeeze(0)
+            if inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0:
                  auto_save_data(
                     conv_state, 
-                    f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}-layer-{self.layer_idx}.pkl"
+                    f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{inference_params.seqlen_offset}.pkl"
                 )
             #########################################
 
