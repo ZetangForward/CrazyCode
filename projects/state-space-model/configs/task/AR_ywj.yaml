@@ -12,8 +12,7 @@ dataset:
   test_power_a: 0.01
 
 other_cfgs: 
-  max_generation_length: 48
-  testing_max_ctx: 32000
+
 
 
   
