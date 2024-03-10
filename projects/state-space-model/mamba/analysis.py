@@ -42,7 +42,9 @@ class Experiment(pl.LightningModule):
             input_ids = input_ids.squeeze(0)
         depth = batch.get('depth').item()
         ctx_length = batch.get('ctx_length').item()
-        output = self.model(input_ids, depth=depth, ctx_length=ctx_length)
+        output = self.model.generate(
+            input_ids, depth=depth, ctx_length=ctx_length,
+            min_length=10, max_length=100)
         batch['predictions'] = output
         
         return batch

@@ -50,8 +50,10 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
                 cos_sim = F.cosine_similarity(h.unsqueeze(0), embedding)
                 similarity_matrix[i] = cos_sim
             
+            top_k = 20  # 取每个conv1d state的前20个最大值
+
             similarity_matrix_np = similarity_matrix.cpu().numpy()
-            top_indices = np.argpartition(similarity_matrix_np, -10, axis=1)[:, -20:]
+            top_indices = np.argpartition(similarity_matrix_np, -10, axis=1)[:, -top_k:]  
 
             # 统计每个区间出发的关键点
             ### 真实数据的位置
@@ -62,7 +64,7 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
             green_mask = np.zeros((*similarity_matrix_np.shape, 3))
             green_mask[highlight_mask, 1] = 1.0  # 绿色通道设为1  
 
-            ### 划分每个区间
+            ### 划分每个区间 划分 5个区间
             num_partitions = 5
             partition_length = similarity_matrix.size(-1) // num_partitions  # 每个分区的长度
             partition_scores = np.zeros((top_indices.shape[0], num_partitions))  # 存储每个分区的得分
@@ -71,13 +73,13 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
             top_indices_sorted = np.sort(top_indices, axis=1)
 
             # 计算每个分区的得分
-            for j in range(num_partitions):
+            for j in range(num_partitions): # 遍历每个分区
                 start_idx = j * partition_length
                 end_idx = start_idx + partition_length
                 # 计算每个分区中top_indices的数量
-                for k in range(top_indices_sorted.shape[0]):  # 遍历每个压缩的状态
+                for k in range(top_indices_sorted.shape[0]):  # 遍历每个conv1d state
                     count_in_partition = np.sum((top_indices_sorted[k, :] >= start_idx) & (top_indices_sorted[k, :] < end_idx))
-                    partition_scores[k, j] = count_in_partition / 10.0  # 计算比例
+                    partition_scores[k, j] = count_in_partition / top_k  # 计算比例
             
             per_depth_scores[analysis_depth] = partition_scores
             
@@ -121,10 +123,14 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
         axs[index].set_title(f'Passkey Depth {analysis_depth}')
         axs[index].legend()  
 
+        # 设置y轴的范围和刻度
+        axs[index].set_ylim(0.00, 0.5)  # 设置y轴范围
+        axs[index].set_yticks(np.arange(0.00, 0.5, 0.05))  # 设置y轴刻度，包含0.5
+
         line_position = x_positions[index]
     
         # 绘制竖线
-        axs[index].axvline(x=line_position, color='yellow', linestyle='--', linewidth=10)
+        axs[index].axvline(x=line_position, color='black', linestyle='--', linewidth=1)
 
 
     # 调整子图位置
