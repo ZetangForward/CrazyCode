@@ -10,6 +10,17 @@ from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, Lla
 from modelzipper.tutils import *
 from datasets import load_from_disk
 
+
+def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
+    tokenizer, model = None, None
+    if tokenizer_name_or_path is not None:
+        tokenizer = AutoTokenizer.from_pretrained(os.path.join(root_dir, tokenizer_name_or_path))
+    if model_name_or_path is not None:
+        model = AutoModelForCausalLM.from_pretrained(os.path.join(root_dir, model_name_or_path))
+
+    return tokenizer, model
+
+
 def get_model_tokenizer(root_dir, model_config):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
