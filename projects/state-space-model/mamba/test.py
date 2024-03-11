@@ -45,7 +45,7 @@ class Experiment(pl.LightningModule):
                     if isinstance(value, torch.Tensor):
                         value = value.item()
                     final_res[key] = value
-        
+                    
         return final_res
 
 

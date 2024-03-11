@@ -99,10 +99,11 @@ class PasskeySearchDataset(Dataset):
 
         input_ids = tokenized_sequence.input_ids[0]
         attention_mask = tokenized_sequence.attention_mask[0]
-       
+        real_length = attention_mask.size(-1)
         res = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
+            'real_length': real_length,
         }
 
         res.update(item)

@@ -17,7 +17,7 @@ other_cfgs:
   testing_max_ctx: 32000
 
 inference_cfg:
-  save_keys: ['depth', 'ctx_length']
+  save_keys: ['depth', 'ctx_length', 'real_length']
 
 
   
