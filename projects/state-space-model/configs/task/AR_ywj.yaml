@@ -6,6 +6,7 @@ dataset:
   nworkers: 12
   max_seq_length: 32000
   inference_mode: True
+  pin_memory: False
   cluster_batch: False
   vocab_size: 8192
   num_examples: 3000
@@ -14,6 +15,8 @@ dataset:
   test_power_a: 0.01
 
 other_cfgs: 
+  max_generation_length: 64
+  testing_max_ctx: 32000
 
 
 

@@ -22,11 +22,14 @@ class Experiment(pl.LightningModule):
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         input_ids = batch.get("input_ids")
-        output = self.model.generate(
-            input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
-            min_length=input_ids.size(-1) + 10, 
-            eos_token_id=self.tokenizer.eos_token_id, 
-        )
+        import pdb;pdb.set_trace()
+        # output = self.model.generate(
+        #     input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+        #     min_length=input_ids.size(-1) + 10, 
+        #     eos_token_id=self.tokenizer.eos_token_id, 
+        # )
+        output = self.model(input_ids)
+        pdb.set_trace()
         batch['predictions'] = output[0]
         return batch
 
@@ -45,12 +48,12 @@ def main(config):
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     data_module.setup(stage='predict')
 
-    if config.model.load_model_state_dict:
-        state_dict = torch.load(
-            os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-            map_location='cuda'
-        )
-        model.load_state_dict(state_dict, strict=True)
+    # if config.model.load_model_state_dict:
+    #     state_dict = torch.load(
+    #         os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
+    #         map_location='cuda'
+    #     )
+    #     model.load_state_dict(state_dict, strict=True)
 
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)

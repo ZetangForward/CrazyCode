@@ -30,6 +30,8 @@ setup(
         'lightning',
         'einops',
         'accelerate',
+        'hydra-core',
+        'datasets',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

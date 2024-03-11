@@ -15,13 +15,9 @@ class MQARDataset(Dataset):
         self.tokenizer = tokenizer
         self.max_seq_length = kwargs["max_seq_length"]
         self.cluster_batch = kwargs["cluster_batch"]
-        self.filter_length(kwargs["testing_max_ctx"])
-    
-
 
     @classmethod
     def build_dataset(cls, vocab_size, num_examples, input_seq_len, num_kv_pairs, power_a, tokenizer, random_non_queries=True):
-        import pdb;pdb.set_trace()
         context_size = num_kv_pairs * 2
         # create keys so that each key is present exactly once in each example
         key_vocab_size = vocab_size // 2
@@ -41,7 +37,7 @@ class MQARDataset(Dataset):
 
         # compute power law
         space = (input_seq_len - context_size) // 2
-        p = power_a * np.arange(1, space + 1) ** (power_a-1)
+        p = power_a * np.arange(1, space + 1) ** (power_a-1)    # 幂律分布
         p = p / p.sum()
 
         x = np.stack([np.arange(space, dtype=int)] * num_examples)
@@ -64,4 +60,36 @@ class MQARDataset(Dataset):
         if random_non_queries:
             inputs[inputs == 0] = torch.randint(vocab_size, size=inputs.shape)[inputs == 0]
 
-        return 
+        all_test_data = []
+        for i in range(inputs.size(0)):  
+            input_list = inputs[i]
+            label_list = labels[i]
+            data_dict = {'input': input_list, 'label': label_list, 'gaps': gaps[i]}
+            
+            all_test_data.append(data_dict)
+        
+        return all_test_data
+    
+    
+    def __len__(self):
+        return len(self.content)
+    
+    def __getitem__(self, index) -> Any:
+        item = self.content[index]
+        input_ids = item.pop('input')
+        # tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
+        #     input,  
+        #     return_tensors="pt",
+        # )
+
+        # attention_mask = tokenized_sequence.attention_mask[0]
+        attention_mask = torch.ones(input_ids.shape,dtype=input_ids.dtype)
+       
+        res = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+        }
+
+        res.update(item)
+
+        return res
