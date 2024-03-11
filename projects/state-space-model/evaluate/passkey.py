@@ -40,7 +40,7 @@ class Evaluator:
 
         for item in self.predictions:
             pred = item['predictions'].squeeze(0)
-            context_length = item['attention_mask'].shape[1]
+            context_length = item['ctx_length']
             pred = pred[context_length:]
             str_pred = self.tokenizer.decode(pred, skip_special_tokens=True)
             score = scorer.score(needle, str_pred)['rouge1'].fmeasure*10
@@ -123,7 +123,7 @@ class Evaluator:
 if __name__ == "__main__":
     evaluator = Evaluator(
         root_dir="/nvme/hf_models",
-        fpath="/nvme/zecheng/evaluation/passkey_search/mamba-1_4b/version_2/results/predictions.pkl",
+        fpath="/nvme/zecheng/evaluation/passkey_search/deepseek-1_3b/version_1/results/predictions.pkl",
         task="passkey_search",
         tokenizer_name_or_path="EleutherAI/gpt-neox-20b",
         value="eat a sandwich and sit in Dolores Park on a sunny day."
