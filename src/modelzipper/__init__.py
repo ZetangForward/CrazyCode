@@ -3,7 +3,7 @@ from datetime import datetime
 from .tutils import *
 import pytz
 
-__version__ = '0.2.6'
+__version__ = '0.2.7'
 
 utc_now = datetime.utcnow()
 aoe_tz = pytz.timezone('Pacific/Kwajalein')

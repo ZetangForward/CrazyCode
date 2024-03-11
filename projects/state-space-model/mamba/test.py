@@ -45,12 +45,12 @@ def main(config):
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     data_module.setup(stage='predict')
 
-    if config.model.load_model_state_dict:
-        state_dict = torch.load(
-            os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-            map_location='cuda'
-        )
-        model.load_state_dict(state_dict, strict=True)
+    # if config.model.load_model_state_dict:
+    #     state_dict = torch.load(
+    #         os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
+    #         map_location='cuda'
+    #     )
+    #     model.load_state_dict(state_dict, strict=True)
 
     # load experiment (and model checkpoint)
     experiment = Experiment(model=model, config=config, tokenizer=tokenizer)

@@ -23,6 +23,7 @@ class PasskeySearchDataset(Dataset):
         for item in self.content:
             if item['ctx_length'] <= max_ctx_length:
                 new_content.append(item)
+        new_content = sorted(new_content, key=lambda x: x['ctx_length'], reverse=True)  # from long to short
         self.content = new_content
         print_c(f"filtering finished | total {len(self.content)} instances", "yellow")
 

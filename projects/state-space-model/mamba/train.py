@@ -4,14 +4,12 @@ import sys
 sys.path.append(os.getcwd())
 import lightning.pytorch as pl
 import hydra
-import importlib
 from torch import optim, Tensor 
 from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from modelzipper.tutils import *
-from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from utils import get_model_tokenizer, CustomDatamodule
 
@@ -286,7 +284,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=5 # for debugging
+        fast_dev_run=5 if config.experiment.debug else False # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)
