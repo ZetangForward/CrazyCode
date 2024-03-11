@@ -38,11 +38,11 @@ def get_model_tokenizer(root_dir, model_config):
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
-    elif "llama" in model_path.lower():
+    elif "llama" or "deepseek" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
             model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
-        tokenizer = LlamaTokenizer.from_pretrained(tokenizer_path)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     if "gpt" in tokenizer_path or "llama" in tokenizer_path:
         # tokenizer.eos_token = "<|endoftext|>"
