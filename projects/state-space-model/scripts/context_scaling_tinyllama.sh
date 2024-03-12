@@ -12,5 +12,6 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node mamba/train.py \
     model=$model_name \
     model_name=$model_name \
     platform=$platform \
-    experiment.debug=True \
-    experiment.device_num=$device_num
+    experiment.debug=False \
+    experiment.device_num=$device_num \
+    task.dataset.cluster_batch=False;
