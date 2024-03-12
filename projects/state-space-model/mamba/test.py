@@ -31,7 +31,8 @@ class Experiment(pl.LightningModule):
         input_ids = batch.pop("input_ids")
         
         output = self.model.generate(
-            input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+            input_ids, 
+            max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
             min_length=input_ids.size(-1) + 10, 
             eos_token_id=self.tokenizer.eos_token_id, 
         )
@@ -45,7 +46,6 @@ class Experiment(pl.LightningModule):
                     if isinstance(value, torch.Tensor):
                         value = value.item()
                     final_res[key] = value
-                    
         return final_res
 
 

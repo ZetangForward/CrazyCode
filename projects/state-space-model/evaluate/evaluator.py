@@ -49,7 +49,7 @@ class Evaluator:
             score = scorer.score(needle, str_pred)['rouge1'].fmeasure*10
             depth, context_length = item['depth'], item['ctx_length']
             results.append({
-                'depth': depth, 'ctx_length': context_length, 'score': score
+                'depth': round(depth, 2), 'ctx_length': context_length, 'score': score, 'pred': str_pred,
             })
 
         print_c(f"passkey search evaluation finished, total {len(results)} instances", "yellow")

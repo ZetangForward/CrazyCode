@@ -762,7 +762,6 @@ class MixerModel(nn.Module):
                 freqs += 1e-7
                 angles = position_ids.unsqueeze(-1) / freqs.unsqueeze(0)
                 position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1).to(inputs_embeds.dtype)
-        import pdb; pdb.set_trace()
         
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
