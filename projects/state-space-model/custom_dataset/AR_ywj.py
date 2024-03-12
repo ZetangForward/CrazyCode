@@ -61,10 +61,15 @@ class MQARDataset(Dataset):
             inputs[inputs == 0] = torch.randint(vocab_size, size=inputs.shape)[inputs == 0]
 
         all_test_data = []
+
         for i in range(inputs.size(0)):  
-            input_list = inputs[i]
-            label_list = labels[i]
-            data_dict = {'input': input_list, 'label': label_list, 'gaps': gaps[i]}
+            input_list = inputs[i].to(torch.int32)
+            # label_idx = torch.nonzero(labels[i] != -100).flatten().to(torch.int32)
+            # label_value = torch.index_select(labels[i], 0, label_idx).to(torch.int32)
+            
+            # data_dict = {'input': input_list, 'label_idx': label_idx, 'label_value': label_value}
+            label_list = labels[i].to(torch.int32)
+            data_dict = {'input': input_list, 'label': label_list}
             
             all_test_data.append(data_dict)
         

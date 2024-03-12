@@ -15,10 +15,21 @@ class LongbenchDataset(Dataset):
         self.content = content
         self.tokenizer = tokenizer
         self.subtask =  kwargs["subtask"]
+        self.max_gen_len, self.prompt_format = self.get_task_config(self.subtask)
+        
         self.max_seq_length = kwargs["max_seq_length"]          #
         self.cluster_batch = kwargs["cluster_batch"]            #
-        self.filter_length(kwargs["testing_max_ctx"])           #
-        
+        # self.filter_length(kwargs["testing_max_ctx"])           #
+    
+    def get_task_config(self, subtask):
+        # import pdb;pdb.set_trace()
+        with open('/opt/data/private/zecheng/modelzipper/projects/state-space-model/configs/task/longbench_config.yaml', 'r', encoding='utf-8') as file:
+            data = yaml.safe_load(file)
+        # config = load_yaml_config("/opt/data/private/zecheng/modelzipper/projects/state-space-model/configs/task/longbench_config.yaml")
+        max_len = data['dataset2maxlen'][self.subtask]
+        prompt_format = data['dataset2prompt'][self.subtask]
+        return max_len, prompt_format
+    
     def filter_length(self, max_ctx_length=12000):
         new_content = []
         print_c(f"begin to filter the context length | total {len(self.content)} instances", "yellow")
@@ -40,20 +51,20 @@ class LongbenchDataset(Dataset):
     
     def __getitem__(self, index) -> Any:
         item = self.content[index]
-        passkey_context = item.pop('passkey_context')
+        prompt = self.prompt_format.format(**item)
+
         tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
-            passkey_context,  
+            prompt,  
             return_tensors="pt",
         )
-
+        
         input_ids = tokenized_sequence.input_ids[0]
         attention_mask = tokenized_sequence.attention_mask[0]
        
         res = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
+            'answer': item.pop('answers'),
+            'context_length': item.pop('length')
         }
-
-        res.update(item)
-
         return res

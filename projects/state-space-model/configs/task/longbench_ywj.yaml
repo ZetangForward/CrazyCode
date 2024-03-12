@@ -1,6 +1,3 @@
-subtask: &subtask "narrativeqa"
-e: &e false
-
 dataset:
   data_path: "longbench/data/"
   processed_data_path: 
@@ -11,9 +8,6 @@ dataset:
   pin_memory: False
   inference_mode: True
   cluster_batch: False
-  subtask: *subtask
-  e: *e
 
 other_cfgs: 
-  subtask: *subtask
-  e: *e
+  testing_max_ctx: 32000

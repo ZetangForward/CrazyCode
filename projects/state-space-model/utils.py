@@ -65,8 +65,11 @@ class CustomDatamodule(pl.LightningDataModule):
         self.prepare_data_per_node = True
         self.dataset_kwargs = {
             "max_seq_length": self.cfg.dataset.max_seq_length,
-            "cluster_batch": self.cfg.dataset.cluster_batch,            
+            "cluster_batch": self.cfg.dataset.cluster_batch,           
         }
+        
+        if self.cfg.dataset.subtask is not None:
+            self.dataset_kwargs.update({"subtask": self.cfg.dataset.subtask})
         
         if self.cfg.other_cfgs is not None:
             self.dataset_kwargs.update(self.cfg.other_cfgs)
@@ -87,7 +90,6 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
-        import pdb;pdb.set_trace()
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
@@ -101,7 +103,7 @@ class CustomDatamodule(pl.LightningDataModule):
                     )
                     # auto_save_data(...)  # auto save processed data fn
                     # raise NotImplementedError
-                    
+ 
                 if "ar" in self.cfg.dataset.module.lower():  # sanity check passkey search data
                     test_data = CustomDataset.build_dataset(
                         vocab_size=self.cfg.dataset.vocab_size, 
@@ -111,15 +113,18 @@ class CustomDatamodule(pl.LightningDataModule):
                         power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
-                    import pdb; pdb.set_trace()
+                    # data_path = "/opt/data/private/zecheng/data/MQAR/" + "test_C8192_N"+str(self.cfg.dataset.input_seq_len) + "_D"+str(self.cfg.dataset.num_kv_pairs)+".pkl"
+                    # auto_save_data(test_data,data_path)
+             
                 if "longbench" in self.cfg.dataset.module.lower():
+                    import pdb; pdb.set_trace()
                     data_path = self.cfg.dataset.data_path
                     if self.cfg.dataset.subtask is not None:
                         data_path = data_path + self.cfg.dataset.subtask
-                    if self.cfg.dataset.e:
-                        data_path = data_path + "_e.jsonl"
-                    else:
-                        data_path = data_path + ".jsonl"
+                    # if self.cfg.dataset.e:
+                    #     data_path = data_path + "_e.jsonl"
+                    # else:
+                    data_path = data_path + ".jsonl"
                     test_data = self.load_data_with_root_dir(data_path)
             
             else:
@@ -144,6 +149,7 @@ class CustomDatamodule(pl.LightningDataModule):
                 split="test",
                 **self.dataset_kwargs,
             )
+
         else:
             if self.cfg.dataset.processed_data_path is not None:
                 # check if is a directory
@@ -243,4 +249,7 @@ class CustomDatamodule(pl.LightningDataModule):
             drop_last=False, 
             shuffle=False,
         )
+        # import pdb;pdb.set_trace()
+        # for i, data in enumerate(predict_loader):
+        #     print(i)
         return predict_loader

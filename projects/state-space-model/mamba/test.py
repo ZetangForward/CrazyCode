@@ -29,19 +29,18 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
-        import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         if "ar" in self.cfg.exp_task.lower():
             output = self.model(input_ids).logits.max(-1)
         else:
-            
-        output = self.model.generate(
-                input_ids, 
-            max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
-                min_length=input_ids.size(-1) + 10, 
-                eos_token_id=self.tokenizer.eos_token_id, 
-            )
-        final_res = {}
-        final_res['predictions'] = output[0]
+            output = self.model.generate(
+                    input_ids, 
+                max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+                    min_length=input_ids.size(-1) + 10, 
+                    eos_token_id=self.tokenizer.eos_token_id, 
+                )
+            final_res = {}
+            final_res['predictions'] = output[0]
         
         if self.save_keys is not None:
             for key in self.save_keys:
@@ -56,7 +55,6 @@ class Experiment(pl.LightningModule):
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
     print_c(OmegaConf.to_yaml(config), "yellow")
-    import pdb; pdb.set_trace()
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.result_path
     data_root_dir = config.platform.dataset_path
@@ -65,34 +63,49 @@ def main(config):
     model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     
     # load testing data
-    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
-    data_module.setup(stage='predict')
 
-    # if config.model.load_model_state_dict:
-    #     state_dict = torch.load(
-    #         os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-    #         map_location='cuda'
-    #     )
-    #     model.load_state_dict(state_dict, strict=True)
+    if "longbench"  in config.exp_task:
+        subtask = ["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
+                        "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]
+    else:
+        subtask =  [config.exp_task]
+            
 
-    # load experiment (and model checkpoint)
-    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
-    
-    tester = pl.Trainer(devices=config.experiment.device_num)
+    for task in subtask:
+        # import pdb;pdb.set_trace()
+        OmegaConf.set_struct(config, False)
+        config.task.dataset.subtask = task 
+        OmegaConf.set_struct(config, True)
+        data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+        data_module.setup(stage='predict')
 
-    b_t = time.time()
+        # if config.model.load_model_state_dict:
+        #     state_dict = torch.load(
+        #         os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
+        #         map_location='cuda'
+        #     )
+        #     model.load_state_dict(state_dict, strict=True)
+
+        # load experiment (and model checkpoint)
+        experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
+        
+        tester = pl.Trainer(devices=config.experiment.device_num)
+
+        b_t = time.time()
+        
+        predictions = tester.predict(
+            model=experiment,
+            dataloaders=data_module.predict_dataloader(),
+            return_predictions=True,
+            ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
+        )
+        
+        print_c(f"======= prediction end, begin to post process and save =======", "magenta")
+        save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
+        auto_save_data(predictions, save_path)
+        print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
     
-    predictions = tester.predict(
-        model=experiment,
-        dataloaders=data_module.predict_dataloader(),
-        return_predictions=True,
-        ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
-    )
-    
-    print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
-    auto_save_data(predictions, save_path)
-    print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
+   
 
 if __name__ == '__main__':
     main()
