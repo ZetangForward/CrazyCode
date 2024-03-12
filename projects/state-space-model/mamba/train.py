@@ -33,37 +33,62 @@ class Experiment(pl.LightningModule):
         
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
-
-    def training_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+    
+    def training_step_hf(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
         
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
         return lm_loss
 
-    def validation_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+    def validation_step_hf(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
         
         self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
+      
+
+    def training_step(self, batch, batch_idx):
+        if self.cfg.experiment.hf_trainer:
+            return self.training_step_hf(batch, batch_idx)
+
+        else:
+            input_ids = batch.pop("input_ids")
+            lm_logits = self.forward(input_ids).logits
+            labels = batch.pop("labels")
+            labels = labels.to(lm_logits.device)
+            
+            shift_logits = lm_logits[:, :-1, :].contiguous()
+            labels = labels[:, 1:].contiguous()
+
+            lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+            ppl = torch.exp(lm_loss)
+            
+            self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+            self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
+            return lm_loss
+
+    def validation_step(self, batch, batch_idx):
+        if self.cfg.experiment.hf_trainer:
+            self.validation_step_hf(batch, batch_idx)
+        else:
+            input_ids = batch.pop("input_ids")
+            lm_logits = self.forward(input_ids).logits
+            labels = batch.pop("labels")
+            labels = labels.to(lm_logits.device)
+            
+            shift_logits = lm_logits[:, :-1, :].contiguous()
+            labels = labels[:, 1:].contiguous()
+
+            lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+            ppl = torch.exp(lm_loss)
+            
+            self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+            self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
 
     def configure_optimizers(self):
         # init optimizer

@@ -43,7 +43,9 @@ def get_model_tokenizer(root_dir, model_config):
             model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        
     if "gpt" in tokenizer_path or "llama" in tokenizer_path:
         # tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
