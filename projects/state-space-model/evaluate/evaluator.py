@@ -8,24 +8,26 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 from utils import get_model_tokenizer, get_model_tokenizer_simple
+from argparse import ArgumentParser
 
 
 class Evaluator:
 
-    def __init__(self, root_dir, fpath, task, tokenizer_name_or_path, save_evaluation_path=None, **kwargs) -> None:
+    def __init__(self, root_dir, fpath, task, tokenizer_name_or_path, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
         self.task = task
         self.root_dir = root_dir
         self.predictions = auto_read_data(fpath)
         self.tokenizer, _ = get_model_tokenizer_simple(root_dir, tokenizer_name_or_path)
         self.spe_cfg = kwargs
-        self.begin_fn(task, save_evaluation_path)
+        self.begin_fn(task, save_evaluation_path, save_gen_res)
 
     
-    def begin_fn(self, task, save_evaluation_path):
+    def begin_fn(self, task, save_evaluation_path, save_gen_res):
         if "passkey" in task.lower():
-            self.eval_passkey_search(save_evaluation_path) 
+            self.eval_passkey_search(save_evaluation_path, save_gen_res) 
 
-    def eval_passkey_search(self, save_evaluation_path):
+
+    def eval_passkey_search(self, save_evaluation_path, save_gen_res=True):
         """
         dict_keys = ['attention_mask', 'depth', 'key', 'value', 'ctx_length', 'predictions']
         """
@@ -52,11 +54,15 @@ class Evaluator:
 
         print_c(f"passkey search evaluation finished, total {len(results)} instances", "yellow")
 
-        self.visualize_passkey_search(results)
+        if save_gen_res:
+            save_path = os.path.join(save_evaluation_path, "generation.jsonl")
+            print_c(f"saving at {save_path}", "yellow")
+            auto_save_data(results, save_path)
+
+        self.visualize_passkey_search(results, save_evaluation_path)
+
         
-
-
-    def visualize_passkey_search(self, results):
+    def visualize_passkey_search(self, results, save_evaluation_path):
         """
             results: dict [ depth, ctx_length, score ]
         """
@@ -115,18 +121,33 @@ class Evaluator:
         plt.yticks(rotation=0)  # Ensures the y-axis labels are horizontal
         plt.tight_layout()  # Fits everything neatly into the figure area
 
-        save_path = "evaluate/passkey_search_results.png"
+        save_path = os.path.join(save_evaluation_path, "passkey_search_results.png")
         print("saving at %s" % save_path)
         plt.savefig(save_path, dpi=150)
 
 
 
 if __name__ == "__main__":
+
+    argparse = ArgumentParser()
+    argparse.add_argument("--root_dir", type=str, default="/nvme/hf_models")
+    argparse.add_argument("--fpath", type=str, default="/nvme/zecheng/evaluation/passkey_search/mamba-1_4b/version_2/results/predictions.pkl")
+    argparse.add_argument("--task", type=str, default="passkey_search")
+    argparse.add_argument("--tokenizer_name_or_path", type=str, default="EleutherAI/gpt-neox-20b")
+    argparse.add_argument("--value", type=str, default="eat a sandwich and sit in Dolores Park on a sunny day.")
+    argparse.add_argument("--save_evaluation_path", type=str, default=None)
+    argparse.add_argument("--save_gen_res", type=bool, default=True)
+
+    args = argparse.parse_args()
+
+    if args.save_evaluation_path is None:
+        args.save_evaluation_path = os.path.dirname(args.fpath)
+
+    print_c(f"args: {args}", "yellow")
+
     evaluator = Evaluator(
-        root_dir="/nvme/hf_models",
-        fpath="/nvme/zecheng/evaluation/passkey_search/mamba-1_4b/version_2/results/predictions.pkl",
-        task="passkey_search",
-        tokenizer_name_or_path="EleutherAI/gpt-neox-20b",
-        value="eat a sandwich and sit in Dolores Park on a sunny day."
+        root_dir=args.root_dir, fpath=args.fpath, task=args.task,
+        tokenizer_name_or_path=args.tokenizer_name_or_path,
+        value=args.value, save_evaluation_path=args.save_evaluation_path,
+        save_gen_res=args.save_gen_res,
     )
-    # evaluator.eval_passkey_search()
