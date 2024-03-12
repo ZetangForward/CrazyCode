@@ -563,6 +563,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
         dtype=None,
         use_abs_position=False,
         use_relative_position=False,
+        max_position_embeddings=9012,
         analysis=None,
         **backbone_kwargs,
     ) -> None:
@@ -578,6 +579,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
             initializer_cfg=initializer_cfg,
             use_abs_position=use_abs_position,
             use_relative_position=use_relative_position,
+            max_position_embeddings=max_position_embeddings,
             analysis=analysis,
             **backbone_kwargs,
             **factory_kwargs,
@@ -658,7 +660,7 @@ class MixerModel(nn.Module):
         n_layer: int,
         vocab_size: int,
         ssm_cfg=None,
-        max_position_embeddings=2048,
+        max_position_embeddings=9012,
         norm_epsilon: float = 1e-5,
         rms_norm: bool = False,
         initializer_cfg=None,
@@ -760,7 +762,7 @@ class MixerModel(nn.Module):
                 freqs += 1e-7
                 angles = position_ids.unsqueeze(-1) / freqs.unsqueeze(0)
                 position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1).to(inputs_embeds.dtype)
-            
+        
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
         residual = None
