@@ -14,6 +14,12 @@ class Experiment(pl.LightningModule):
         self.model.eval()
         self.cfg = config
         self.tokenizer = tokenizer
+        if hasattr(config.task, "inference_cfg"):  # what to save for task setting
+            for key in config.task.inference_cfg:
+                if isinstance(key, int):
+                    key = str(key)
+                setattr(self, key, config.task.inference_cfg[key])
+
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -21,23 +27,36 @@ class Experiment(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        input_ids = batch.get("input_ids")
+
+        input_ids = batch.pop("input_ids")
         import pdb;pdb.set_trace()
         if "ar" in self.cfg.exp_task.lower():
             output = self.model(input_ids).logits.max(-1)
         else:
-            output = self.model.generate(
+            
+        output = self.model.generate(
                 input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
                 min_length=input_ids.size(-1) + 10, 
                 eos_token_id=self.tokenizer.eos_token_id, 
             )
-        batch['predictions'] = output[0]
-        return batch
+        final_res = {}
+        final_res['predictions'] = output[0]
+        
+        if self.save_keys is not None:
+            for key in self.save_keys:
+                if key in batch:
+                    value = batch[key]
+                    if isinstance(value, torch.Tensor):
+                        value = value.item()
+                    final_res[key] = value
+        
+        return final_res
 
 
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
     print_c(OmegaConf.to_yaml(config), "yellow")
+    import pdb; pdb.set_trace()
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.result_path
     data_root_dir = config.platform.dataset_path
