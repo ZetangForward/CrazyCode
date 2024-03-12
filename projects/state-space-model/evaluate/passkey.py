@@ -12,22 +12,20 @@ from utils import get_model_tokenizer, get_model_tokenizer_simple
 
 class Evaluator:
 
-    def __init__(self, root_dir, fpath, task, tokenizer_name_or_path, **kwargs) -> None:
+    def __init__(self, root_dir, fpath, task, tokenizer_name_or_path, save_evaluation_path=None, **kwargs) -> None:
         self.task = task
         self.root_dir = root_dir
         self.predictions = auto_read_data(fpath)
         self.tokenizer, _ = get_model_tokenizer_simple(root_dir, tokenizer_name_or_path)
         self.spe_cfg = kwargs
+        self.begin_fn(task, save_evaluation_path)
 
-        self.begin_fn(task)
-
-        
     
-    def begin_fn(self, task):
+    def begin_fn(self, task, save_evaluation_path):
         if "passkey" in task.lower():
-            self.eval_passkey_search() 
+            self.eval_passkey_search(save_evaluation_path) 
 
-    def eval_passkey_search(self):
+    def eval_passkey_search(self, save_evaluation_path):
         """
         dict_keys = ['attention_mask', 'depth', 'key', 'value', 'ctx_length', 'predictions']
         """
@@ -40,8 +38,11 @@ class Evaluator:
 
         for item in self.predictions:
             pred = item['predictions'].squeeze(0)
-            context_length = item['ctx_length']
-            pred = pred[context_length:]
+            if 'attention_mask' in item:
+                real_context_length = item['attention_mask'].sum().item()
+            else:
+                real_context_length = item['real_length']
+            pred = pred[real_context_length:]
             str_pred = self.tokenizer.decode(pred, skip_special_tokens=True)
             score = scorer.score(needle, str_pred)['rouge1'].fmeasure*10
             depth, context_length = item['depth'], item['ctx_length']
@@ -123,7 +124,7 @@ class Evaluator:
 if __name__ == "__main__":
     evaluator = Evaluator(
         root_dir="/nvme/hf_models",
-        fpath="/nvme/zecheng/evaluation/passkey_search/deepseek-1_3b/version_1/results/predictions.pkl",
+        fpath="/nvme/zecheng/evaluation/passkey_search/mamba-1_4b/version_2/results/predictions.pkl",
         task="passkey_search",
         tokenizer_name_or_path="EleutherAI/gpt-neox-20b",
         value="eat a sandwich and sit in Dolores Park on a sunny day."
