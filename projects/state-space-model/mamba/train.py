@@ -216,7 +216,7 @@ class TransformerExperiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
+@hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
 
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
