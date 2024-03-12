@@ -23,13 +23,14 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         input_ids = batch.get("input_ids")
         import pdb;pdb.set_trace()
-        # output = self.model.generate(
-        #     input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
-        #     min_length=input_ids.size(-1) + 10, 
-        #     eos_token_id=self.tokenizer.eos_token_id, 
-        # )
-        output = self.model(input_ids)
-        pdb.set_trace()
+        if "ar" in self.cfg.exp_task.lower():
+            output = self.model(input_ids).logits.max(-1)
+        else:
+            output = self.model.generate(
+                input_ids, max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+                min_length=input_ids.size(-1) + 10, 
+                eos_token_id=self.tokenizer.eos_token_id, 
+            )
         batch['predictions'] = output[0]
         return batch
 

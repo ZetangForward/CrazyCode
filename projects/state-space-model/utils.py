@@ -88,9 +88,9 @@ class CustomDatamodule(pl.LightningDataModule):
         import pdb;pdb.set_trace()
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
-            if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
-                if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
-                    processed_data = CustomDataset.build_dataset(
+            if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+                if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
+                    test_data = CustomDataset.build_dataset(
                         fpath=os.path.join(self.root_dir, self.cfg.dataset.data_path), 
                         key=self.cfg.dataset.key,
                         value=self.cfg.dataset.value,
@@ -99,14 +99,8 @@ class CustomDatamodule(pl.LightningDataModule):
                     )
                     # auto_save_data(...)  # auto save processed data fn
                     # raise NotImplementedError
-                
-                if self.cfg.dataset.processed_data_path is not None:
-                    test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
-                else:
-                    test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
-                
-            if "ar" in self.cfg.dataset.module.lower():  # sanity check passkey search data
-                if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+                    
+                if "ar" in self.cfg.dataset.module.lower():  # sanity check passkey search data
                     test_data = CustomDataset.build_dataset(
                         vocab_size=self.cfg.dataset.vocab_size, 
                         num_examples=self.cfg.dataset.num_examples,
@@ -115,7 +109,26 @@ class CustomDatamodule(pl.LightningDataModule):
                         power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
-                    # auto_save_data(...)  # auto save processed data fn
+                    import pdb; pdb.set_trace()
+                if "longbench" in self.cfg.dataset.module.lower():
+                    data_path = self.cfg.dataset.data_path
+                    if self.cfg.dataset.subtask is not None:
+                        data_path = data_path + self.cfg.dataset.subtask
+                    if self.cfg.dataset.e:
+                        data_path = data_path + "_e.jsonl"
+                    else:
+                        data_path = data_path + ".jsonl"
+                    test_data = self.load_data_with_root_dir(data_path)
+            
+            else:
+                try:
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
+                except:
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
+                
+           
+                    # auto_save_data(test_data,"/opt/data/private/zecheng/data/MQAR/MQAR.pkl")
+                    # auto save processed data fn
                     # raise NotImplementedError
             
             # if self.cfg.dataset.processed_data_path is not None:
