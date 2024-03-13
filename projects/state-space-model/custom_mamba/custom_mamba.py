@@ -71,7 +71,7 @@ class Mamba(nn.Module):
         self.layer_idx = layer_idx
 
         self.in_proj = nn.Linear(self.d_model, self.d_inner * 2, bias=bias, **factory_kwargs)
-
+        import pdb; pdb.set_trace()
         self.conv1d = nn.Conv1d(
             in_channels=self.d_inner,
             out_channels=self.d_inner,
