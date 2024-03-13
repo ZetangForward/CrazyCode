@@ -1,18 +1,23 @@
-from builtins import hasattr
-import torch
+
 import os
 import sys
 sys.path.append(os.getcwd())
 import lightning.pytorch as pl
 import hydra
+import logging
+import torch
+from builtins import hasattr
 from torch import optim, Tensor 
 from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.strategies import DeepSpeedStrategy
+from lightning.pytorch.utilities import rank_zero_info
 from modelzipper.tutils import *
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from utils import get_model_tokenizer, CustomDatamodule
+
 
 
 class Experiment(pl.LightningModule):
@@ -39,7 +44,6 @@ class Experiment(pl.LightningModule):
         outputs = self.model(**batch)
         lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
-        
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
         return lm_loss
@@ -299,24 +303,47 @@ def main(config):
 
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
+    if 1:
+        deepspeed_trainer = Trainer(
+            default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+            logger=tb_logger,
+            callbacks=[lr_monitor, ckpt_monitor],
+            check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
+            strategy=DeepSpeedStrategy(
+                stage=3,
+                offload_optimizer=True,
+                offload_parameters=True,
+                partition_activations=True,
+                contiguous_memory_optimization=False,
+                cpu_checkpointing=True,
+                logging_level=logging.INFO
+            ),
+            enable_checkpointing=True,
+            max_steps=config.experiment.num_training_steps,
+            devices=config.experiment.device_num,
+            gradient_clip_val=1,
+            enable_model_summary=True,
+            num_sanity_val_steps=20,
+            fast_dev_run=5 if config.experiment.debug else False # for debugging
+        )
+    else:
+        trainer = Trainer(
+            default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
+            logger=tb_logger,
+            callbacks=[lr_monitor, ckpt_monitor],
+            check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
+            strategy=DDPStrategy(find_unused_parameters=False),
+            # strategy="deepspeed_stage_2_offload",
+            precision="bf16-mixed",
+            max_steps=config.experiment.num_training_steps,
+            devices=config.experiment.device_num,
+            gradient_clip_val=1,
+            enable_model_summary=True,
+            num_sanity_val_steps=20,
+            fast_dev_run=5 if config.experiment.debug else False # for debugging
+        )
 
-    trainer = Trainer(
-        default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
-        logger=tb_logger,
-        callbacks=[lr_monitor, ckpt_monitor],
-        check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
-        strategy=DDPStrategy(find_unused_parameters=False),
-        # strategy="deepspeed_stage_2_offload",
-        precision="bf16-mixed",
-        max_steps=config.experiment.num_training_steps,
-        devices=config.experiment.device_num,
-        gradient_clip_val=1,
-        enable_model_summary=True,
-        num_sanity_val_steps=20,
-        fast_dev_run=5 if config.experiment.debug else False # for debugging
-    )
-
-    trainer.fit(experiment, datamodule=data_module)
+    deepspeed_trainer.fit(experiment, datamodule=data_module)
 
 
 if __name__ == '__main__':

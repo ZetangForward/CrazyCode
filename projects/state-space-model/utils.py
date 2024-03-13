@@ -59,6 +59,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
     elif "mamba" in model_path.lower():
         model = CustomMambaForCausalLM.from_pretrained(
             model_path, use_relative_position=model_config.use_relative_position,
+            torch_dtype=torch.bfloat16
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 

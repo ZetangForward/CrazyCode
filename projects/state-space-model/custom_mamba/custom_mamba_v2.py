@@ -885,6 +885,7 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
                 self.config, inputs_embeds.size(0), device=inputs_embeds.device, dtype=inputs_embeds.dtype
             )
 
+        position_embeds = None
         input_shape = input_ids.shape
         if self.use_relative_position or self.use_abs_position:
             if position_ids is None:
