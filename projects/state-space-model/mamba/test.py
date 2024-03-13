@@ -66,7 +66,7 @@ def main(config):
 
     if "longbench"  in config.exp_task:
         subtask = ["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
-                        "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]
+                    "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]
     else:
         subtask =  [config.exp_task]
             
