@@ -262,11 +262,10 @@ def main(config):
     if hasattr(config.model, "use_custom_module"):
         use_custom_module = True
 
-    if config.experiment.low_rank_train:
+    if not config.experiment.low_rank_train:
         model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
     else:
         model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-
         
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)

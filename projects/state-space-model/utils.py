@@ -54,11 +54,15 @@ def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False
     )
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
+    # 假设 `model` 是你的模型实例
+    for param in model.parameters():
+        param.requires_grad = False
+
     peft_model = get_peft_model(model, lora_config, mixed=True)
 
     peft_model.print_trainable_parameters()
 
-    import pdb; pdb.set_trace()
+    return peft_model, tokenizer
 
 def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
