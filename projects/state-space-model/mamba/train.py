@@ -13,10 +13,9 @@ from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.strategies import DeepSpeedStrategy
-from lightning.pytorch.utilities import rank_zero_info
-from modelzipper.tutils import *
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
-from utils import get_model_tokenizer, CustomDatamodule
+from utils import *
+from modelzipper.tutils import *
 
 
 
@@ -262,8 +261,13 @@ def main(config):
     use_custom_module = False
     if hasattr(config.model, "use_custom_module"):
         use_custom_module = True
-    model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-    
+
+    if config.experiment.low_rank_train:
+        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
+    else:
+        model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
+
+        
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     

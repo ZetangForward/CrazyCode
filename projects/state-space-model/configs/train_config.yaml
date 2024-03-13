@@ -39,5 +39,6 @@ experiment:
   last_lr: 0.00001
   debug: False
   hf_trainer: False
+  low_rank_train: False
   device_num: 2
   node_num: 1

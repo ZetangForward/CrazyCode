@@ -10,7 +10,7 @@ from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, Lla
 from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
-
+from peft import LoraConfig, get_peft_model
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
     tokenizer, model = None, None
@@ -34,8 +34,31 @@ def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add
     model._load_from_state_dict(state_dict, dtype=torch.bfloat16)
 
     return model
-    
 
+
+def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False):
+    model_path = os.path.join(root_dir, model_config.model_name_or_path)
+    tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+
+    lora_config =  LoraConfig(
+        r=8,
+        target_modules=["x_proj", "embeddings", "in_proj", "out_proj"],
+        task_type="CAUSAL_LM",
+        bias="none"
+    )
+
+    # elif "mamba" in model_path.lower():
+    model = CustomMambaForCausalLM.from_pretrained(
+        model_path, use_relative_position=model_config.use_relative_position,
+        torch_dtype=torch.bfloat16
+    )
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+    peft_model = get_peft_model(model, lora_config, mixed=True)
+
+    peft_model.print_trainable_parameters()
+
+    import pdb; pdb.set_trace()
 
 def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
@@ -49,7 +72,6 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
 
         return model, tokenizer
     
-
     if "gpt" in model_path.lower():
         model = GPTNeoForCausalLM.from_pretrained(
             model_path, use_cache=False, torch_dtype=torch.bfloat16
