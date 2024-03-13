@@ -68,7 +68,8 @@ class CustomDatamodule(pl.LightningDataModule):
             "cluster_batch": self.cfg.dataset.cluster_batch,           
         }
         
-        if self.cfg.dataset.subtask is not None:
+        if "longbench" in self.cfg.dataset.module.lower() and \
+              self.cfg.dataset.subtask is not None:
             self.dataset_kwargs.update({"subtask": self.cfg.dataset.subtask})
         
         if self.cfg.other_cfgs is not None:
@@ -92,7 +93,6 @@ class CustomDatamodule(pl.LightningDataModule):
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
-            import pdb;pdb.set_trace()
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
                 if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(
@@ -170,6 +170,8 @@ class CustomDatamodule(pl.LightningDataModule):
                     min_valid_num = min(1000, len(content)*0.1)
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
+
+                    # train_data = self.load_data_with_root_dir(processed_data_path)
             else:
                 if "hf" in self.cfg.dataset.data_path.lower():
                     if "pajama" in self.cfg.dataset.data_path.lower():

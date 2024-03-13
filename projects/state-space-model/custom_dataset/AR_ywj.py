@@ -16,26 +16,11 @@ class MQARDataset(Dataset):
         self.split = split
         self.content = content
         self.tokenizer = tokenizer
-<<<<<<< HEAD
-
-    @classmethod
-    def build_dataset(cls, 
-                      vocab_size, 
-                      input_seq_len, 
-                      num_kv_pairs,
-                      num_examples, 
-                      power_a, 
-                      tokenizer,
-                      random_non_queries = True,
-                      ):
- 
-=======
         self.max_seq_length = kwargs["max_seq_length"]
         self.cluster_batch = kwargs["cluster_batch"]
 
     @classmethod
     def build_dataset(cls, vocab_size, num_examples, input_seq_len, num_kv_pairs, power_a, tokenizer, random_non_queries=True):
->>>>>>> ae31ea38884149aa02e41fcdb10d6887d4cc5d58
         context_size = num_kv_pairs * 2
 
         # create keys so that each key is present exactly once in each example
@@ -78,9 +63,6 @@ class MQARDataset(Dataset):
         # replace all the 0 with random values
         if random_non_queries:
             inputs[inputs == 0] = torch.randint(vocab_size, size=inputs.shape)[inputs == 0]
-<<<<<<< HEAD
-        return None
-=======
 
         all_test_data = []
 
@@ -120,4 +102,3 @@ class MQARDataset(Dataset):
         res.update(item)
 
         return res
->>>>>>> ae31ea38884149aa02e41fcdb10d6887d4cc5d58

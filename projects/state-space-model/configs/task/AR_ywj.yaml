@@ -1,23 +1,24 @@
 dataset:
   data_path: ""
-  processed_data_path: 
+  processed_data_path: 'MQAR/train_C8192_N512_D32.pkl'
   module: 'custom_dataset.AR_ywj' # Custom dataset module path
   class_name: 'MQARDataset'  # dataset class name
-  nworkers: 12
-  max_seq_length: 32000
-  inference_mode: True
+  nworkers: 4
+  max_seq_length: 1000
+  train_batch_size: 8
+  val_batch_size: 1
+  inference_mode: False
   pin_memory: False
   cluster_batch: False
   vocab_size: 8192
-  num_examples: 3000
+  num_examples: 100000
   input_seq_len: 512
-  num_kv_pairs: 64
+  num_kv_pairs: 32
   test_power_a: 0.01
 
 other_cfgs: 
   max_generation_length: 64
-  testing_max_ctx: 32000
+  testing_max_ctx: 1000
 
 
 
-  

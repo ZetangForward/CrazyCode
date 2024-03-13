@@ -59,11 +59,19 @@ class Experiment(pl.LightningModule):
         else:
             input_ids = batch.pop("input_ids")
             lm_logits = self.forward(input_ids).logits
-            labels = batch.pop("labels")
+            # import pdb;pdb.set_trace()
+            if "mqar" in self.cfg.task.dataset.class_name.lower():
+                labels = batch.pop("label")
+                labels = labels.long()
+                shift_logits = lm_logits.contiguous()
+                labels = labels.contiguous()
+
+            else:
+                labels = batch.pop("labels")
+                shift_logits = lm_logits[:, :-1, :].contiguous()
+                labels = labels[:, 1:].contiguous()
+
             labels = labels.to(lm_logits.device)
-            
-            shift_logits = lm_logits[:, :-1, :].contiguous()
-            labels = labels[:, 1:].contiguous()
 
             lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
             ppl = torch.exp(lm_loss)
@@ -78,11 +86,19 @@ class Experiment(pl.LightningModule):
         else:
             input_ids = batch.pop("input_ids")
             lm_logits = self.forward(input_ids).logits
-            labels = batch.pop("labels")
+            # import pdb;pdb.set_trace()
+            if "mqar" in self.cfg.task.dataset.class_name.lower():
+                labels = batch.pop("label")
+                labels = labels.long()
+                shift_logits = lm_logits.contiguous()
+                labels = labels.contiguous()
+
+            else:
+                labels = batch.pop("labels")
+                shift_logits = lm_logits[:, :-1, :].contiguous()
+                labels = labels[:, 1:].contiguous()
+
             labels = labels.to(lm_logits.device)
-            
-            shift_logits = lm_logits[:, :-1, :].contiguous()
-            labels = labels[:, 1:].contiguous()
 
             lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
             ppl = torch.exp(lm_loss)
