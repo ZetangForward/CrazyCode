@@ -312,11 +312,13 @@ def main(config):
             strategy=DeepSpeedStrategy(
                 stage=3,
                 offload_optimizer=True,
+                offload_params_device='cpu',
                 offload_parameters=True,
                 partition_activations=True,
                 contiguous_memory_optimization=False,
                 cpu_checkpointing=True,
-                logging_level=logging.INFO
+                logging_level=logging.INFO,
+                precision_plugin="bf16-mixed",
             ),
             enable_checkpointing=True,
             max_steps=config.experiment.num_training_steps,
@@ -326,6 +328,7 @@ def main(config):
             num_sanity_val_steps=20,
             fast_dev_run=5 if config.experiment.debug else False # for debugging
         )
+        deepspeed_trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False
     else:
         trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
