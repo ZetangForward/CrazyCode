@@ -4,9 +4,9 @@ dataset:
   split: ['train.pkl', 'valid.pkl']
   module: 'custom_dataset.simplepajama' # Custom dataset module path
   class_name: 'SimplepajamaDataset'  # dataset class name
-  max_seq_length: 4096
+  max_seq_length: 6000
   nworkers: 16
-  train_batch_size: 2
+  train_batch_size: 1
   val_batch_size: 1
   pin_memory: False
   inference_mode: False
