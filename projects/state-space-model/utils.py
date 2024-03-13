@@ -8,6 +8,17 @@ from torch.utils.data import DataLoader
 from custom_mamba.custom_mamba import LongContextMamba
 from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
 from modelzipper.tutils import *
+from datasets import load_from_disk
+
+
+def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
+    tokenizer, model = None, None
+    if tokenizer_name_or_path is not None:
+        tokenizer = AutoTokenizer.from_pretrained(os.path.join(root_dir, tokenizer_name_or_path))
+    if model_name_or_path is not None:
+        model = AutoModelForCausalLM.from_pretrained(os.path.join(root_dir, model_name_or_path))
+
+    return tokenizer, model
 
 
 def get_model_tokenizer(root_dir, model_config):
@@ -22,17 +33,19 @@ def get_model_tokenizer(root_dir, model_config):
 
     elif "mamba" in model_path.lower():
         model = LongContextMamba.from_pretrained(
-            model_path, use_relative_position=True,
+            model_path, use_relative_position=model_config.use_relative_position,
             dtype=torch.bfloat16, device="cuda", strict=False
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
-    elif "llama" in model_path.lower():
+    elif "llama" or "deepseek" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
             model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
-        tokenizer = LlamaTokenizer.from_pretrained(tokenizer_path)
-
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        
     if "gpt" in tokenizer_path or "llama" in tokenizer_path:
         # tokenizer.eos_token = "<|endoftext|>"
         tokenizer.pad_token = tokenizer.eos_token
@@ -52,8 +65,11 @@ class CustomDatamodule(pl.LightningDataModule):
         self.prepare_data_per_node = True
         self.dataset_kwargs = {
             "max_seq_length": self.cfg.dataset.max_seq_length,
-            "cluster_batch": self.cfg.dataset.cluster_batch,            
+            "cluster_batch": self.cfg.dataset.cluster_batch,           
         }
+        
+        if self.cfg.dataset.subtask is not None:
+            self.dataset_kwargs.update({"subtask": self.cfg.dataset.subtask})
         
         if self.cfg.other_cfgs is not None:
             self.dataset_kwargs.update(self.cfg.other_cfgs)
@@ -64,6 +80,8 @@ class CustomDatamodule(pl.LightningDataModule):
         '''
         if not self.root_dir in fpath:
             fpath = os.path.join(self.root_dir, fpath)
+        if 'hf' in fpath:
+            return load_from_disk(fpath)
         return auto_read_data(fpath)
 
 
@@ -72,7 +90,6 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
-        
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             import pdb;pdb.set_trace()
@@ -98,13 +115,35 @@ class CustomDatamodule(pl.LightningDataModule):
                         power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
-                    auto_save_data(...)  # auto save processed data fn
-                    raise NotImplementedError
+                    # data_path = "/opt/data/private/zecheng/data/MQAR/" + "test_C8192_N"+str(self.cfg.dataset.input_seq_len) + "_D"+str(self.cfg.dataset.num_kv_pairs)+".pkl"
+                    # auto_save_data(test_data,data_path)
+             
+                if "longbench" in self.cfg.dataset.module.lower():
+                    import pdb; pdb.set_trace()
+                    data_path = self.cfg.dataset.data_path
+                    if self.cfg.dataset.subtask is not None:
+                        data_path = data_path + self.cfg.dataset.subtask
+                    # if self.cfg.dataset.e:
+                    #     data_path = data_path + "_e.jsonl"
+                    # else:
+                    data_path = data_path + ".jsonl"
+                    test_data = self.load_data_with_root_dir(data_path)
             
-            if self.cfg.dataset.processed_data_path is not None:
-                test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
             else:
-                test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
+                try:
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
+                except:
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
+                
+           
+                    # auto_save_data(test_data,"/opt/data/private/zecheng/data/MQAR/MQAR.pkl")
+                    # auto save processed data fn
+                    # raise NotImplementedError
+            
+            # if self.cfg.dataset.processed_data_path is not None:
+            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
+            # else:
+            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
             
             self.test_dataset = CustomDataset(
                 content=test_data, 
@@ -112,10 +151,12 @@ class CustomDatamodule(pl.LightningDataModule):
                 split="test",
                 **self.dataset_kwargs,
             )
+
         else:
             if self.cfg.dataset.processed_data_path is not None:
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                
                 if os.path.isdir(processed_data_path):
                     for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
@@ -129,7 +170,13 @@ class CustomDatamodule(pl.LightningDataModule):
                     min_valid_num = min(1000, len(content)*0.1)
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
-        
+            else:
+                if "hf" in self.cfg.dataset.data_path.lower():
+                    if "pajama" in self.cfg.dataset.data_path.lower():
+                        all_data = self.load_data_with_root_dir(self.cfg.dataset.data_path)
+                        import pdb; pdb.set_trace()  
+                        ...
+
         if stage == "fit":  # training mode
             # check data initialization  
             assert train_data is not None, f"train data should not be None during {stage} stage"
@@ -204,4 +251,7 @@ class CustomDatamodule(pl.LightningDataModule):
             drop_last=False, 
             shuffle=False,
         )
+        # import pdb;pdb.set_trace()
+        # for i, data in enumerate(predict_loader):
+        #     print(i)
         return predict_loader

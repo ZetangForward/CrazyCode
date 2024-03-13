@@ -82,25 +82,31 @@ def auto_read_data(file_path, return_format="list"):
     readable_size = convert_size(file_size)
 
     print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
+    try:
+        if file_type == 'jsonl':  
+            with open(file_path, 'r', encoding='utf-8') as file:  
+                data = [json.loads(line.strip()) for line in file]  
+        elif file_type == 'json':
+            with open(file_path, 'r', encoding='utf-8') as file:  
+                data = json.load(file)
+        elif file_type == 'pkl':  
+            with open(file_path, 'rb') as file:  
+                data = pickle.load(file)  
+        elif file_type == 'txt':  
+            with open(file_path, 'r', encoding='utf-8') as file:  
+                data = [line.strip() for line in file]  
+        elif file_type == 'csv':
+            raw_data = pd.read_csv(file_path)
+            data = raw_data.to_dict(orient='records')  # list[Dict]
+        else:  
+            raise ValueError(f"Unsupported file type: {file_type}")  
+    except:
+        raise ValueError(
+            f"Error reading file: {file_path}, \
+            content didn't match the file type {file_type}, \
+            check your data format!"
+        )
     
-    if file_type == 'jsonl':  
-        with open(file_path, 'r', encoding='utf-8') as file:  
-            data = [json.loads(line.strip()) for line in file]  
-    elif file_type == 'json':
-        with open(file_path, 'r', encoding='utf-8') as file:  
-            data = json.load(file)
-    elif file_type == 'pkl':  
-        with open(file_path, 'rb') as file:  
-            data = pickle.load(file)  
-    elif file_type == 'txt':  
-        with open(file_path, 'r', encoding='utf-8') as file:  
-            data = [line.strip() for line in file]  
-    elif file_type == 'csv':
-        raw_data = pd.read_csv(file_path)
-        data = raw_data.to_dict(orient='records')  # list[Dict]
-    else:  
-        raise ValueError(f"Unsupported file type: {file_type}")  
-  
     if return_format != "list":  
         raise ValueError(f"Unsupported return format: {return_format}")  
   

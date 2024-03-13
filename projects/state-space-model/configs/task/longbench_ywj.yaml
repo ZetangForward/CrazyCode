@@ -1,0 +1,13 @@
+dataset:
+  data_path: "longbench/data/"
+  processed_data_path: 
+  max_seq_length: 32000
+  module: 'custom_dataset.longbench_ywj' # Custom dataset module path
+  class_name: 'LongbenchDataset'  # dataset class name
+  nworkers: 12
+  pin_memory: False
+  inference_mode: True
+  cluster_batch: False
+
+other_cfgs: 
+  testing_max_ctx: 32000

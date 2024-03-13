@@ -151,15 +151,6 @@ class Mamba(nn.Module):
             
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
 
-            ### analysis step : save cov_state
-            # if conv_state is not None and inference_params.seqlen_offset > 0 and inference_params.seqlen_offset % 50 == 0:
-            #     if self.layer_idx == 47:  # save last hidden states
-            #         print_c(f"layer-{self.layer_idx}", "yellow")
-            #         auto_save_data(
-            #             conv_state, 
-            #             f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{inference_params.seqlen_offset}/depth-{depth}/passkeysearch-offset-{inference_params.seqlen_offset}-layer-{self.layer_idx}.pkl"
-            #         )
-
             if inference_params.seqlen_offset > 0:
                 # The states are updated inplace
                 out, _, _ = self.step(hidden_states, conv_state, ssm_state)
@@ -195,12 +186,6 @@ class Mamba(nn.Module):
             )
         else:
             x, z = xz.chunk(2, dim=1) # [1, 4096, 550] / [1, 4096, 550]
-
-            #########################################
-            # analysis step : save text hidden state
-            # if self.layer_idx == 0 and x.size(-1) % 50 == 0:
-            #     auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{x.size(-1)}/input_seq_embedding.pkl")
-            #########################################
             
             # Compute short convolution
             if conv_state is not None:
@@ -251,13 +236,6 @@ class Mamba(nn.Module):
         assert hidden_states.shape[1] == 1, "Only support decoding with 1 token at a time for now"
         xz = self.in_proj(hidden_states.squeeze(1))  # (B 2D)
         x, z = xz.chunk(2, dim=-1)  # (B D)
-
-        # Conv step
-
-        ########## TODO: Debug mode
-        causal_conv1d_update = None
-        selective_state_update = None
-        ###########################
         
         if causal_conv1d_update is None:
             conv_state.copy_(torch.roll(conv_state, shifts=-1, dims=-1))  # Update state (B D W)
@@ -585,6 +563,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
         dtype=None,
         use_abs_position=False,
         use_relative_position=False,
+        max_position_embeddings=9012,
         analysis=None,
         **backbone_kwargs,
     ) -> None:
@@ -600,6 +579,7 @@ class LongContextMamba(nn.Module, GenerationMixin):
             initializer_cfg=initializer_cfg,
             use_abs_position=use_abs_position,
             use_relative_position=use_relative_position,
+            max_position_embeddings=max_position_embeddings,
             analysis=analysis,
             **backbone_kwargs,
             **factory_kwargs,
@@ -680,7 +660,7 @@ class MixerModel(nn.Module):
         n_layer: int,
         vocab_size: int,
         ssm_cfg=None,
-        max_position_embeddings=2048,
+        max_position_embeddings=9012,
         norm_epsilon: float = 1e-5,
         rms_norm: bool = False,
         initializer_cfg=None,
@@ -775,34 +755,17 @@ class MixerModel(nn.Module):
 
             if self.use_abs_position:
                 position_embeds = self.wpe(position_ids).to(inputs_embeds.dtype)
-            elif self.use_relative_position:
-                angles = position_ids.unsqueeze(-1) / self.freqs.to(position_ids.dtype).unsqueeze(0)
+            elif self.use_relative_position:  # TODO: DEBUG
+                freqs = self.freqs.float().to(position_ids.device)
+                position_ids = position_ids.float()
+                # Add a small constant to avoid division by zero
+                freqs += 1e-7
+                angles = position_ids.unsqueeze(-1) / freqs.unsqueeze(0)
                 position_embeds = torch.cat([angles.sin(), angles.cos()], dim=-1).to(inputs_embeds.dtype)
         
         hidden_states = inputs_embeds + position_embeds if position_embeds is not None else inputs_embeds
 
         residual = None
-
-        ####################
-        ## just for analysis 
-        ####################
-
-        # if inference_params.seqlen_offset == 0:
-
-        #     # 定义你要匹配的 tensor
-        #     match_tensor = torch.tensor([510, 1682, 2181, 281, 513, 275, 5003, 10765, 310]).to(input_ids.device)
-
-        #     # 使用 eq() 函数来匹配 input_ids 中的元素是否在 match_tensor 中
-        #     match_result = input_ids.eq(match_tensor.unsqueeze(1))
-
-        #     # 使用 nonzero() 函数找到匹配的元素的位置
-        #     indices = match_result.nonzero()
-
-        #     # 获取第一个匹配的位置
-        #     first_match_position = indices[0][1].item() if indices.numel() > 0 else None
-
-        #     depth = round(first_match_position / input_ids.shape[-1], 2)
-        #     depth = str(depth).replace('.', '_')
 
         for layer in self.layers:
             hidden_states, residual = layer(

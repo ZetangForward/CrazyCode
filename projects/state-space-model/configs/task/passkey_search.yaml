@@ -16,5 +16,8 @@ other_cfgs:
   max_generation_length: 48
   testing_max_ctx: 32000
 
+inference_cfg:
+  save_keys: ['depth', 'ctx_length', 'real_length']
+
 
   

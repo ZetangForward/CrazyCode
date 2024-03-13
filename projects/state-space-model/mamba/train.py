@@ -4,14 +4,12 @@ import sys
 sys.path.append(os.getcwd())
 import lightning.pytorch as pl
 import hydra
-import importlib
 from torch import optim, Tensor 
 from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from modelzipper.tutils import *
-from lightning.pytorch.strategies import DeepSpeedStrategy
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from utils import get_model_tokenizer, CustomDatamodule
 
@@ -35,37 +33,62 @@ class Experiment(pl.LightningModule):
         
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
-
-    def training_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+    
+    def training_step_hf(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
         
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
         return lm_loss
 
-    def validation_step(self, batch, batch_idx):
-        input_ids = batch.pop("input_ids")
-        lm_logits = self.forward(input_ids).logits
-        labels = batch.pop("labels")
-        labels = labels.to(lm_logits.device)
-        
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        labels = labels[:, 1:].contiguous()
-
-        lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+    def validation_step_hf(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
         
         self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
+      
+
+    def training_step(self, batch, batch_idx):
+        if self.cfg.experiment.hf_trainer:
+            return self.training_step_hf(batch, batch_idx)
+
+        else:
+            input_ids = batch.pop("input_ids")
+            lm_logits = self.forward(input_ids).logits
+            labels = batch.pop("labels")
+            labels = labels.to(lm_logits.device)
+            
+            shift_logits = lm_logits[:, :-1, :].contiguous()
+            labels = labels[:, 1:].contiguous()
+
+            lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+            ppl = torch.exp(lm_loss)
+            
+            self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+            self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
+            return lm_loss
+
+    def validation_step(self, batch, batch_idx):
+        if self.cfg.experiment.hf_trainer:
+            self.validation_step_hf(batch, batch_idx)
+        else:
+            input_ids = batch.pop("input_ids")
+            lm_logits = self.forward(input_ids).logits
+            labels = batch.pop("labels")
+            labels = labels.to(lm_logits.device)
+            
+            shift_logits = lm_logits[:, :-1, :].contiguous()
+            labels = labels[:, 1:].contiguous()
+
+            lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+            ppl = torch.exp(lm_loss)
+            
+            self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+            self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
 
     def configure_optimizers(self):
         # init optimizer
@@ -218,7 +241,7 @@ class TransformerExperiment(pl.LightningModule):
         }
 
 
-@hydra.main(config_path='../configs/', config_name='train_mamba', version_base='1.1')
+@hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
 
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
@@ -286,7 +309,7 @@ def main(config):
         gradient_clip_val=1,
         enable_model_summary=True,
         num_sanity_val_steps=20,
-        # fast_dev_run=5 # for debugging
+        fast_dev_run=5 if config.experiment.debug else False # for debugging
     )
 
     trainer.fit(experiment, datamodule=data_module)

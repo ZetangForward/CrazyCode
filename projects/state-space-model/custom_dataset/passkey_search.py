@@ -23,6 +23,7 @@ class PasskeySearchDataset(Dataset):
         for item in self.content:
             if item['ctx_length'] <= max_ctx_length:
                 new_content.append(item)
+        new_content = sorted(new_content, key=lambda x: x['ctx_length'], reverse=True)  # from long to short
         self.content = new_content
         print_c(f"filtering finished | total {len(self.content)} instances", "yellow")
 
@@ -98,10 +99,11 @@ class PasskeySearchDataset(Dataset):
 
         input_ids = tokenized_sequence.input_ids[0]
         attention_mask = tokenized_sequence.attention_mask[0]
-       
+        real_length = attention_mask.size(-1)
         res = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
+            'real_length': real_length,
         }
 
         res.update(item)
