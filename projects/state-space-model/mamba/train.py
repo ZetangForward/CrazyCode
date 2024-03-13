@@ -325,7 +325,7 @@ def main(config):
             devices=config.experiment.device_num,
             gradient_clip_val=1,
             enable_model_summary=True,
-            num_sanity_val_steps=20,
+            num_sanity_val_steps=5,
             fast_dev_run=5 if config.experiment.debug else False # for debugging
         )
         deepspeed_trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False
@@ -342,7 +342,7 @@ def main(config):
             devices=config.experiment.device_num,
             gradient_clip_val=1,
             enable_model_summary=True,
-            num_sanity_val_steps=20,
+            num_sanity_val_steps=5,
             fast_dev_run=5 if config.experiment.debug else False # for debugging
         )
 
