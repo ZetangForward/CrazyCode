@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
-from custom_mamba.custom_mamba import LongContextMamba
+from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
 from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
 from transformers import MambaConfig
 from modelzipper.tutils import *
@@ -28,7 +28,7 @@ def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add
     raw_config.use_relative_position = use_relative_position
     raw_config.use_abs_position = False
     raw_config.max_position_embeddings = 9012
-    model = LongContextMamba(raw_config, dtype=torch.bfloat16, device="cuda")
+    model = CustomMambaForCausalLM(raw_config, dtype=torch.bfloat16, device="cuda")
     state_dict = torch.load("/nvme/hf_models/mamba-1.4b/pytorch_model.bin", map_location="cuda")
     import pdb; pdb.set_trace()
     model._load_from_state_dict(state_dict, dtype=torch.bfloat16)
@@ -57,9 +57,8 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "mamba" in model_path.lower():
-        model = LongContextMamba.from_pretrained(
+        model = CustomMambaForCausalLM.from_pretrained(
             model_path, use_relative_position=model_config.use_relative_position,
-            dtype=torch.bfloat16, device="cuda", strict=False
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 

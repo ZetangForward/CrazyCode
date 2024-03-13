@@ -1,0 +1,16 @@
+dataset:
+  data_path: "LongAlpaca-12k/LongAlpaca-12k.json"
+  processed_data_path: null
+  max_seq_length: 14000
+  module: 'custom_dataset.longlora' # Custom dataset module path
+  class_name: 'LongLoRA'  # dataset class name
+  nworkers: 4
+  pin_memory: False
+  inference_mode: False
+  cluster_batch: True
+
+other_cfgs: null
+
+
+
+  
