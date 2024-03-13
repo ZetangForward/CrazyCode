@@ -7,6 +7,7 @@ from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import DataLoader
 from custom_mamba.custom_mamba import LongContextMamba
 from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
+from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
 
@@ -21,9 +22,33 @@ def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name
     return tokenizer, model
 
 
-def get_model_tokenizer(root_dir, model_config):
+def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add more args
+    raw_config = MambaConfig.from_pretrained(model_path)
+    raw_config.expand = 4
+    raw_config.use_relative_position = use_relative_position
+    raw_config.use_abs_position = False
+    raw_config.max_position_embeddings = 9012
+    model = LongContextMamba(raw_config, dtype=torch.bfloat16, device="cuda")
+    state_dict = torch.load("/nvme/hf_models/mamba-1.4b/pytorch_model.bin", map_location="cuda")
+    import pdb; pdb.set_trace()
+    model._load_from_state_dict(state_dict, dtype=torch.bfloat16)
+
+    return model
+    
+
+
+def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+
+    if use_custom_module:  # custom model
+        model = load_big_kernel_mamba(
+            model_path, use_relative_position=model_config.use_relative_position,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+        return model, tokenizer
+    
 
     if "gpt" in model_path.lower():
         model = GPTNeoForCausalLM.from_pretrained(
@@ -80,7 +105,6 @@ class CustomDatamodule(pl.LightningDataModule):
         if 'hf' in fpath:
             return load_from_disk(fpath)
         return auto_read_data(fpath)
-
 
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None

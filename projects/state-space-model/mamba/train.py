@@ -1,3 +1,4 @@
+from builtins import hasattr
 import torch
 import os
 import sys
@@ -254,7 +255,10 @@ def main(config):
     pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
-    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+    use_custom_module = False
+    if hasattr(config.model, "use_custom_module"):
+        use_custom_module = True
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
     
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)

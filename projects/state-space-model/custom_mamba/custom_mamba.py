@@ -16,7 +16,7 @@ from collections import namedtuple
 from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
 from transformers.generation import GreedySearchDecoderOnlyOutput, SampleDecoderOnlyOutput
 from mamba_ssm.utils.generation import update_graph_cache, InferenceParams, sample
-
+from transformers import MambaPreTrainedModel
 
 try:
     from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
@@ -37,7 +37,6 @@ try:
     from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
 except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
-
 
 
 class Mamba(nn.Module):
@@ -128,6 +127,9 @@ class Mamba(nn.Module):
         self.D._no_weight_decay = True
 
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
+
+
+
 
     def forward(self, hidden_states, inference_params=None, depth=None):
         """
@@ -548,50 +550,30 @@ class GenerationMixin:
         return output if return_dict_in_generate else output.sequences
 
 
-class LongContextMamba(nn.Module, GenerationMixin):
-    def __init__(
-        self,
-        d_model: int,
-        n_layer: int,
-        vocab_size: int,
-        initializer_cfg=None,
-        pad_vocab_size_multiple: int = 1,
-        device=None,
-        dtype=None,
-        use_abs_position=False,
-        use_relative_position=False,
-        max_position_embeddings=9012,
-        analysis=None,
-        **backbone_kwargs,
-    ) -> None:
+class LongContextMamba(MambaPreTrainedModel, GenerationMixin):
+    def __init__(self, config, device, dtype) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
-        super().__init__()
-
-        if vocab_size % pad_vocab_size_multiple != 0:
-            vocab_size += pad_vocab_size_multiple - (vocab_size % pad_vocab_size_multiple)
+        super().__init__(config)
+        vocab_size = config.vocab_size
+        if vocab_size % config.pad_vocab_size_multiple != 0:
+            vocab_size += config.pad_vocab_size_multiple - (vocab_size % config.pad_vocab_size_multiple)
+        
         self.backbone = MixerModel(
-            d_model=d_model,
-            n_layer=n_layer,
-            vocab_size=vocab_size,
-            initializer_cfg=initializer_cfg,
-            use_abs_position=use_abs_position,
-            use_relative_position=use_relative_position,
-            max_position_embeddings=max_position_embeddings,
-            analysis=analysis,
-            **backbone_kwargs,
-            **factory_kwargs,
+            d_model = config.d_model,
+            n_layer=config.n_layer,
+            vocab_size=config.vocab_size,
+            ssm_cfg={},
+            max_position_embeddings=config.max_position_embeddings,
+            use_abs_position=config.use_abs_position,
+            use_relative_position=config.use_relative_position,
+            rms_norm=config.rms_norm,
+            residual_in_fp32=config.residual_in_fp32,
+            fused_add_norm=config.fused_add_norm,
         )
-        self.lm_head = nn.Linear(d_model, vocab_size, bias=False, **factory_kwargs)
 
+        self.lm_head = nn.Linear(config.d_model, vocab_size, bias=False, **factory_kwargs)
         # Initialize weights and apply final processing
-        self.apply(
-            partial(
-                _init_weights,
-                n_layer=n_layer,
-                **(initializer_cfg if initializer_cfg is not None else {}),
-            )
-        )
-        self.tie_weights()
+        self.post_init()
 
 
     def tie_weights(self):
