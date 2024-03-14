@@ -182,12 +182,20 @@ class CustomDatamodule(pl.LightningDataModule):
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
             else:
-                if "hf" in self.cfg.dataset.data_path.lower():
+                # check if is a directory
+                data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
+                if not os.path.isdir(data_path):
+                    train_data = auto_read_data(data_path)
+
+                elif "hf" in self.cfg.dataset.data_path.lower():
                     if "pajama" in self.cfg.dataset.data_path.lower():
                         all_data = self.load_data_with_root_dir(self.cfg.dataset.data_path)
                         import pdb; pdb.set_trace()  
                         ...
+                else:
+                    raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
 
+        # further process data with stage
         if stage == "fit":  # training mode
             # check data initialization  
             assert train_data is not None, f"train data should not be None during {stage} stage"
@@ -214,7 +222,7 @@ class CustomDatamodule(pl.LightningDataModule):
                 )
                 print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
         
-        else: # testing mode
+        else: # prediction mode
             assert test_data is not None, f"test data should not be None during {stage} stage"
 
             # init dataset

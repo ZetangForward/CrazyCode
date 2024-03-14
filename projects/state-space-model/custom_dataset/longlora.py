@@ -25,6 +25,12 @@ class LongLoRA(Dataset):
     
     def __getitem__(self, index) -> Any:
         item = self.content[index]
+        instruct_length = len(self.tokenizer(item["instruction"], return_tensors="pt")["input_ids"][0])
+        output_length = len(self.tokenizer(item["output"], return_tensors="pt")["input_ids"][0])
+
+
+        import pdb; pdb.set_trace()
+
         sequence = item["instruction"] + ' ' + item["output"]
         tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
             sequence,  

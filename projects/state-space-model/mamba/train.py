@@ -275,9 +275,9 @@ def main(config):
     
     # init logger
     tb_logger = TensorBoardLogger(
-        save_dir=os.path.join(save_root_dir, config.experiment.model_save_dir), 
+        save_dir=save_root_dir, 
         name=f"{config.exp_task}",
-        version=config.JOB_ID
+        version=config.mark
     )
 
     lr_monitor = LearningRateMonitor(logging_interval='step')
