@@ -45,7 +45,6 @@ class Experiment(pl.LightningModule):
         ppl = torch.exp(lm_loss)
         self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
-        import pdb; pdb.set_trace()
         return lm_loss
 
     def validation_step(self, batch, batch_idx):
