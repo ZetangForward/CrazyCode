@@ -18,7 +18,6 @@ from utils import *
 from modelzipper.tutils import *
 
 
-
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()

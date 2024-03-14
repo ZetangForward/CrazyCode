@@ -93,6 +93,7 @@ class MambaMixer(nn.Module):
                 self.up_projector = nn.Linear(self.d_model, self.d_model, bias=False)
 
         self.use_conv_bias = config.use_conv_bias
+        
         self.conv1d = nn.Conv1d(
             in_channels=self.intermediate_size,
             out_channels=self.intermediate_size,
