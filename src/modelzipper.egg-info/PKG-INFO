@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: modelzipper
-Version: 0.2.6
+Version: 0.2.7
 Summary: Quick Command Line Tools for Model Deployment
 Home-page: https://github.com/ZetangForward/ZipCode.git
 Author: Zecheng-Tang
@@ -17,7 +17,7 @@ Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
-Requires-Python: >=3.8
+Requires-Python: >=3.7
 License-File: LICENSE
 Requires-Dist: termcolor
 Requires-Dist: matplotlib
@@ -30,3 +30,9 @@ Requires-Dist: pytz
 Requires-Dist: nltk
 Requires-Dist: torchmetrics
 Requires-Dist: bert_score
+Requires-Dist: fire
+Requires-Dist: lightning
+Requires-Dist: einops
+Requires-Dist: accelerate
+Requires-Dist: hydra-core
+Requires-Dist: datasets
