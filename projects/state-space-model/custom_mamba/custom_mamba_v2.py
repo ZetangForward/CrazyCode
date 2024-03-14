@@ -73,7 +73,7 @@ class MambaMixer(nn.Module):
     and is why Mamba is called **selective** state spaces)
     """
 
-    def __init__(self, config, layer_idx, use_multi_head=False, **multi_head_config):
+    def __init__(self, config, layer_idx, use_multi_head=False, multi_head_config=None):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
@@ -81,8 +81,9 @@ class MambaMixer(nn.Module):
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
+        self.use_multi_head = use_multi_head
 
-        if use_multi_head:
+        if self.use_multi_head:
             self.num_heads = multi_head_config['num_head']
             self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
             assert self.d_model % self.num_heads == 0, "d_model must be divisible by num_heads"
@@ -291,13 +292,13 @@ class MambaMixer(nn.Module):
 
 
 class MambaBlock(nn.Module):
-    def __init__(self, config, layer_idx, use_relative_position=False, max_position_embeddings=None, use_abs_position=False):
+    def __init__(self, config, layer_idx, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
         self.residual_in_fp32 = config.residual_in_fp32
         self.norm = MambaRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.mixer = MambaMixer(config, layer_idx=layer_idx)
+        self.mixer = MambaMixer(config, layer_idx=layer_idx, use_multi_head=use_multi_head, multi_head_config=multi_head_config)
         self.use_relative_position = use_relative_position
         self.max_position_embeddings = max_position_embeddings
         self.use_abs_position = use_abs_position
@@ -485,7 +486,7 @@ class MambaCausalLMOutput(ModelOutput):
 
 
 class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
-    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False) -> None:
+    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None) -> None:
         super().__init__(config)
         
         self.embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
@@ -505,9 +506,12 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
                 MambaBlock(
                     config, 
                     layer_idx=idx,
+                    use_multi_head=use_multi_head, 
+                    multi_head_config=multi_head_config,
                 ) for idx in range(config.num_hidden_layers)
             ]
         )
+
         self.gradient_checkpointing = False
         self.norm_f = MambaRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
         
