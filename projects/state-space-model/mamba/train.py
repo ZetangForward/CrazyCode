@@ -192,6 +192,7 @@ def main(config):
                 logging_level=logging.INFO,
                 precision_plugin="bf16-mixed",
             ),
+            accumulate_grad_batches=8,
             enable_checkpointing=True,
             max_steps=config.experiment.num_training_steps,
             devices=config.experiment.device_num,
