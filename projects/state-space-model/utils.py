@@ -11,6 +11,7 @@ from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
+from torch.utils.data import Dataset
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
     tokenizer, model = None, None
@@ -106,6 +107,15 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
     return model, tokenizer
 
 
+class EmptyDataset(Dataset):
+
+    def __len__(self):
+        return 0
+
+    def __getitem__(self, idx):
+        raise NotImplementedError
+
+
 class CustomDatamodule(pl.LightningDataModule):
 
     def __init__(self, cfg, root_dir, tokenizer):
@@ -197,7 +207,8 @@ class CustomDatamodule(pl.LightningDataModule):
 
         # further process data with stage
         if stage == "fit":  # training mode
-            # check data initialization  
+            # check data & initialization  
+           
             assert train_data is not None, f"train data should not be None during {stage} stage"
             try:
                 assert valid_data is not None, f"valid data is None during {stage} stage"
@@ -221,7 +232,9 @@ class CustomDatamodule(pl.LightningDataModule):
                     **self.dataset_kwargs,
                 )
                 print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
-        
+            else:
+                self.valid_dataset = EmptyDataset()
+
         else: # prediction mode
             assert test_data is not None, f"test data should not be None during {stage} stage"
 
@@ -248,16 +261,18 @@ class CustomDatamodule(pl.LightningDataModule):
         
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        if self.valid_dataset is not None:
-            return DataLoader(
-                self.valid_dataset, 
-                batch_size=self.cfg.dataset.val_batch_size, 
-                num_workers=self.cfg.dataset.nworkers, 
-                pin_memory=self.cfg.dataset.pin_memory, 
-                drop_last=False, 
-                shuffle=False,
-            )
-        return None
+        if isinstance(self.valid_dataset, EmptyDataset):
+            return DataLoader(self.valid_dataset)
+        
+        return DataLoader(
+            self.valid_dataset, 
+            batch_size=self.cfg.dataset.val_batch_size, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
+            drop_last=False, 
+            shuffle=False,
+        )
+
     
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
