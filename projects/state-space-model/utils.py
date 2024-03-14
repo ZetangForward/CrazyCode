@@ -70,6 +70,7 @@ def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False
 
     return peft_model, tokenizer
 
+
 def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
