@@ -9,3 +9,9 @@ pytz
 nltk
 torchmetrics
 bert_score
+fire
+lightning
+einops
+accelerate
+hydra-core
+datasets
