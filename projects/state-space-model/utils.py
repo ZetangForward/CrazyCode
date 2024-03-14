@@ -5,13 +5,18 @@ import lightning.pytorch as pl
 import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
-from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
-from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
+
+from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM
 from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
+
+try:
+    from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+except:
+    print_c("this huggingface verion does not support the mamba model")
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
     tokenizer, model = None, None
