@@ -174,6 +174,7 @@ def main(config):
 
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
+    deepspeed_trainer, pl_trainer = None, None
     if 0:
         deepspeed_trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
@@ -201,7 +202,7 @@ def main(config):
         )
         deepspeed_trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False
     else:
-        trainer = Trainer(
+        pl_trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,
             callbacks=[lr_monitor, ckpt_monitor],
@@ -217,8 +218,9 @@ def main(config):
             fast_dev_run=5 if config.experiment.debug else False # for debugging
         )
 
-    deepspeed_trainer.fit(experiment, datamodule=data_module)
-
+    trainer = pl_trainer if pl_trainer is not None else deepspeed_trainer
+    
+    trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
     main()
