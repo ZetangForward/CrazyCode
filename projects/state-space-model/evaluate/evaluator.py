@@ -50,6 +50,9 @@ class Evaluator:
         if "passkey" in task.lower():
             self.eval_passkey_search(save_evaluation_path, save_gen_res) 
         
+        if "ar" in task.lower():
+            self.eval_mqar(save_evaluation_path, save_gen_res)
+
         # if "longbench" in 
 
 
@@ -152,8 +155,26 @@ class Evaluator:
         plt.savefig(save_path, dpi=150)
 
     def eval_mqar(self, save_evaluation_path, save_gen_res=True):
-        # accuracy
-        pass
+        # import pdb;pdb.set_trace()
+
+        total_number = len(self.predictions)
+        correct_number = 0
+        for item in self.predictions:
+            pred = item['predictions'].squeeze(0)
+            label = item['labels'].squeeze(0)
+            target_idx = label!=-100
+            pred_value = pred[target_idx]
+            label_value = pred[target_idx]
+            correct_predictions = (pred_value == label_value).sum()
+            correct_number += correct_predictions==target_idx.sum()
+
+        # if save_gen_res:
+        #     save_path = os.path.join(save_evaluation_path, "generation.jsonl")
+        #     print_c(f"saving at {save_path}", "yellow")
+        #     auto_save_data(results, save_path)
+        
+        print(self.task, save_evaluation_path, correct_number//total_number * 100)
+
     
     def eval_longbench(self, save_evaluation, subtask, save_gen_res=True):
         total_score = 0

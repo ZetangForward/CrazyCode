@@ -144,7 +144,7 @@ class CustomDatamodule(pl.LightningDataModule):
             #     test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
             # else:
             #     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
-            import pdb;pdb.set_trace()
+            # import pdb;pdb.set_trace()
             self.test_dataset = CustomDataset(
                 content=test_data, 
                 tokenizer=self.tokenizer, 

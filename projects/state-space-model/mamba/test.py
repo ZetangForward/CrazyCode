@@ -29,8 +29,12 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
+        # import pdb;pdb.set_trace()
         if "ar" in self.cfg.exp_task.lower():
-            output = self.model(input_ids).logits.max(-1)
+            output = self.model(input_ids).logits.max(-1)[1]
+            final_res = {}
+            final_res['predictions'] = output[0]
+            final_res['labels'] = batch.pop('label')
         else:
             output = self.model.generate(
                     input_ids, 
@@ -41,13 +45,14 @@ class Experiment(pl.LightningModule):
             final_res = {}
             final_res['predictions'] = output[0]
         
-        if self.save_keys is not None:
-            for key in self.save_keys:
-                if key in batch:
-                    value = batch[key]
-                    if isinstance(value, torch.Tensor):
-                        value = value.item()
-                    final_res[key] = value
+        # if self.save_keys is not None:
+        #     for key in self.save_keys:
+        #         if key in batch:
+        #             value = batch[key]
+        #             if isinstance(value, torch.Tensor):
+        #                 value = value.item()
+        #             final_res[key] = value
+        # import pdb;pdb.set_trace()
         return final_res
 
 
@@ -55,6 +60,7 @@ class Experiment(pl.LightningModule):
 def main(config):
     print_c(OmegaConf.to_yaml(config), "yellow")
     model_root_dir = config.platform.hf_model_path
+    # model_root_dir = config.platform.exp_path
     save_root_dir = config.platform.result_path
     data_root_dir = config.platform.dataset_path
 

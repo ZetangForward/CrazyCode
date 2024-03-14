@@ -1,8 +1,8 @@
 import re
 import string
 
-import jieba
-from fuzzywuzzy import fuzz
+# import jieba
+# from fuzzywuzzy import fuzz
 import difflib
 
 from typing import List
