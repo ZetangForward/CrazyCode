@@ -4,21 +4,21 @@ dataset:
   module: 'custom_dataset.AR_ywj' # Custom dataset module path
   class_name: 'MQARDataset'  # dataset class name
   nworkers: 4
-  max_seq_length: 1000
-  train_batch_size: 8
+  max_seq_length: 5000
+  train_batch_size: 2
   val_batch_size: 1
-  inference_mode: False
+  inference_mode: True
   pin_memory: False
   cluster_batch: False
   vocab_size: 8192
   num_examples: 100000
-  input_seq_len: 512
-  num_kv_pairs: 32
+  input_seq_len: 2048
+  num_kv_pairs: 128
   test_power_a: 0.01
 
 other_cfgs: 
   max_generation_length: 64
-  testing_max_ctx: 1000
+  testing_max_ctx: 5000
 
 
 

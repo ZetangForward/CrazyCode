@@ -1,5 +1,5 @@
 platform: &platform "amax_a100"
-JOB_ID: &JOB_ID MQAR_C8192_N512_D32
+JOB_ID: &JOB_ID MQAR_C8192_N2048_D128
 state: &state "train"
 exp_task: &exp_task "simplepajama"
 model_name: &model_name "mamba-1_4b"
@@ -28,13 +28,13 @@ experiment:
   seed: 27
   model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
   save_top_k: 2
-  monitor_metric: "valid_lm_loss"
+  monitor_metric: "train_lm_loss"
   beta_1: 0.9
   beta_2: 0.95
   weight_decay: 0.1
   eps: 0.001
-  num_training_steps: 8000
-  warmup_steps: 800
+  num_training_steps: 20000
+  warmup_steps: 2000
   peak_lr: 0.0002
   last_lr: 0.00001
   debug: False

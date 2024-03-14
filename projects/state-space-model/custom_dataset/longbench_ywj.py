@@ -14,6 +14,7 @@ class LongbenchDataset(Dataset):
         self.split = split
         self.content = content
         self.tokenizer = tokenizer
+        self.config_path = kwargs["config_path"]
         self.subtask =  kwargs["subtask"]
         self.max_gen_len, self.prompt_format = self.get_task_config(self.subtask)
         
@@ -23,22 +24,22 @@ class LongbenchDataset(Dataset):
     
     def get_task_config(self, subtask):
         # import pdb;pdb.set_trace()
-        with open('/opt/data/private/zecheng/modelzipper/projects/state-space-model/configs/task/longbench_config.yaml', 'r', encoding='utf-8') as file:
-            data = yaml.safe_load(file)
-        # config = load_yaml_config("/opt/data/private/zecheng/modelzipper/projects/state-space-model/configs/task/longbench_config.yaml")
-        max_len = data['dataset2maxlen'][self.subtask]
-        prompt_format = data['dataset2prompt'][self.subtask]
+        # data = yaml.safe_load((self.config_path+"longbench_config.yaml"))
+        subtask = self.subtask
+        data = load_yaml_config(self.config_path+"longbench_config.yaml")
+        max_len = data.dataset2maxlen.subtask
+        prompt_format = data.dataset2prompt.subtask
         return max_len, prompt_format
     
-    def filter_length(self, max_ctx_length=12000):
-        new_content = []
-        print_c(f"begin to filter the context length | total {len(self.content)} instances", "yellow")
-        for item in self.content:
-            if item['ctx_length'] <= max_ctx_length:
-                new_content.append(item)
-        new_content = sorted(new_content, key=lambda x: x['ctx_length'], reverse=True)  # from long to short
-        self.content = new_content
-        print_c(f"filtering finished | total {len(self.content)} instances", "yellow")
+    # def filter_length(self, max_ctx_length=12000):
+    #     new_content = []
+    #     print_c(f"begin to filter the context length | total {len(self.content)} instances", "yellow")
+    #     for item in self.content:
+    #         if item['ctx_length'] <= max_ctx_length:
+    #             new_content.append(item)
+    #     new_content = sorted(new_content, key=lambda x: x['ctx_length'], reverse=True)  # from long to short
+    #     self.content = new_content
+    #     print_c(f"filtering finished | total {len(self.content)} instances", "yellow")
 
     def cluster_batch_fn(self):
         tmp = [item['source'] + ' ' + item['target'] for item in self.content]
@@ -55,16 +56,18 @@ class LongbenchDataset(Dataset):
 
         tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
             prompt,  
+            max_length=self.max_seq_length,
             return_tensors="pt",
         )
         
         input_ids = tokenized_sequence.input_ids[0]
         attention_mask = tokenized_sequence.attention_mask[0]
+        real_length = attention_mask.size(-1)
        
         res = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             'answer': item.pop('answers'),
-            'context_length': item.pop('length')
+            'real_length': real_length,
         }
         return res
