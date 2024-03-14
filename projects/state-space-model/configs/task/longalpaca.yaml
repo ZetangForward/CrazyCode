@@ -9,7 +9,7 @@ dataset:
   val_batch_size: 1
   pin_memory: False
   inference_mode: False
-  cluster_batch: False  # must be False for LongAlpaca
+  cluster_batch: True  # must be False for LongAlpaca
 
 other_cfgs: null
 
