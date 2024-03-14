@@ -34,11 +34,13 @@ class LongLoRA(Dataset):
         # Check if the total length exceeds max_seq_length
         if total_length > self.max_seq_length:
             # Calculate the excess length
+            # Calculate the excess length based on the sum of instruct_input_ids and output_ids lengths
             excess_length = total_length - self.max_seq_length
 
-            # Reduce the length of instruct_input_ids and output_ids by half of the excess length
-            instruct_input_ids = instruct_input_ids[:len(instruct_input_ids) - excess_length // 2]
-            output_ids = output_ids[:len(output_ids) - excess_length // 2]
+            # Reduce the length of instruct_input_ids and output_ids based on their lengths ratio
+            total_ids_length = len(instruct_input_ids) + len(output_ids)
+            instruct_input_ids = instruct_input_ids[:int(len(instruct_input_ids) - len(instruct_input_ids) / total_ids_length * excess_length)]
+            output_ids = output_ids[:int(len(output_ids) - len(output_ids) / total_ids_length * excess_length)]
 
         # Check if the total length is still more than max_seq_length due to rounding, if so, remove one more token from output_ids
         if len(instruct_input_ids) + len(output_ids) > self.max_seq_length:
