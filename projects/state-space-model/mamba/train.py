@@ -207,7 +207,7 @@ def main(config):
             logger=tb_logger,
             callbacks=[lr_monitor, ckpt_monitor],
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
-            strategy=DDPStrategy(find_unused_parameters=False),
+            strategy=DDPStrategy(find_unused_parameters=True),
             # strategy="deepspeed_stage_2_offload",
             precision="bf16-mixed",
             max_steps=config.experiment.num_training_steps,
