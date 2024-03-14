@@ -13,7 +13,7 @@ echo "Available GPU device IDs: $CUDA_VISIBLE_DEVICES"
 
 torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  mamba/train.py \
     experiment.hf_trainer=False \
-    JOB_ID=longalpaca_1 \
+    mark=longalpaca_1 \
     model=$model_name \
     model_name=$model_name \
     task=$task \
