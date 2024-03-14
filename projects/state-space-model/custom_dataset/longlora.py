@@ -1,6 +1,6 @@
 from modelzipper.tutils import *
 from torch.utils.data import Dataset
-import glob
+import torch
 
 
 class LongLoRA(Dataset):
@@ -22,7 +22,7 @@ class LongLoRA(Dataset):
     def __len__(self):
         return len(self.content)
     
-    def __getitem__(self, index) -> Any:
+    def __getitem__(self, index):
         item = self.content[index]
 
         # Add a bos token at the beginning of instruct_input_ids
@@ -61,7 +61,7 @@ class LongLoRA(Dataset):
         
         attention_mask = torch.tensor(attention_mask, dtype=torch.long)
         label = torch.where(input_ids == self.tokenizer.pad_token_id, -100, input_ids)
-        
+
         return {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
