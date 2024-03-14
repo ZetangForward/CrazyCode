@@ -328,7 +328,7 @@ def main(config):
             devices=config.experiment.device_num,
             gradient_clip_val=1,
             enable_model_summary=True,
-            num_sanity_val_steps=5,
+            num_sanity_val_steps=5 if not isinstance(data_module.valid_dataset, EmptyDataset) else 0,
             fast_dev_run=5 if config.experiment.debug else False # for debugging
         )
         deepspeed_trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False

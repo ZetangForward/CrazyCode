@@ -263,7 +263,7 @@ class CustomDatamodule(pl.LightningDataModule):
     def val_dataloader(self) -> EVAL_DATALOADERS:
         if isinstance(self.valid_dataset, EmptyDataset):
             return DataLoader(self.valid_dataset)
-        
+            
         return DataLoader(
             self.valid_dataset, 
             batch_size=self.cfg.dataset.val_batch_size, 
@@ -273,7 +273,6 @@ class CustomDatamodule(pl.LightningDataModule):
             shuffle=False,
         )
 
-    
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         assert self.test_dataset is not None, "test dataset should not be None"
