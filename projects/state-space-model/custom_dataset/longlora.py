@@ -65,8 +65,8 @@ class LongLoRA(Dataset):
         attention_mask = torch.tensor(attention_mask, dtype=torch.long)
         label = torch.where(input_ids == self.tokenizer.pad_token_id, -100, input_ids)
         
-        print(attention_mask.shape)
-        print(label.size())
+        # print(attention_mask.shape)
+        # print(label.size())
 
         return {
             "input_ids": input_ids,
