@@ -175,7 +175,7 @@ def main(config):
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
-    if 1:
+    if config.experiment.use_deepspeed:
         deepspeed_trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,

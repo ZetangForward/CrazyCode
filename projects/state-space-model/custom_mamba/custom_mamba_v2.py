@@ -548,7 +548,7 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
             raise ValueError(
                 "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
             )
-
+        import pdb; pdb.set_trace()
         if inputs_embeds is None:
             inputs_embeds = self.embeddings(input_ids)
 

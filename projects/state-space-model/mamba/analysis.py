@@ -4,14 +4,11 @@ sys.path.append(os.getcwd())
 import torch   
 import lightning.pytorch as pl
 import hydra  
-from custom_dataset import *
-from custom_dataset.zero_scroll import *
-from modelzipper.tutils import *
-from utils import get_model_tokenizer, CustomDatamodule
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from custom_mamba.custom_mamba_analysis import LongContextMambaAna
-
+from modelzipper.tutils import *
+from utils import *
+from captum.attr import IntegratedGradients
 
 def analysis_cov1d_kernel(module):
     weights = module.weight.data.cpu().numpy()
@@ -45,10 +42,19 @@ class Experiment(pl.LightningModule):
         
         if ctx_length % 1000 != 0:
             pass
+
         
+        ig = IntegratedGradients(self.model)
+        attributions = ig.attribute(input_ids, target=0)
+        
+        import pdb; pdb.set_trace()
+
         output = self.model.generate(
             input_ids, depth=depth, ctx_length=ctx_length,
             min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32)
+        
+        import pdb; pdb.set_trace()
+
         batch['predictions'] = output
         batch['depth'] = depth
         batch['ctx_length'] = ctx_length
@@ -63,15 +69,16 @@ def main(config):
     model_root_dir = config.platform.hf_model_path
     data_root_dir = config.platform.dataset_path
 
-    model_path = os.path.join(model_root_dir, config.model.model_name_or_path)
-    tokenizer_path = os.path.join(model_root_dir, config.model.tokenizer_name_or_path)
+    # model_path = os.path.join(model_root_dir, config.model.model_name_or_path)
+    # tokenizer_path = os.path.join(model_root_dir, config.model.tokenizer_name_or_path)
 
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     # load model and tokenizer
-    model = LongContextMambaAna.from_pretrained(
-        model_path, use_relative_position=False,
-        dtype=torch.bfloat16, device="cuda", strict=False
-    )
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    # model = CustomMambaForCausalLM.from_pretrained(
+    #     model_path, use_relative_position=False,
+    #     dtype=torch.bfloat16, device="cuda", strict=False
+    # )
+    # tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     
     # load testing data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
