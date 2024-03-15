@@ -43,17 +43,9 @@ class Experiment(pl.LightningModule):
         if ctx_length % 1000 != 0:
             pass
 
-        
-        ig = IntegratedGradients(self.model)
-        attributions = ig.attribute(input_ids, target=0)
-        
-        import pdb; pdb.set_trace()
-
         output = self.model.generate(
             input_ids, depth=depth, ctx_length=ctx_length,
             min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32)
-        
-        import pdb; pdb.set_trace()
 
         batch['predictions'] = output
         batch['depth'] = depth
@@ -72,7 +64,7 @@ def main(config):
     # model_path = os.path.join(model_root_dir, config.model.model_name_or_path)
     # tokenizer_path = os.path.join(model_root_dir, config.model.tokenizer_name_or_path)
 
-    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model, analysis=False)
     # load model and tokenizer
     # model = CustomMambaForCausalLM.from_pretrained(
     #     model_path, use_relative_position=False,

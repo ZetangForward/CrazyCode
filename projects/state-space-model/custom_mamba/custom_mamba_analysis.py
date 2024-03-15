@@ -39,6 +39,16 @@ except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
 
 
+class Conv1DWrapper(nn.Module):
+    def __init__(self, conv1d):
+        super().__init__()
+        self.conv1d = conv1d
+
+    def forward(self, x):
+        return self.conv1d(x)
+
+
+
 class Mamba(nn.Module):
     def __init__(
         self,
@@ -163,83 +173,61 @@ class Mamba(nn.Module):
 
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state) [4096, 16]
         
-        # In the backward pass we write dx and dz next to each other to avoid torch.cat
-        if self.use_fast_path and inference_params is None:  # Doesn't support outputting the states
-            out = mamba_inner_fn(
-                xz,
-                self.conv1d.weight,
-                self.conv1d.bias,
-                self.x_proj.weight,
-                self.dt_proj.weight,
-                self.out_proj.weight,
-                self.out_proj.bias,
-                A,
-                None,  # input-dependent B
-                None,  # input-dependent C
-                self.D.float(),
-                delta_bias=self.dt_proj.bias.float(),
-                delta_softplus=True,
-            )
-        else:
-            x, z = xz.chunk(2, dim=1) # [1, 4096, 550] / [1, 4096, 550]
+        x, z = xz.chunk(2, dim=1) # [1, 4096, 550] / [1, 4096, 550]
 
-            #########################################
-            # analysis step : save text hidden state
-            if ctx_length % 1000 == 0 and self.layer_idx == 0 and inference_params.seqlen_offset == 0:
-                auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/input_seq_embedding.pkl")
-            #########################################
-            
-            # Compute short convolution
-            if conv_state is not None:
-                conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
-            if causal_conv1d_fn is None:
-                x = self.act(self.conv1d(x)[..., :seqlen])
-            else:
-                assert self.activation in ["silu", "swish"]
-                x = causal_conv1d_fn(
-                    x,
-                    rearrange(self.conv1d.weight, "d 1 w -> d w"),
-                    self.conv1d.bias,
-                    self.activation,
-                )
-            
-            #########################################
-            # analysis step : save conv1d state (first step: offset == 0)
-            str_depth = str(depth).replace(".", "_")[:4]
-            if ctx_length % 1000 == 0 and inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0 and depth % 0.1 == 0:
-                 auto_save_data(
-                    conv_state, 
-                    f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{inference_params.seqlen_offset}.pkl"
-                )
-            #########################################
+        #########################################
+        # analysis step : save text hidden state
+        if ctx_length % 1000 == 0 and self.layer_idx == 0 and inference_params.seqlen_offset == 0:
+            auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/input_seq_embedding.pkl")
+        if ctx_length % 1000 == 0 and self.layer_idx == 47 and inference_params.seqlen_offset == 0:
+            auto_save_data(x, f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/input_seq_embedding.pkl")
+        #########################################
+        
+        # Compute short convolution
+        if conv_state is not None:
+            conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
 
-            # We're careful here about the layout, to avoid extra transposes.
-            # We want dt to have d as the slowest moving dimension
-            # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
-            x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d) [550, 160]
-            dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1) # [550, 128], [550, 16], [550, 16]
-            dt = self.dt_proj.weight @ dt.t()  # [1, 4096, 550]
-            dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)  # [1, 4096, 550]
-            B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()  # [1, 16, 550]
-            C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()  # [1, 16, 550]
-            assert self.activation in ["silu", "swish"]
-            y = selective_scan_fn(
-                x,
-                dt,
-                A,
-                B,
-                C,
-                self.D.float(),
-                z=z,
-                delta_bias=self.dt_proj.bias.float(),
-                delta_softplus=True,
-                return_last_state=ssm_state is not None,
+        import pdb; pdb.set_trace()
+
+        x = self.act(self.conv1d(x)[..., :seqlen])
+        
+        #########################################
+        # analysis step : save conv1d state (first step: offset == 0)
+        str_depth = str(depth).replace(".", "_")[:4]
+        if ctx_length % 1000 == 0 and inference_params is not None and self.layer_idx == 47 and inference_params.seqlen_offset % 10 == 0 and depth % 0.1 == 0:
+                auto_save_data(
+                conv_state, 
+                f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state/context-{ctx_length}/passkeysearch-depth-{str_depth}/generate_length-{inference_params.seqlen_offset}.pkl"
             )
-            if ssm_state is not None:
-                y, last_state = y  # y->[1, 4096, 550] / last_state->[1, 4096, 16]
-                ssm_state.copy_(last_state)
-            y = rearrange(y, "b d l -> b l d")
-            out = self.out_proj(y)
+        #########################################
+
+        # We're careful here about the layout, to avoid extra transposes.
+        # We want dt to have d as the slowest moving dimension
+        # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
+        x_dbl = self.x_proj(rearrange(x, "b d l -> (b l) d"))  # (bl d) [550, 160]
+        dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1) # [550, 128], [550, 16], [550, 16]
+        dt = self.dt_proj.weight @ dt.t()  # [1, 4096, 550]
+        dt = rearrange(dt, "d (b l) -> b d l", l=seqlen)  # [1, 4096, 550]
+        B = rearrange(B, "(b l) dstate -> b dstate l", l=seqlen).contiguous()  # [1, 16, 550]
+        C = rearrange(C, "(b l) dstate -> b dstate l", l=seqlen).contiguous()  # [1, 16, 550]
+        assert self.activation in ["silu", "swish"]
+        y = selective_scan_fn(
+            x,
+            dt,
+            A,
+            B,
+            C,
+            self.D.float(),
+            z=z,
+            delta_bias=self.dt_proj.bias.float(),
+            delta_softplus=True,
+            return_last_state=ssm_state is not None,
+        )
+        if ssm_state is not None:
+            y, last_state = y  # y->[1, 4096, 550] / last_state->[1, 4096, 16]
+            ssm_state.copy_(last_state)
+        y = rearrange(y, "b d l -> b l d")
+        out = self.out_proj(y)
         return out
 
 

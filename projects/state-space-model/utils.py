@@ -12,11 +12,9 @@ from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
+from custom_mamba.custom_mamba_analysis import LongContextMambaAna
+from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
 
-try:
-    from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
-except:
-    print_c("this huggingface verion does not support the mamba model")
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
     tokenizer, model = None, None
@@ -71,17 +69,27 @@ def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False
     return peft_model, tokenizer
 
 
-def get_model_tokenizer(root_dir, model_config, use_custom_module=False):
+def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysis=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
-
-    if use_custom_module:  # custom model
+    
+    if analysis: # load model for analysis
+        model = LongContextMambaAna.from_pretrained(
+            "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
+            dtype=torch.bfloat16, device="cuda"
+        )
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+        return model, tokenizer
+    
+    elif use_custom_module:  # custom model
         model = load_big_kernel_mamba(
             model_path, use_relative_position=model_config.use_relative_position,
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
         return model, tokenizer
+    else:
+        ...
     
     if "gpt" in model_path.lower():
         model = GPTNeoForCausalLM.from_pretrained(

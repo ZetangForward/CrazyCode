@@ -49,6 +49,9 @@ is_fast_path_available = all(
 )
 
 
+# for analysis
+is_fast_path_available = False
+
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -131,7 +134,7 @@ class MambaMixer(nn.Module):
                 " https://github.com/Dao-AILab/causal-conv1d", "red"
             )
 
-    def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None):
+    def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, **kwargs):
         # 1. Gated MLP's linear projection
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
 
@@ -221,7 +224,7 @@ class MambaMixer(nn.Module):
         return contextualized_states
 
     # fmt: off
-    def slow_forward(self, input_states, cache_params=None):
+    def slow_forward(self, input_states, cache_params=None, extra_kwargs=extra_kwargs):
         batch_size, seq_len, _ = input_states.shape
         dtype = input_states.dtype
         # 1. Gated MLP's linear projection
@@ -287,10 +290,10 @@ class MambaMixer(nn.Module):
         return contextualized_states
     # fmt: on
 
-    def forward(self, hidden_states, cache_params=None):
+    def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
             return self.cuda_kernels_forward(hidden_states, cache_params)
-        return self.slow_forward(hidden_states, cache_params)
+        return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs)
 
 
 class MambaBlock(nn.Module):
@@ -534,6 +537,7 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
         use_cache: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        extra_kwargs: Optional[Dict[str, Any]] = None,
         **kwargs,  # `attention_mask` is passed by the tokenizer and we don't want it
     ) -> Union[Tuple, MambaOutput]:
         
@@ -548,8 +552,9 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
             raise ValueError(
                 "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
             )
-        import pdb; pdb.set_trace()
+   
         if inputs_embeds is None:
+            
             inputs_embeds = self.embeddings(input_ids)
 
         if self.gradient_checkpointing and self.training and use_cache:
@@ -586,9 +591,9 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
         all_hidden_states = () if output_hidden_states else None
         for mixer_block in self.layers:
             if self.gradient_checkpointing and self.training:
-                hidden_states = self._gradient_checkpointing_func(mixer_block.__call__, hidden_states, cache_params)
+                hidden_states = self._gradient_checkpointing_func(mixer_block.__call__, hidden_states, cache_params, extra_kwargs=extra_kwargs)
             else:
-                hidden_states = mixer_block(hidden_states, cache_params=cache_params)
+                hidden_states = mixer_block(hidden_states, cache_params=cache_params, extra_kwargs=extra_kwargs)
 
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
@@ -687,6 +692,7 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
             inputs_embeds=inputs_embeds,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            extra_kwargs=kwargs,  # for analysis like depth and ctx_length
         )
         hidden_states = mamba_outputs[0]
 
