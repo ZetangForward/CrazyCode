@@ -40,5 +40,5 @@ experiment:
   debug: False
   hf_trainer: False
   low_rank_train: False
-  device_num: 2
+  device_num: 1
   node_num: 1
