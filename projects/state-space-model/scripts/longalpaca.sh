@@ -17,6 +17,7 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  mamba/tr
     model=$model_name \
     model_name=$model_name \
     task=$task \
+    exp_task=$task \
     platform=$platform \
     experiment.debug=False \
     experiment.low_rank_train=False \
