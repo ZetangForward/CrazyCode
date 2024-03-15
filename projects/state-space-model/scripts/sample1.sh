@@ -1,11 +1,11 @@
-export CUDA_VISIBLE_DEVICES=4
+export CUDA_VISIBLE_DEVICES=6
 
 MODEL_N=2048
 MODEL_D=128
-data_n_list="512 1024 2048 4096"
+data_n_list="4096"
 for DATA_N in $data_n_list
 do
-    data_d_list="256"
+    data_d_list="128"
     for DATA_D in $data_d_list
     do
         JOB_ID=N${MODEL_N}_D${MODEL_D}-N${DATA_N}_D${DATA_D}

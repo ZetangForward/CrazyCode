@@ -22,7 +22,7 @@ class MQARDataset(Dataset):
     @classmethod
     def build_dataset(cls, vocab_size, num_examples, input_seq_len, num_kv_pairs, power_a, tokenizer, random_non_queries=True):
         context_size = num_kv_pairs * 2
-
+        # import pdb;pdb.set_trace()
         # create keys so that each key is present exactly once in each example
         key_vocab_size = vocab_size // 2
         key_choices = np.arange(1, key_vocab_size)
@@ -102,3 +102,17 @@ class MQARDataset(Dataset):
         res.update(item)
 
         return res
+
+if __name__ == '__main__':
+    for input_seq_len in [1024, 2048]:
+        for number_kv_pairs in [256]:
+            test_data = MQARDataset.build_dataset(
+                vocab_size=8192, 
+                input_seq_len=input_seq_len,
+                num_kv_pairs=number_kv_pairs,
+                num_examples=3000,
+                power_a=0.01,
+                tokenizer=None,
+                )
+            data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+            # auto_save_data(test_data,data_path)

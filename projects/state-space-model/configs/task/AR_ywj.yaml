@@ -1,6 +1,6 @@
 dataset:
   data_path: ""
-  processed_data_path: 'MQAR/test_C8192_N4096_D256.pkl'
+  processed_data_path: MQAR/test_C8192_N4096_D64.pkl
   module: 'custom_dataset.AR_ywj' # Custom dataset module path
   class_name: 'MQARDataset'  # dataset class name
   nworkers: 4
@@ -13,7 +13,7 @@ dataset:
   vocab_size: 8192
   num_examples: 3000
   input_seq_len: 4096
-  num_kv_pairs: 256
+  num_kv_pairs: 64
   test_power_a: 0.01
 
 other_cfgs: 
