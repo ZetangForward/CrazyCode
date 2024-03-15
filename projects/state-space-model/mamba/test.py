@@ -29,12 +29,24 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
-        # import pdb;pdb.set_trace()
+        import pdb;pdb.set_trace()
         if "ar" in self.cfg.exp_task.lower():
             output = self.model(input_ids).logits.max(-1)[1]
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
+        if "longbench" in self.cfg.exp_task.lower():
+            max_gen_len = batch.pop("max_generation_len")
+            output = self.model.generate(
+                    input_ids, 
+                    max_length=input_ids.size(-1) + max_gen_len,
+                    min_length=input_ids.size(-1) + 10, 
+                    eos_token_id=self.tokenizer.eos_token_id, 
+                )
+            final_res = {}
+            final_res['predictions'] = output[0]
+            final_res['answers'] = batch.pop('answers')
+
         else:
             output = self.model.generate(
                     input_ids, 

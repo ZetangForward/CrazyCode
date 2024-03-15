@@ -23,12 +23,11 @@ class LongbenchDataset(Dataset):
         # self.filter_length(kwargs["testing_max_ctx"])           #
     
     def get_task_config(self, subtask):
-        # import pdb;pdb.set_trace()
-        # data = yaml.safe_load((self.config_path+"longbench_config.yaml"))
+        with open (self.config_path+"longbench_config.yaml", encoding='utf-8') as f:
+            data = yaml.safe_load(f)
         subtask = self.subtask
-        data = load_yaml_config(self.config_path+"longbench_config.yaml")
-        max_len = data.dataset2maxlen.subtask
-        prompt_format = data.dataset2prompt.subtask
+        max_len = data['dataset2maxlen'][subtask]
+        prompt_format = data['dataset2prompt'][subtask]
         return max_len, prompt_format
     
     # def filter_length(self, max_ctx_length=12000):
@@ -67,7 +66,8 @@ class LongbenchDataset(Dataset):
         res = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
-            'answer': item.pop('answers'),
+            'answers': item.pop('answers'),
             'real_length': real_length,
+            'max_generation_len': self.max_gen_len
         }
         return res

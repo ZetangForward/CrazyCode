@@ -104,8 +104,8 @@ class MQARDataset(Dataset):
         return res
 
 if __name__ == '__main__':
-    for input_seq_len in [1024, 2048]:
-        for number_kv_pairs in [256]:
+    for input_seq_len in [1024, 2048, 4096]:
+        for number_kv_pairs in [48, 96, 192]:
             test_data = MQARDataset.build_dataset(
                 vocab_size=8192, 
                 input_seq_len=input_seq_len,
@@ -114,5 +114,5 @@ if __name__ == '__main__':
                 power_a=0.01,
                 tokenizer=None,
                 )
-            data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
-            # auto_save_data(test_data,data_path)
+            data_path = "/public/home/ljt/tzc/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+            auto_save_data(test_data,data_path)

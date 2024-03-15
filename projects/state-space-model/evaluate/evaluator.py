@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 from modelzipper.tutils import *
-from rouge_score import rouge_scorer
+# from rouge_score import rouge_scorer
 import tensor_parallel as tp
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -10,13 +10,13 @@ import seaborn as sns
 from utils import get_model_tokenizer, get_model_tokenizer_simple
 from argparse import ArgumentParser
 
-from metrics import (
-    qa_f1_score,
-    rouge_score,
-    classification_score,
-    retrieval_score,
-    count_score,
-)
+# from metrics import (
+#     qa_f1_score,
+#     rouge_score,
+#     classification_score,
+#     retrieval_score,
+#     count_score,
+# )
 
 longbench_dataset2metric = {
     "narrativeqa": qa_f1_score,
@@ -53,7 +53,8 @@ class Evaluator:
         if "ar" in task.lower():
             self.eval_mqar(save_evaluation_path, save_gen_res)
 
-        # if "longbench" in 
+        if "longbench" in task.lowe():
+            self.eval_longbench(save_evaluation_path, save_gen_res)
 
 
     def eval_passkey_search(self, save_evaluation_path, save_gen_res=True):
@@ -174,7 +175,7 @@ class Evaluator:
         #     print_c(f"saving at {save_path}", "yellow")
         #     auto_save_data(results, save_path)
         if save_evaluation_path:
-            auto_save_data(str(correct_number/total_number * 100), save_evaluation_path)
+            auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
 
         print(self.task, save_evaluation_path, correct_number/total_number * 100)
 
