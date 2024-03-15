@@ -29,7 +29,7 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
-        import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         if "ar" in self.cfg.exp_task.lower():
             output = self.model(input_ids).logits.max(-1)[1]
             final_res = {}

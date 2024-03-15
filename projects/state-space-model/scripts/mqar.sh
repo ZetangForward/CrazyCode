@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=6
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 mkdir -p /public/home/ljt/tzc/evaluation/AR_ywj/mamba-1_4b
 MODEL_N=2048
 MODEL_D=128

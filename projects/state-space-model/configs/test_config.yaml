@@ -18,5 +18,5 @@ hydra:
 experiment:
   seed: 27
   results_save_dir: ${exp_task}/${model_name}/version_${job_id}/results
-  device_num: 1
+  device_num: 4
   node_num: 1
