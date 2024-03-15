@@ -48,7 +48,6 @@ is_fast_path_available = all(
     (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update, mamba_inner_fn)
 )
 
-
 # for analysis
 is_fast_path_available = False
 
