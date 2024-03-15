@@ -42,10 +42,12 @@ class Experiment(pl.LightningModule):
         
         if ctx_length % 1000 != 0:
             pass
-
+        extra_kwargs = {
+            "ctx_length": ctx_length,
+            "depth": depth
+        }
         output = self.model.generate(
-            input_ids, depth=depth, ctx_length=ctx_length,
-            min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32)
+            input_ids, min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32, extra_kwargs=extra_kwargs)
 
         batch['predictions'] = output
         batch['depth'] = depth

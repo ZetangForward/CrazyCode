@@ -224,7 +224,7 @@ class MambaMixer(nn.Module):
         return contextualized_states
 
     # fmt: off
-    def slow_forward(self, input_states, cache_params=None, extra_kwargs=extra_kwargs):
+    def slow_forward(self, input_states, cache_params=None, extra_kwargs=None):
         batch_size, seq_len, _ = input_states.shape
         dtype = input_states.dtype
         # 1. Gated MLP's linear projection
@@ -308,13 +308,13 @@ class MambaBlock(nn.Module):
         self.max_position_embeddings = max_position_embeddings
         self.use_abs_position = use_abs_position
 
-    def forward(self, hidden_states, cache_params=None):
+    def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         residual = hidden_states
         hidden_states = self.norm(hidden_states.to(dtype=self.norm.weight.dtype))
         if self.residual_in_fp32:
             residual = residual.to(torch.float32)
 
-        hidden_states = self.mixer(hidden_states, cache_params=cache_params)
+        hidden_states = self.mixer(hidden_states, cache_params=cache_params, extra_kwargs=extra_kwargs)
         hidden_states = residual + hidden_states
         return hidden_states
 
@@ -653,8 +653,11 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
         return model_kwargs
 
     def prepare_inputs_for_generation(
-        self, input_ids, cache_params=None, inputs_embeds=None, attention_mask=None, **kwargs
-    ):
+        self, input_ids, cache_params=None, inputs_embeds=None, attention_mask=None, extra_kwargs=None, **kwargs,
+    ):  
+        """
+        extra_kwargs: for analysis like depth and ctx_length
+        """
         # only last token for inputs_ids if the state is passed along.
         if cache_params is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
@@ -665,6 +668,7 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
             model_inputs = {"input_ids": input_ids}
 
         model_inputs["cache_params"] = cache_params
+        model_inputs["extra_kwargs"] = extra_kwargs
         return model_inputs
 
     def forward(
