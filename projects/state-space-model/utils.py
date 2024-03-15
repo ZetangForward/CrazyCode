@@ -5,10 +5,15 @@ import lightning.pytorch as pl
 import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
-from custom_mamba.custom_mamba import LongContextMamba
-from transformers import MambaForCausalLM, AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM, LlamaTokenizer
+
+from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM
+from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
+from peft import LoraConfig, get_peft_model
+from torch.utils.data import Dataset
+from custom_mamba.custom_mamba_analysis import LongContextMambaAna
+from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
 
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
@@ -21,10 +26,71 @@ def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name
     return tokenizer, model
 
 
-def get_model_tokenizer(root_dir, model_config):
+def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add more args
+    raw_config = MambaConfig.from_pretrained(model_path)
+    raw_config.expand = 4
+    raw_config.use_relative_position = use_relative_position
+    raw_config.use_abs_position = False
+    raw_config.max_position_embeddings = 9012
+    model = CustomMambaForCausalLM(raw_config, dtype=torch.bfloat16, device="cuda")
+    state_dict = torch.load("/nvme/hf_models/mamba-1.4b/pytorch_model.bin", map_location="cuda")
+    import pdb; pdb.set_trace()
+    model._load_from_state_dict(state_dict, dtype=torch.bfloat16)
+
+    return model
+
+
+def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
 
+    lora_config =  LoraConfig(
+        r=8,
+        target_modules=["x_proj", "embeddings", "in_proj", "out_proj"],
+        task_type="CAUSAL_LM",
+        bias="none"
+    )
+
+    # elif "mamba" in model_path.lower():
+    model = CustomMambaForCausalLM.from_pretrained(
+        model_path, use_relative_position=model_config.use_relative_position,
+        torch_dtype=torch.bfloat16
+    )
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+    # 假设 `model` 是你的模型实例
+    for param in model.parameters():
+        param.requires_grad = False
+
+    peft_model = get_peft_model(model, lora_config, mixed=True)
+
+    peft_model.print_trainable_parameters()
+
+    return peft_model, tokenizer
+
+
+def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysis=False):
+    model_path = os.path.join(root_dir, model_config.model_name_or_path)
+    tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+    
+    if analysis: # load model for analysis
+        model = LongContextMambaAna.from_pretrained(
+            "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
+            dtype=torch.bfloat16, device="cuda"
+        )
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+        return model, tokenizer
+    
+    elif use_custom_module:  # custom model
+        model = load_big_kernel_mamba(
+            model_path, use_relative_position=model_config.use_relative_position,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+        return model, tokenizer
+    else:
+        ...
+    
     if "gpt" in model_path.lower():
         model = GPTNeoForCausalLM.from_pretrained(
             model_path, use_cache=False, torch_dtype=torch.bfloat16
@@ -32,9 +98,9 @@ def get_model_tokenizer(root_dir, model_config):
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "mamba" in model_path.lower():
-        model = LongContextMamba.from_pretrained(
+        model = CustomMambaForCausalLM.from_pretrained(
             model_path, use_relative_position=model_config.use_relative_position,
-            dtype=torch.bfloat16, device="cuda", strict=False
+            torch_dtype=torch.bfloat16
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
@@ -53,6 +119,15 @@ def get_model_tokenizer(root_dir, model_config):
     print_c("model and tokenzier already loaded ~")
 
     return model, tokenizer
+
+
+class EmptyDataset(Dataset):
+
+    def __len__(self):
+        return 0
+
+    def __getitem__(self, idx):
+        raise NotImplementedError
 
 
 class CustomDatamodule(pl.LightningDataModule):
@@ -85,7 +160,6 @@ class CustomDatamodule(pl.LightningDataModule):
         if 'hf' in fpath:
             return load_from_disk(fpath)
         return auto_read_data(fpath)
-
 
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None
@@ -186,14 +260,23 @@ class CustomDatamodule(pl.LightningDataModule):
 
                     # train_data = self.load_data_with_root_dir(processed_data_path)
             else:
-                if "hf" in self.cfg.dataset.data_path.lower():
+                # check if is a directory
+                data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
+                if not os.path.isdir(data_path):
+                    train_data = auto_read_data(data_path)
+
+                elif "hf" in self.cfg.dataset.data_path.lower():
                     if "pajama" in self.cfg.dataset.data_path.lower():
                         all_data = self.load_data_with_root_dir(self.cfg.dataset.data_path)
                         import pdb; pdb.set_trace()  
                         ...
+                else:
+                    raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
 
+        # further process data with stage
         if stage == "fit":  # training mode
-            # check data initialization  
+            # check data & initialization  
+           
             assert train_data is not None, f"train data should not be None during {stage} stage"
             try:
                 assert valid_data is not None, f"valid data is None during {stage} stage"
@@ -217,8 +300,10 @@ class CustomDatamodule(pl.LightningDataModule):
                     **self.dataset_kwargs,
                 )
                 print_c(f"num of valid samples: {len(self.valid_dataset)}", color='magenta')
-        
-        else: # testing mode
+            else:
+                self.valid_dataset = EmptyDataset()
+
+        else: # prediction mode
             assert test_data is not None, f"test data should not be None during {stage} stage"
 
             # init dataset
@@ -244,17 +329,18 @@ class CustomDatamodule(pl.LightningDataModule):
         
 
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        if self.valid_dataset is not None:
-            return DataLoader(
-                self.valid_dataset, 
-                batch_size=self.cfg.dataset.val_batch_size, 
-                num_workers=self.cfg.dataset.nworkers, 
-                pin_memory=self.cfg.dataset.pin_memory, 
-                drop_last=False, 
-                shuffle=False,
-            )
-        return None
-    
+        if isinstance(self.valid_dataset, EmptyDataset):
+            return DataLoader(self.valid_dataset)
+            
+        return DataLoader(
+            self.valid_dataset, 
+            batch_size=self.cfg.dataset.val_batch_size, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
+            drop_last=False, 
+            shuffle=False,
+        )
+
 
     def predict_dataloader(self) -> EVAL_DATALOADERS:
         assert self.test_dataset is not None, "test dataset should not be None"
