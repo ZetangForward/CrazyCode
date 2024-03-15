@@ -48,6 +48,9 @@ class Experiment(pl.LightningModule):
                     final_res[key] = value
         return final_res
 
+# class CustomModel:
+#     def __init__(self, model) -> None:
+#         self.model = model
 
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):

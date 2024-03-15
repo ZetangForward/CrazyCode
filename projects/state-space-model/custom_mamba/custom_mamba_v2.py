@@ -49,7 +49,7 @@ is_fast_path_available = all(
 )
 
 # for analysis
-is_fast_path_available = False
+is_fast_path_available = True
 
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
