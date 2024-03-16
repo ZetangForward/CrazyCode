@@ -50,7 +50,7 @@ class Experiment(pl.LightningModule):
         output = self.model.generate(
             input_ids, min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32, extra_kwargs=extra_kwargs)
 
-        batch['predictions'] = output
+        batch['predictions'] = output.squeeze(0)[input_ids.size(1):]
         batch['depth'] = depth
         batch['ctx_length'] = ctx_length
         return batch
@@ -104,8 +104,8 @@ def main(config):
     )
 
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    
-    save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
+    save_path = "/nvme/zecheng/evaluation/analysis/gen_res.pkl"
+    # save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
 
