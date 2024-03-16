@@ -1,10 +1,46 @@
-from argparse import ArgumentParser
 import os
 import numpy as np
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from modelzipper.tutils import *
+from argparse import ArgumentParser
 
+##############################
+##### 1. analysis_rank  ######
+##############################
+
+def analysis_single_hidden_state(hidden_states):
+    """
+    hidden_states is (n, 4096) matrix
+    """
+    if hidden_states.dim() == 3:  # prevent batch size
+        hidden_states = hidden_states.squeeze(0)
+
+    if isinstance(hidden_states, torch.Tensor):
+        hidden_states = hidden_states.float().cpu().numpy()
+    # SVD
+    u, s, vh = np.linalg.svd(hidden_states)
+
+    # cal rank
+    rank = np.sum(s > 1e-10)
+    return rank
+
+def analysis_multi_hidden_states(dir):
+    """
+    这个实验主要分析一下在生成过程中，随着Conv1d逐渐将历史信息丢弃，剩下内容的Rank变化
+    """
+    hidden_states_list = auto_read_dir(dir, file_prefix="generate", file_suffix=".pkl")
+    all_rks = []
+    for file in hidden_states_list:
+        hidden_states = auto_read_data(os.path.join(dir, file))
+        rk = analysis_single_hidden_state(hidden_states)
+        all_rks.append(rk)
+    return all_rks
+
+
+##############################
+#### 2. analysis_similar  ####
+##############################
 
 def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     """
@@ -138,7 +174,6 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     plt.savefig(f"analysis/figures/cosine_similarity_line_figure_offset-ctx_length-{ctx_length}.png")
 
 
-
 def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=40):
     # read text embedding
     text_embedding_file = auto_read_dir(fpath, file_prefix="input_seq_embedding", file_suffix=".pkl")[0]
@@ -260,18 +295,24 @@ def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=4
 
 
 if __name__ == "__main__":
-    argparse = ArgumentParser()
-    argparse.add_argument("--dir", type=str, default="analysis/inner_state")
-    argparse.add_argument("--fpath", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
-    argparse.add_argument("--tokenizer_name_or_path", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
-
-    args = argparse.parse_args()
+    parser = ArgumentParser()
+    parser.add_argument("--dir", "-d", type=str, default="analysis/inner_state")
+    parser.add_argument("--fpath", "-f", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
+    parser.add_argument("--tokenizer_name_or_path", "-tkp", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
+    parser.add_argument("--analysis_task", "-at", type=str, default="low_rank")
+    args = parser.parse_args() 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path)
 
-    passkey = "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
-    passkey_length = len(tokenizer(passkey)['input_ids'])
+    if "passkey" in args.analysis_task.lower():
 
-    anaylsis_single_file_conv1d(args.dir, passkey_length)
+        passkey = "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
+        passkey_length = len(tokenizer(passkey)['input_ids'])
+
+        anaylsis_single_file_conv1d(args.dir, passkey_length)
+
+    elif "rank" in args.analysis_task.lower():
+        all_rks = analysis_multi_hidden_states(args.dir)
+        print_c(f"all_rks: {all_rks}", "yellow")
 
     # analysis_cov1d_compress(
     #     args.fpath, 

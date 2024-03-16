@@ -48,7 +48,6 @@ class Conv1DWrapper(nn.Module):
         return self.conv1d(x)
 
 
-
 class Mamba(nn.Module):
     def __init__(
         self,
