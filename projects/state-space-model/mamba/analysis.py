@@ -44,7 +44,8 @@ class Experiment(pl.LightningModule):
             pass
         extra_kwargs = {
             "ctx_length": ctx_length,
-            "depth": depth
+            "depth": depth,
+            "save_dir": "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state2",
         }
         output = self.model.generate(
             input_ids, min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32, extra_kwargs=extra_kwargs)

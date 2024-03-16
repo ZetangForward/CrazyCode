@@ -19,11 +19,17 @@ def analysis_single_hidden_state(hidden_states):
     if isinstance(hidden_states, torch.Tensor):
         hidden_states = hidden_states.float().cpu().numpy()
     # SVD
+    import pdb; pdb.set_trace()
     u, s, vh = np.linalg.svd(hidden_states)
 
     # cal rank
     rank = np.sum(s > 1e-10)
     return rank
+
+
+def analysis_single_hidden_state(hidden_states):
+    ...
+
 
 def analysis_multi_hidden_states(dir):
     """

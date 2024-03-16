@@ -2,24 +2,17 @@ import torch
 import os
 import sys
 sys.path.append(os.getcwd())
-import math
 import torch
 import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import Optional
-from einops import rearrange, repeat
-from modelzipper.tutils import *
-from torch import Tensor 
-from functools import partial
-from collections import namedtuple
-from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
 from transformers.generation import GreedySearchDecoderOnlyOutput, SampleDecoderOnlyOutput
 from mamba_ssm.utils.generation import update_graph_cache, InferenceParams, sample
 from transformers import MambaPreTrainedModel
 from transformers.activations import ACT2FN
 from transformers.utils import ModelOutput
 from dataclasses import dataclass
+from modelzipper.tutils import *
 
 
 try:
@@ -48,8 +41,6 @@ is_fast_path_available = all(
     (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update, mamba_inner_fn)
 )
 
-# for analysis
-is_fast_path_available = True
 
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -66,7 +57,7 @@ class MambaRMSNorm(nn.Module):
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
-
+    
 
 class MambaMixer(nn.Module):
     """
@@ -109,7 +100,7 @@ class MambaMixer(nn.Module):
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
 
-        # projection of the input hidden states
+        # projection of the input hidden statesa
         self.in_proj = nn.Linear(self.hidden_size, self.intermediate_size * 2, bias=config.use_bias)
         # selective projection used to make dt, B and C input dependant
         self.x_proj = nn.Linear(self.intermediate_size, self.time_step_rank + self.ssm_state_size * 2, bias=False)
@@ -133,9 +124,18 @@ class MambaMixer(nn.Module):
                 " https://github.com/Dao-AILab/causal-conv1d", "red"
             )
 
-    def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, **kwargs):
+    def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
         # 1. Gated MLP's linear projection
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
+
+        analysis_mode = False
+            
+        if extra_kwargs is not None: ## for analysis
+            depth = extra_kwargs.get("depth", None)
+            save_dir = extra_kwargs.get("save_dir", None)
+            ctx_length = extra_kwargs.get("ctx_length", None)
+            analysis_mode = True
+            analysis_layers = [0, 11, 23, 35, 57]
 
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
             contextualized_states = mamba_inner_fn(
@@ -154,7 +154,7 @@ class MambaMixer(nn.Module):
                 delta_softplus=True,
             )
 
-        else:
+        else:  # inference mode
             hidden_states, gate = projected_states.chunk(2, dim=1)
 
             # 2. Convolution sequence transformation
@@ -168,15 +168,29 @@ class MambaMixer(nn.Module):
                     self.activation,
                 )
                 hidden_states = hidden_states.unsqueeze(-1)
+
+                if analysis_mode:  # save first hidden state
+                    if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
+                        save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", f"hidden_states_{cache_params.seqlen_offset}.pkl")
+                        auto_save_data(hidden_states[:, 0, :].cpu(), save_path)
+            
             else:
                 if cache_params is not None:
+                    
+                    if analysis_mode:  # save first hidden state
+                        if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
+                            save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", "first_hidden_state.pkl")
+                            auto_save_data(hidden_states[:, 0, :].cpu(), save_path)
+
                     conv_states = nn.functional.pad(
                         hidden_states, (self.conv_kernel_size - hidden_states.shape[-1], 0)
                     )
                     cache_params.conv_states[self.layer_idx].copy_(conv_states)
+                
                 hidden_states = causal_conv1d_fn(
                     hidden_states, conv_weights, self.conv1d.bias, activation=self.activation
                 )
+
 
             # 3. State Space Model sequence transformation
             # 3.a. input varying initialization of time_step, B and C
@@ -224,6 +238,7 @@ class MambaMixer(nn.Module):
 
     # fmt: off
     def slow_forward(self, input_states, cache_params=None, extra_kwargs=None):
+        
         batch_size, seq_len, _ = input_states.shape
         dtype = input_states.dtype
         # 1. Gated MLP's linear projection
@@ -243,7 +258,7 @@ class MambaMixer(nn.Module):
                     hidden_states += self.conv1d.bias
                 hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
             else:
-                conv_state = nn.functional.pad(
+                conv_state = nn.functional.pad(  # only save last conv_kernel_size states
                     hidden_states,
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
@@ -291,7 +306,7 @@ class MambaMixer(nn.Module):
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
-            return self.cuda_kernels_forward(hidden_states, cache_params)
+            return self.cuda_kernels_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs)
         return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs)
 
 
