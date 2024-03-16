@@ -131,11 +131,14 @@ class MambaMixer(nn.Module):
         analysis_mode = False
             
         if extra_kwargs is not None: ## for analysis
+            analysis_layers = [0, 11, 23, 35, 57]
             depth = extra_kwargs.get("depth", None)
             save_dir = extra_kwargs.get("save_dir", None)
             ctx_length = extra_kwargs.get("ctx_length", None)
-            analysis_mode = True
-            analysis_layers = [0, 11, 23, 35, 57]
+            if ctx_length in [500, 1000, 2000, 4000, 8000, 16000, 32000] and depth in [0.05, 0.55, 1.0]:
+                analysis_mode = True
+                depth = str(depth).replace(".", "_")    
+            
 
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
             contextualized_states = mamba_inner_fn(
@@ -172,7 +175,7 @@ class MambaMixer(nn.Module):
                 if analysis_mode:  # save first hidden state
                     if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
                         save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", f"hidden_states_{cache_params.seqlen_offset}.pkl")
-                        auto_save_data(hidden_states[:, 0, :].cpu(), save_path)
+                        auto_save_data(hidden_states[:, :, 0].cpu(), save_path)
             
             else:
                 if cache_params is not None:
@@ -180,7 +183,7 @@ class MambaMixer(nn.Module):
                     if analysis_mode:  # save first hidden state
                         if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
                             save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", "first_hidden_state.pkl")
-                            auto_save_data(hidden_states[:, 0, :].cpu(), save_path)
+                            auto_save_data(hidden_states[:, :, 0].cpu(), save_path)
 
                     conv_states = nn.functional.pad(
                         hidden_states, (self.conv_kernel_size - hidden_states.shape[-1], 0)
@@ -306,8 +309,8 @@ class MambaMixer(nn.Module):
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
-            return self.cuda_kernels_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs)
-        return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs)
+            return self.cuda_kernels_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs['extra_kwargs'])
+        return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs['extra_kwargs'])
 
 
 class MambaBlock(nn.Module):
