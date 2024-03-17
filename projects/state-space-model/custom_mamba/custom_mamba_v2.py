@@ -288,7 +288,7 @@ class MambaMixer(nn.Module):
         discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
 
         # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
-        A = -torch.exp(self.A_log.float())                                              # [intermediate_size, ssm_state_size]
+        A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
         discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
         discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
         deltaB_u = discrete_B * hidden_states[:, :, :, None].float()

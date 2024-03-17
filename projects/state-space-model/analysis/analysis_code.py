@@ -302,22 +302,39 @@ def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=4
 
 class ForgetAnalysis:
     def __init__(self, ctx_dir, save_root_dir) -> None:
-        
+        auto_mkdir(save_root_dir)
         all_layer_subdirs = list_subdirs(ctx_dir)
         for subdir in all_layer_subdirs:
             dir_name = os.path.basename(subdir)
-            for layer_dir in list_subdirs(subdir):
+            layer_subdirs = list_subdirs(subdir)
+            num_subdirs = len(layer_subdirs)
+
+            # 创建一个足够大的子图布局
+            nrows = int(np.ceil(np.sqrt(num_subdirs)))
+            ncols = nrows
+            fig, axs = plt.subplots(nrows, ncols, figsize=(15, 15))  # 调整大小
+            fig.subplots_adjust(hspace=0.4, wspace=0.4)  # 调整子图之间的间距
+
+            for idx, layer_dir in enumerate(layer_subdirs):
                 layer_name = os.path.basename(layer_dir)
                 save_mark = f"{dir_name}-{layer_name}"
-                self.analysis_single_dir_hidden_state(layer_dir, save_mark, save_root_dir)
+                ax = axs[idx // ncols, idx % ncols]  # 定位当前子图
+                self.analysis_single_dir_hidden_state(layer_dir, save_mark, save_root_dir, ax)
 
+            # 隐藏空白子图
+            for idx in range(num_subdirs, nrows*ncols):
+                axs[idx // ncols, idx % ncols].axis('off')
 
+            # 保存整个子图集合
+            plt.savefig(os.path.join(save_root_dir, f"{dir_name}_all_layers.png"))
+            plt.close(fig)  # 关闭图形，释放内存
 
-    def analysis_single_dir_hidden_state(self, dir, save_mark=None, save_root_dir=None):
+    def analysis_single_dir_hidden_state(self, dir, save_mark=None, save_root_dir=None, ax=None):
         """
         anchor_states is (1, 4096) vector
         hidden_states is (n, 4096) matrix
         """
+        
         all_files = auto_read_dir(dir, file_suffix=".pkl", file_prefix="hidden_state")
         anchor_file = auto_read_dir(dir, file_suffix=".pkl", file_prefix="first_hidden_state")
 
@@ -334,13 +351,13 @@ class ForgetAnalysis:
 
         all_hidden_states = torch.cat(all_hidden_states, dim=0)
         cos_sim = F.cosine_similarity(anchor_vector, all_hidden_states)
-        cos_sim = cos_sim.float().cpu().numpy()
-        plt.plot(cos_sim)
-        plt.title(save_mark)
-        plt.xlabel('Generation Step')
-        plt.ylabel('Cosine Similarity')
-        plt.tight_layout()
-        plt.savefig(os.path.join(save_root_dir, f"{save_root_dir}.png"))
+        cos_sim = np.abs(cos_sim.float().cpu().numpy())
+        
+        # 使用传入的ax作为绘图的轴
+        ax.plot(cos_sim)
+        ax.set_title(save_mark)
+        ax.set_xlabel('Generation Step')
+        ax.set_ylabel('Cosine Similarity')
         
 
 
@@ -350,6 +367,7 @@ if __name__ == "__main__":
     parser.add_argument("--fpath", "-f", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
     parser.add_argument("--tokenizer_name_or_path", "-tkp", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
     parser.add_argument("--analysis_task", "-at", type=str, default="low_rank")
+    parser.add_argument("--save_dir", "-sd", type=str, default="low_rank")
     args = parser.parse_args() 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path)
 
@@ -365,7 +383,10 @@ if __name__ == "__main__":
         print_c(f"all_rks: {all_rks}", "yellow")
 
     elif "forget" in args.analysis_task.lower():
-        analysisor = ForgetAnalysis(args.dir)
+        save_root_dir = os.path.join(args.save_dir, args.analysis_task)
+        log_c(f"begin to analysis forget ...\nsave results to {save_root_dir}", "yellow")
+
+        analysisor = ForgetAnalysis(args.dir, save_root_dir)
 
     # analysis_cov1d_compress(
     #     args.fpath, 
