@@ -42,6 +42,7 @@ is_fast_path_available = all(
 )
 
 
+
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -340,144 +341,6 @@ class MambaBlock(nn.Module):
         return hidden_states
 
 
-@torch.inference_mode()
-def decode(
-    input_ids,
-    model,
-    max_length,
-    min_length,  # new: add a min_length parameters
-    top_k=1,
-    top_p=0.0,
-    temperature=1.0,
-    eos_token_id=None,
-    teacher_outputs=None,
-    vocab_size=None,
-    tensor_parallel=1,
-    cg=False,
-    enable_timing=False,
-):
-    """Decoding, either greedy or with top-k or top-p sampling.
-    If top-k = 0, don't limit the number of candidates (pure sampling).
-    Top-k and top-p can be used together. If top_k > 0 and top_p > 0, then top-k is applied first,
-    then top-p.
-    We assume that all sequences in the same batch have the same length.
-
-    Arguments:
-        input_ids: (batch, seq_len)
-        max_length: int
-        teacher_outputs (optional): (batch, seq_len). If provided, instead of sampling from the
-            logits, the next token is taken from the teacher_outputs. Useful for testing.
-    Returns: GreedySearchDecoderOnlyOutput or SampleDecoderOnlyOutput, with the following fields:
-        sequences: (batch, max_length)
-        scores: tuples of (batch, vocab_size)
-    """
-    batch_size, seqlen_og = input_ids.shape
-    teacher_output_len = teacher_outputs.shape[1] if teacher_outputs is not None else 0
-    if cg:
-        if not hasattr(model, "_decoding_cache"):
-            model._decoding_cache = None
-        model._decoding_cache = update_graph_cache(
-            model,
-            model._decoding_cache,
-            batch_size,
-            seqlen_og,
-            max_length,
-            tensor_parallel=tensor_parallel,
-        )
-        inference_params = model._decoding_cache.inference_params
-        inference_params.reset(max_length, batch_size)
-    else:
-        inference_params = InferenceParams(max_seqlen=max_length, max_batch_size=batch_size)
-
-    def get_logits(input_ids, inference_params):
-        decoding = inference_params.seqlen_offset > 0
-        if decoding:
-            position_ids = torch.full(
-                (batch_size, 1),
-                inference_params.seqlen_offset,
-                dtype=torch.long,
-                device=input_ids.device,
-            )
-        else:
-            position_ids = None
-        if not cg or not decoding:
-            logits = model(
-                input_ids,
-                position_ids=position_ids,
-                inference_params=inference_params,
-                num_last_tokens=1,
-            ).logits.squeeze(dim=1)
-        else:
-            logits = model._decoding_cache.run(
-                input_ids, position_ids, inference_params.seqlen_offset
-            ).squeeze(dim=1)
-        return logits[..., :vocab_size] if vocab_size is not None else logits
-
-    def sample_tokens(logits, inference_params):
-        if teacher_outputs is None or teacher_output_len <= inference_params.seqlen_offset:
-            token = sample(logits, top_k=top_k, top_p=top_p, temperature=temperature)
-        else:
-            token = teacher_outputs[:, inference_params.seqlen_offset]
-        # return rearrange(token, "b -> b 1")
-        return token.unsqueeze(1)
-
-    def should_stop(current_token, inference_params):
-        if inference_params.seqlen_offset == 0 or inference_params.seqlen_offset < min_length:
-            return False
-        if eos_token_id is not None and (current_token == eos_token_id).all():
-            return True
-        if inference_params.seqlen_offset >= max_length - 1:
-            return True
-        return False
-
-    start = torch.cuda.Event(enable_timing=enable_timing)
-    end = torch.cuda.Event(enable_timing=enable_timing)
-
-    if enable_timing:
-        if tensor_parallel > 1:
-            torch.distributed.barrier()
-        start.record()
-    scores, sequences = [], [input_ids]
-
-    while not should_stop(sequences[-1], inference_params):
-        scores.append(get_logits(sequences[-1], inference_params))
-        inference_params.seqlen_offset += sequences[-1].shape[1]
-        sequences.append(sample_tokens(scores[-1], inference_params))
-    
-    if enable_timing:
-        end.record()
-        if tensor_parallel > 1:
-            torch.distributed.barrier()
-        torch.cuda.synchronize()
-        print(f"Prompt processing + decoding time: {(start.elapsed_time(end)):.0f}ms")
-    output_cls = GreedySearchDecoderOnlyOutput if top_k == 1 else SampleDecoderOnlyOutput
-    return output_cls(sequences=torch.cat(sequences, dim=1), scores=tuple(scores))
-
-
-class GenerationMixin:
-    def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
-        raise NotImplementedError
-
-    def generate(
-        self,
-        input_ids,
-        max_length,
-        min_length,
-        top_k=1,
-        top_p=0.0,
-        temperature=1.0,
-        return_dict_in_generate=False,
-        output_scores=False,
-        **kwargs,
-    ):
-        output = decode(
-            input_ids, self, max_length, min_length, top_k=top_k, top_p=top_p, temperature=temperature, 
-        )
-        if not output_scores:
-            output.scores = None
-        return output if return_dict_in_generate else output.sequences
-
-
 class MambaCache:
     def __init__(self, config, batch_size, dtype=torch.float16, device=None):
         self.seqlen_offset = 0
@@ -511,7 +374,7 @@ class MambaCausalLMOutput(ModelOutput):
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
 
 
-class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
+class CustomMambaModel(MambaPreTrainedModel):
     def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None) -> None:
         super().__init__(config)
         
@@ -635,14 +498,6 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
             cache_params=cache_params if use_cache else None,
             hidden_states=all_hidden_states,
         )
-
-
-    # @classmethod
-    # def from_pretrained(cls, pretrained_model_name, device=None, dtype=None, strict=True, **kwargs):
-    #     config = load_config_hf(pretrained_model_name)
-    #     model = cls(**config, device=device, dtype=dtype, **kwargs)
-    #     model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype), strict=strict)
-    #     return model
 
 
 class CustomMambaForCausalLM(MambaPreTrainedModel):
