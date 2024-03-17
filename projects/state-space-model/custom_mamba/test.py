@@ -4,143 +4,9 @@ from functools import wraps, partial
 from transformers import PreTrainedModel
 from typing import Dict
 import torch.nn.functional as F
-
-
-def dict_to(d: dict, device):
-    for k, v in d.items():
-        if isinstance(v, torch.Tensor):
-            d[k] = v.to(device)
-    return d
-
-
-class LMForwardAPI(nn.Module):
-    def __init__(self, model, tokenizer, label_dict: Dict[int, str], device='cuda:0'):
-        super().__init__()
-        self.model = model
-        self.tokenizer = tokenizer
-        self.device = device
-        self.model.eval()
-        self.calibration_probs = None
-        self.use_calibration_probs = False
-        self.probs_from_results_fn = None
-        self.results_args: dict = {}
-        self.label_map = {tokenizer.encode(v, add_special_tokens=False)[0]: k for k, v in
-                          label_dict.items()}
-        self.position_offset = 0
-
-    @property
-    def device(self):
-        return self.model.device
-
-    @device.setter
-    def device(self, device):
-        print(f'LMForwardAPI: set device to {device}')
-        self.model = self.model.to(device)
-        # if self.past_key_values:
-        #     self.past_key_values = self.past_key_values  # will reset device
-
-    def cal_logits(self, inputs, **kwargs):
-        self.model.eval()
-        inputs = dict_to(inputs, self.device)
-
-        results = self.model(
-            input_ids=inputs['input_ids'],
-            **kwargs,
-        )
-        logits = results['logits']
-        # find last position before pad tokens
-        input_ids = inputs['input_ids']
-        eos_token_id: int = self.tokenizer.eos_token_id
-        is_not_eos = input_ids != eos_token_id
-        prediction_pos = is_not_eos.sum(dim=1) - 1
-        is_not_eos = is_not_eos.float()
-        # check all eos_tokens are at the end
-        assert (is_not_eos[:, :-1] - is_not_eos[:, 1:] >= 0).all()
-        # get logits for the last position
-        logits = logits[torch.arange(input_ids.shape[0]), prediction_pos, :]
-        return logits, results
-
-    def _cal_probs(self, logits):
-        interest_index = list(self.label_map.keys())
-        logits = logits[:, interest_index]
-        probs = F.softmax(logits, dim=-1)
-        if self.use_calibration_probs:
-            assert self.calibration_probs is not None
-            probs = probs / self.calibration_probs
-        return probs, logits
-
-    def cal_probs(self, inputs, **kwargs):
-        logits, results = self.cal_logits(inputs, **kwargs)
-        probs, logits = self._cal_probs(logits)
-        return probs, logits, results
-
-    def cal_probs_from_results(self, inputs, results):
-        return self.probs_from_results_fn(inputs, results)
-
-    @property
-    def past_key_values(self):
-        return self._past_key_values
-
-    @past_key_values.setter
-    def past_key_values(self, past_key_values):
-        if past_key_values is not None:
-            assert isinstance(past_key_values, tuple)
-            assert isinstance(past_key_values[0], tuple)
-            assert len(past_key_values[0]) == 2
-            assert isinstance(past_key_values[0][0], torch.Tensor)
-            assert past_key_values[0][0].shape[0] == 1
-            self._past_key_values = tuple(
-                tuple(t.to(self.device) for t in tup) for tup in past_key_values)
-        else:
-            self._past_key_values = None
-
-    @property
-    def use_past_key_values(self):
-        return self._use_past_key_values
-
-    @use_past_key_values.setter
-    def use_past_key_values(self, use_past_key_values):
-        self._use_past_key_values = use_past_key_values
-
-    def get_mask_with_past_key_values(self, mask):
-        if self.past_key_values is None:
-            raise ValueError('past_key_values is None, please set it first')
-        batch_size = mask.shape[0]
-        past_key_values_len = self.past_key_values[0][0].shape[2]
-        mask = torch.cat(
-            [torch.ones(batch_size, past_key_values_len, dtype=torch.bool, device=self.device),
-             mask], dim=1)
-        return mask
-
-    def get_past_key_values(self, inputs):
-        if self.past_key_values is None:
-            raise ValueError('past_key_values is None, please set it first')
-        batch_size = inputs['input_ids'].shape[0]
-        past_key_values = ()
-        for layer_key, layer_value in self.past_key_values:
-            past_key_values += (
-                                   layer_key.expand(batch_size, -1, -1, -1),
-                                   layer_value.expand(batch_size, -1, -1, -1)),
-
-        return past_key_values
-
-    @torch.no_grad()
-    def forward_no_grad(self, inputs):
-        ori_logits, results = self.cal_logits(inputs, **self.results_args)
-        probs, logits = self._cal_probs(ori_logits)
-        probs_from_results = self.cal_probs_from_results(inputs, results)
-        probs_from_results['ori_logits'] = ori_logits
-        return probs, probs_from_results
-
-    def forward(self, **kwargs):
-        ori_logits, results = self.cal_logits(kwargs, **self.results_args)
-        probs, logits = self._cal_probs(ori_logits)
-        result = {'probs': probs, 'logits': logits, 'results': results}
-        if self.probs_from_results_fn:
-            probs_from_results = self.cal_probs_from_results(kwargs, results)
-            result['probs_from_results'] = probs_from_results
-        result['ori_logits'] = ori_logits
-        return result
+from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
+from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
+from mamba_ssm.ops.triton.selective_state_update import selective_state_update
 
 
 class Conv1dAdapterBase(nn.Module):
@@ -246,6 +112,106 @@ class Conv1dAdapter(Conv1dAdapterBase):
                 self.params.grad = torch.zeros_like(self.params.grad)
 
 
+def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None, adapter=None):
+
+    analysis_mode = False
+
+    # 1. Gated MLP's linear projection
+    projected_states = self.in_proj(hidden_states).transpose(1, 2)
+
+    if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
+        contextualized_states = mamba_inner_fn(
+            projected_states,
+            self.conv1d.weight,
+            self.conv1d.bias if self.use_conv_bias else None,
+            self.x_proj.weight,
+            self.dt_proj.weight,
+            self.out_proj.weight,
+            self.out_proj.bias.float() if self.use_bias else None,
+            -torch.exp(self.A_log.float()),
+            None,  # input-dependent B
+            None,  # input-dependent C
+            self.D.float(),
+            delta_bias=self.dt_proj.bias.float(),
+            delta_softplus=True,
+        )
+
+    else:  # inference mode
+        hidden_states, gate = projected_states.chunk(2, dim=1)
+        
+        # 2. Convolution sequence transformation
+        conv_weights = self.conv1d.weight.view(self.conv1d.weight.size(0), self.conv1d.weight.size(2))
+        
+        if cache_params is not None and cache_params.seqlen_offset > 0:
+            hidden_states = causal_conv1d_update(
+                hidden_states.squeeze(-1),
+                cache_params.conv_states[self.layer_idx],
+                conv_weights,
+                self.conv1d.bias,
+                self.activation,
+            )
+            hidden_states = hidden_states.unsqueeze(-1)
+        
+        else:
+            if cache_params is not None:
+                
+                conv_states = nn.functional.pad(
+                    hidden_states, (self.conv_kernel_size - hidden_states.shape[-1], 0)
+                )
+                cache_params.conv_states[self.layer_idx].copy_(conv_states)
+            
+            hidden_states = adapter(hidden_states)
+            
+            hidden_states = causal_conv1d_fn(
+                hidden_states, conv_weights, self.conv1d.bias, activation=self.activation
+            )
+
+        # 3. State Space Model sequence transformation
+        # 3.a. input varying initialization of time_step, B and C
+        ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
+        time_step, B, C = torch.split(
+            ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
+        )
+        discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
+
+        A = -torch.exp(self.A_log.float())
+        # 3.c perform the recurrence y ← SSM(A, B, C)(x)
+        time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
+        if cache_params is not None and cache_params.seqlen_offset > 0:
+            scan_outputs = selective_state_update(
+                cache_params.ssm_states[self.layer_idx],
+                hidden_states[..., 0],
+                discrete_time_step[..., 0],
+                A,
+                B[:, 0],
+                C[:, 0],
+                self.D,
+                gate[..., 0],
+                time_proj_bias,
+                dt_softplus=True,
+            ).unsqueeze(-1)
+        else:
+            scan_outputs, ssm_state = selective_scan_fn(
+                hidden_states,
+                discrete_time_step,
+                A,
+                B.transpose(1, 2),
+                C.transpose(1, 2),
+                self.D.float(),
+                gate,
+                time_proj_bias,
+                delta_softplus=True,
+                return_last_state=True,
+            )
+            if ssm_state is not None and cache_params is not None:
+                cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+
+        # 4. Final linear projection
+        contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
+    return contextualized_states
+
+
+
 def slow_forward(self, input_states, cache_params=None, extra_kwargs=None, adapter=None):
     batch_size, seq_len, _ = input_states.shape
     dtype = input_states.dtype
@@ -325,10 +291,10 @@ class Conv1dManager(Conv1dManagerBase):
         conv1d_adapters = []
         for i, layer in enumerate(self.model.backbone.layers):
             conv1d_adapter = Conv1dAdapter()
+            layer.mixer.cuda_kernels_forward = partial(cuda_kernels_forward, layer.mixer, adapter=conv1d_adapter)
             layer.mixer.slow_forward = partial(slow_forward, layer.mixer, adapter=conv1d_adapter)
             conv1d_adapters.append(conv1d_adapter)
         return conv1d_adapters
-    
 
 
 if __name__ == "__main__":
@@ -338,7 +304,7 @@ if __name__ == "__main__":
     from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
     from modelzipper.tutils import *
 
-    model = CustomMambaForCausalLM.from_pretrained("/nvme/hf_models/mamba-1.4b-hf").to('cuda:2')
+    model = CustomMambaForCausalLM.from_pretrained("/nvme/hf_models/mamba-1.4b-hf").to('cuda:0')
     tokenizer = AutoTokenizer.from_pretrained("/nvme/hf_models/mamba-1.4b-hf")
     
     data = auto_read_data("/nvme/zecheng/data/needle/processed_data/32k_500_insert.pkl")
