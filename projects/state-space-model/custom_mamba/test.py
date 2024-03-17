@@ -192,7 +192,8 @@ class Conv1dManagerBase:
                 conv1d_adapter.zero_grad(set_to_none=True)
 
     def grad_process(self, grad, use_abs = True):
-        assert len(grad.shape) == 4
+        # assert len(grad.shape) == 4
+        # import pdb; pdb.set_trace()
         grad = grad.sum(1)
         if use_abs:
             grad = abs(grad)
@@ -279,7 +280,9 @@ def slow_forward(self, input_states, cache_params=None, extra_kwargs=None, adapt
             (batch_size, self.intermediate_size, self.ssm_state_size),
             device=hidden_states.device, dtype=dtype
         )
-        hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])         # [batch, intermediate_size, seq_len]
+        tmp = self.conv1d(hidden_states)[:, :, :seq_len] # [batch, intermediate_size, seq_len]
+        tmp = adapter(tmp)
+        hidden_states = self.act(tmp)         # [batch, intermediate_size, seq_len]
 
     # 3. State Space Model sequence transformation
     # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
@@ -374,12 +377,12 @@ if __name__ == "__main__":
         loss = F.cross_entropy(output[0][:, -2, :], label)
        
         loss.backward(retain_graph=True)
-        
+
         for i in range(len(conv1d_manger.conv1d_adapters)):
             import pdb; pdb.set_trace()
             saliency = conv1d_manger.grad(use_abs=True)[i]
-            pro = get_proportion(saliency, class_poss, final_poss)
-            pros.append(pro)
+            # pro = get_proportion(saliency, class_poss, final_poss)
+            # pros.append(pro)
         pros = np.array(pros)
         pros = pros.T
         pros_list.append(pros)
