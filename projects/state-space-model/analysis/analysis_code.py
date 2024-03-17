@@ -27,10 +27,6 @@ def analysis_single_hidden_state(hidden_states):
     return rank
 
 
-def analysis_single_hidden_state(hidden_states):
-    ...
-
-
 def analysis_multi_hidden_states(dir):
     """
     这个实验主要分析一下在生成过程中，随着Conv1d逐渐将历史信息丢弃，剩下内容的Rank变化
@@ -300,6 +296,54 @@ def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=4
                 pbar.update(5)   
 
 
+##############################
+#### 3. analysis_forget  ####
+##############################
+
+class ForgetAnalysis:
+    def __init__(self, ctx_dir, save_root_dir) -> None:
+        
+        all_layer_subdirs = list_subdirs(ctx_dir)
+        for subdir in all_layer_subdirs:
+            dir_name = os.path.basename(subdir)
+            for layer_dir in list_subdirs(subdir):
+                layer_name = os.path.basename(layer_dir)
+                save_mark = f"{dir_name}-{layer_name}"
+                self.analysis_single_dir_hidden_state(layer_dir, save_mark, save_root_dir)
+
+
+
+    def analysis_single_dir_hidden_state(self, dir, save_mark=None, save_root_dir=None):
+        """
+        anchor_states is (1, 4096) vector
+        hidden_states is (n, 4096) matrix
+        """
+        all_files = auto_read_dir(dir, file_suffix=".pkl", file_prefix="hidden_state")
+        anchor_file = auto_read_dir(dir, file_suffix=".pkl", file_prefix="first_hidden_state")
+
+        anchor_vector = auto_read_data(anchor_file[0])
+        if anchor_vector.dim() == 3:
+            anchor_vector = anchor_vector.squeeze(0)
+
+        all_hidden_states = []
+        for file in all_files:
+            hidden_state = auto_read_data(file)
+            if hidden_state.dim() == 3:
+                hidden_state = hidden_state.squeeze(0)
+            all_hidden_states.append(hidden_state)
+
+        all_hidden_states = torch.cat(all_hidden_states, dim=0)
+        cos_sim = F.cosine_similarity(anchor_vector, all_hidden_states)
+        cos_sim = cos_sim.float().cpu().numpy()
+        plt.plot(cos_sim)
+        plt.title(save_mark)
+        plt.xlabel('Generation Step')
+        plt.ylabel('Cosine Similarity')
+        plt.tight_layout()
+        plt.savefig(os.path.join(save_root_dir, f"{save_root_dir}.png"))
+        
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--dir", "-d", type=str, default="analysis/inner_state")
@@ -319,6 +363,9 @@ if __name__ == "__main__":
     elif "rank" in args.analysis_task.lower():
         all_rks = analysis_multi_hidden_states(args.dir)
         print_c(f"all_rks: {all_rks}", "yellow")
+
+    elif "forget" in args.analysis_task.lower():
+        analysisor = ForgetAnalysis(args.dir)
 
     # analysis_cov1d_compress(
     #     args.fpath, 

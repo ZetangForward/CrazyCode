@@ -223,6 +223,16 @@ def auto_read_dir(dir_path, file_prefix=None, file_suffix=None):
     return file_names
 
 
+def list_subdirs(directory_path):
+    """
+    打印并返回给定目录下的所有子目录名
+    """
+    root_dir = directory_path
+    subdirectories = [os.path.join(root_dir, d) for d in os.listdir(directory_path) 
+                      if os.path.isdir(os.path.join(directory_path, d))]
+    return subdirectories
+
+
 def convert_list_to_dict(lst: List[Dict], key: str):
     """
     Convert a list of dictionaries to a dictionary of dictionaries.
