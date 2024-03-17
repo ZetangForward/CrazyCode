@@ -41,6 +41,7 @@ is_fast_path_available = all(
     (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update, mamba_inner_fn)
 )
 
+is_fast_path_available = False
 
 
 class MambaRMSNorm(nn.Module):
@@ -260,8 +261,9 @@ class MambaMixer(nn.Module):
                 conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
-                cache_params.conv_states[self.layer_idx].copy_(conv_state)
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
                 hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
+
                 if self.use_conv_bias:
                     hidden_states += self.conv1d.bias
                 hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
@@ -270,7 +272,7 @@ class MambaMixer(nn.Module):
                     hidden_states,
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
-                cache_params.conv_states[self.layer_idx].copy_(conv_state)
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
                 hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
         else:
             ssm_state = torch.zeros(
@@ -305,7 +307,7 @@ class MambaMixer(nn.Module):
         scan_output = (scan_output * self.act(gate))
 
         if cache_params is not None:
-            cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+            cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
 
         # 4. Final linear projection
         contextualized_states = self.out_proj(scan_output.transpose(1, 2))             # [batch, seq_len, hidden_size]
@@ -315,7 +317,7 @@ class MambaMixer(nn.Module):
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
             return self.cuda_kernels_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs['extra_kwargs'])
-        return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs['extra_kwargs'])
+        return self.slow_forward(hidden_states, cache_params=None, extra_kwargs=extra_kwargs['extra_kwargs'])
 
 
 class MambaBlock(nn.Module):
