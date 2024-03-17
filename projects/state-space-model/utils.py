@@ -165,7 +165,8 @@ class CustomDatamodule(pl.LightningDataModule):
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
-                if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                if self.cfg.dataset.processed_data_path is None or not os.path.exists(processed_data_path):  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(
                         fpath=os.path.join(self.root_dir, self.cfg.dataset.data_path), 
                         key=self.cfg.dataset.key,
@@ -173,8 +174,9 @@ class CustomDatamodule(pl.LightningDataModule):
                         ctx_len=self.cfg.dataset.max_seq_length,
                         tokenizer=self.tokenizer,
                     )
-                    auto_save_data(...)  # auto save processed data fn
-                    raise NotImplementedError
+                    auto_save_data(processed_data, processed_data_path)  # auto save processed data fn
+                    log_c("Processed data has been saved\nPlease re-start the program", color="yellow")
+                    exit()
             
             if self.cfg.dataset.processed_data_path is not None:
                 test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)

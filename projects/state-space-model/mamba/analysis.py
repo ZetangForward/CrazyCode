@@ -38,14 +38,20 @@ class Experiment(pl.LightningModule):
         if input_ids.dim() == 3:
             input_ids = input_ids.squeeze(0)
         depth = batch.get('depth').item()
-        ctx_length = batch.get('ctx_length').item()
+        ctx_length = batch.get('before_insert_context_length').item()
+        bos_pos, eos_pos = batch.get('bos_pos'), batch.get('eos_pos')
+        
+        import pdb; pdb.set_trace()
         
         if ctx_length % 1000 != 0:
             pass
+
         extra_kwargs = {
             "ctx_length": ctx_length,
             "depth": depth,
             "save_dir": "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state2",
+            "bos_pos": bos_pos, 
+            "eos_pos": eos_pos,
         }
 
         output = self.model.generate(
