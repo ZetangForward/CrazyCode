@@ -24,7 +24,7 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  mamba/tr
     experiment.use_deepspeed=True \
     task.dataset.cluster_batch=False \
     task.dataset.train_batch_size=1 \
-    task.dataset.max_seq_length=12000 \
+    task.dataset.max_seq_length=8192 \
     task.dataset.nworkers=4 \
     
     
