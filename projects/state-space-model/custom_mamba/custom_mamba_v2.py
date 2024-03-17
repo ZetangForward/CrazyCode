@@ -129,7 +129,7 @@ class MambaMixer(nn.Module):
         analysis_mode = False
             
         if extra_kwargs is not None: ## for analysis
-            analysis_layers = [0, 11, 23, 35, 57]
+            analysis_layers = [0, 11, 23, 35, 47]
             depth = extra_kwargs.get("depth", None)
             save_dir = extra_kwargs.get("save_dir", None)
             ctx_length = extra_kwargs.get("ctx_length", None)
@@ -187,7 +187,7 @@ class MambaMixer(nn.Module):
                     if analysis_mode:  # save first hidden state
                         if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
                             save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", "first_hidden_state.pkl")
-                            auto_save_data(hidden_states[:, :, 0].cpu(), save_path)
+                            auto_save_data(hidden_states.cpu(), save_path)
 
                     conv_states = nn.functional.pad(
                         hidden_states, (self.conv_kernel_size - hidden_states.shape[-1], 0)

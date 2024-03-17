@@ -36,14 +36,23 @@ class PasskeySearchDataset(Dataset):
             with open(file, 'r') as f: 
                 context += f.read()
         tokenized_context = tokenizer(context, return_tensors="pt").input_ids
-        tok_ids_len = len(tokenized_context[0])
-        RATIO = len(context) / tok_ids_len
-        context = context[: int(ctx_len * RATIO)]
-        return context
+        # tok_ids_len = len(tokenized_context[0])
+        # RATIO = len(context) / tok_ids_len
+        # context = context[: int(ctx_len * RATIO)]
+        return tokenized_context
     
     
     @classmethod
-    def insert_needle(cls, context, needle, depth):
+    def insert_needle_str(cls, context, needle, depth):
+        context = context.split(".")
+        c_len = len(context)
+        needle_place = int(depth * c_len)
+        context = ".".join(context[:needle_place]) + " ." + needle + ". ".join(context[needle_place:])
+        return context
+
+
+    @classmethod
+    def insert_needle_token_ids(cls, context, needle, depth):
         context = context.split(".")
         c_len = len(context)
         needle_place = int(depth * c_len)
