@@ -114,5 +114,5 @@ if __name__ == '__main__':
                 power_a=0.01,
                 tokenizer=None,
                 )
-            data_path = "/public/home/ljt/tzc/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+            data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
             auto_save_data(test_data,data_path)
