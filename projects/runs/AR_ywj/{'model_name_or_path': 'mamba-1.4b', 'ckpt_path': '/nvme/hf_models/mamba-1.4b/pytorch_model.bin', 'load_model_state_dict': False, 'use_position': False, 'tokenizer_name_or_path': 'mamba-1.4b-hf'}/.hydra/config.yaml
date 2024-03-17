@@ -1,0 +1,37 @@
+platform:
+  name: langchao_suda
+  hf_model_path: /public/home/ljt/hf_models
+  dataset_path: /public/home/ljt/tzc/data
+  exp_path: /public/home/ljt/tzc/ckpt
+  result_path: /public/home/ljt/tzc/data/evaluation
+exp_task: AR_ywj
+state: test
+model_name: mamba-1_4b
+experiment:
+  seed: 27
+  results_save_dir: ${exp_task}/${model_name}/results
+  device_num: 1
+  node_num: 1
+task:
+  dataset:
+    data_path: needle/PaulGrahamEssays/*.txt
+    processed_data_path: needle/processed_data/32k_500_insert.pkl
+    max_seq_length: 32000
+    module: custom_dataset.passkey_search
+    class_name: PasskeySearchDataset
+    depth: 0.5
+    key: The best thing to do in San Francisco is
+    value: eat a sandwich and sit in Dolores Park on a sunny day.
+    nworkers: 12
+    pin_memory: false
+    inference_mode: true
+    cluster_batch: false
+  other_cfgs:
+    max_generation_length: 48
+    testing_max_ctx: 32000
+model:
+  model_name_or_path: mamba-1.4b
+  ckpt_path: /nvme/hf_models/mamba-1.4b/pytorch_model.bin
+  load_model_state_dict: false
+  use_position: false
+  tokenizer_name_or_path: mamba-1.4b-hf

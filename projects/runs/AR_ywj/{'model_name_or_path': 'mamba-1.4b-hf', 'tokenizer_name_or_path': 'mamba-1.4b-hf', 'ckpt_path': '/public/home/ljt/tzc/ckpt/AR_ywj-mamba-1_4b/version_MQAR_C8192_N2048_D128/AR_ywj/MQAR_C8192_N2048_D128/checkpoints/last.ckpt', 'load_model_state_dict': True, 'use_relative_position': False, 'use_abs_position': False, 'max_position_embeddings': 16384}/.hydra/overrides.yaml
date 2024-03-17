@@ -1,0 +1,10 @@
+- model.ckpt_path=/public/home/ljt/tzc/ckpt/AR_ywj-mamba-1_4b/version_MQAR_C8192_N2048_D128/AR_ywj/MQAR_C8192_N2048_D128/checkpoints/last.ckpt
+- model.load_model_state_dict=True
+- platform=langchao
+- task=AR_ywj
+- exp_task=AR_ywj
+- job_id=N2048_D128-N2048_D96
+- experiment.device_num=1
+- task.dataset.processed_data_path=MQAR/test_C8192_N2048_D96.pkl
+- task.dataset.input_seq_len=2048
+- task.dataset.num_kv_pairs=96

@@ -1,6 +1,6 @@
 dataset:
   data_path: ""
-  processed_data_path: MQAR/test_C8192_N4096_D64.pkl
+  processed_data_path: MQAR/test_C8192_N512_D48.pkl
   module: 'custom_dataset.AR_ywj' # Custom dataset module path
   class_name: 'MQARDataset'  # dataset class name
   nworkers: 4

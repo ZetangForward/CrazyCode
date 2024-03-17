@@ -1,0 +1,41 @@
+platform: &platform "amax"
+JOB_ID: &JOB_ID 2
+state: &state "train"
+exp_task: &exp_task "simplepajama"
+model_name: &model_name "mamba-1_4b"
+
+defaults:
+  - _self_
+  - platform: *platform
+  - task: *exp_task
+  - model: *model_name
+
+hydra:
+  job:
+    name: hydra_${exp_task}
+  run:
+    dir: ./runs/${exp_task}-${model_name}/version_${JOB_ID}/${hydra.job.name}
+
+optimizer:
+  optimizer_type: "adamw"
+  lr: 5e-5
+
+lr_scheduler:
+  scheduler_type: "get_cosine_schedule_with_warmup"
+  warmup_steps: 0
+
+experiment:
+  seed: 27
+  model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
+  save_top_k: 2
+  monitor_metric: "train_lm_loss"
+  beta_1: 0.9
+  beta_2: 0.95
+  weight_decay: 0.1
+  eps: 0.001
+  num_training_steps: 10000
+  warmup_steps: 1000
+  peak_lr: 0.0002
+  last_lr: 0.00001
+  device_num: 1
+  node_num: 1

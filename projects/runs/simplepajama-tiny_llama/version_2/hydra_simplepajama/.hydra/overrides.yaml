@@ -1,0 +1,10 @@
+- experiment.hf_trainer=True
+- JOB_ID=2
+- model=tiny_llama
+- model_name=tiny_llama
+- platform=langchao
+- experiment.debug=False
+- experiment.device_num=8
+- task.dataset.cluster_batch=False
+- task.dataset.train_batch_size=1
+- task.dataset.max_seq_length=6000

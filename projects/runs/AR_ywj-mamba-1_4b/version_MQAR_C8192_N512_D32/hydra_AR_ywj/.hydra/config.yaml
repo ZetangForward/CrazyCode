@@ -1,0 +1,62 @@
+platform:
+  name: langchao_suda
+  hf_model_path: /public/home/ljt/hf_models
+  dataset_path: /public/home/ljt/tzc/data
+  exp_path: /public/home/ljt/tzc/ckpt
+  result_path: /public/home/ljt/tzc/data/evaluation
+JOB_ID: MQAR_C8192_N512_D32
+state: train
+exp_task: AR_ywj
+model_name: mamba-1_4b
+optimizer:
+  optimizer_type: adamw
+  lr: 5.0e-05
+lr_scheduler:
+  scheduler_type: get_cosine_schedule_with_warmup
+  warmup_steps: 0
+experiment:
+  seed: 27
+  model_save_dir: ${exp_task}-${model_name}/version_${JOB_ID}
+  save_top_k: 2
+  monitor_metric: valid_lm_loss
+  beta_1: 0.9
+  beta_2: 0.95
+  weight_decay: 0.1
+  eps: 0.001
+  num_training_steps: 8000
+  warmup_steps: 800
+  peak_lr: 0.0002
+  last_lr: 1.0e-05
+  debug: false
+  hf_trainer: false
+  device_num: 8
+  node_num: 1
+task:
+  dataset:
+    data_path: ''
+    processed_data_path: MQAR/train_C8192_N512_D32.pkl
+    module: custom_dataset.AR_ywj
+    class_name: MQARDataset
+    nworkers: 4
+    max_seq_length: 1000
+    train_batch_size: 8
+    val_batch_size: 1
+    inference_mode: false
+    pin_memory: false
+    cluster_batch: false
+    vocab_size: 8192
+    num_examples: 100000
+    input_seq_len: 512
+    num_kv_pairs: 32
+    test_power_a: 0.01
+  other_cfgs:
+    max_generation_length: 64
+    testing_max_ctx: 1000
+model:
+  model_name_or_path: mamba-1.4b
+  tokenizer_name_or_path: mamba-1.4b-hf
+  ckpt_path: /nvme/hf_models/mamba-1.4b/pytorch_model.bin
+  load_model_state_dict: false
+  use_relative_position: false
+  use_abs_position: true
+  max_position_embeddings: 16384

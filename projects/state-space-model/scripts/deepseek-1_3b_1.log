@@ -1,0 +1,63 @@
+/public/home/ljt/anaconda3/envs/zecheng/lib/python3.10/site-packages/hydra/_internal/hydra.py:119: UserWarning: Future Hydra versions will no longer change working directory at job runtime by default.
+See https://hydra.cc/docs/1.2/upgrades/1.1_to_1.2/changes_to_job_working_dir/ for more information.
+  ret = run_job(
+ModelZipper is ready for launch🚀 | Current Version🦄 >>> 0.2.7 <<< | AOE Time🕒 2024-03-17 06:53:57
+exp_task: longbench_ywj
+state: test
+job_id: 1
+model_name: deepseek-1_3b
+experiment:
+  seed: 27
+  results_save_dir: ${exp_task}/${model_name}/version_${job_id}/results
+  device_num: 1
+  node_num: 1
+platform:
+  name: langchao_suda
+  hf_model_path: /public/home/ljt/hf_models
+  dataset_path: /public/home/ljt/tzc/data
+  exp_path: /public/home/ljt/tzc/ckpt
+  result_path: /public/home/ljt/tzc/data/evaluation
+task:
+  dataset:
+    data_path: longbench/data/
+    processed_data_path: null
+    max_seq_length: 32000
+    module: custom_dataset.longbench_ywj
+    class_name: LongbenchDataset
+    nworkers: 4
+    pin_memory: false
+    inference_mode: true
+    cluster_batch: false
+  other_cfgs:
+    testing_max_ctx: 32000
+model:
+  model_name_or_path: deepseek-coder-1.3b-base
+  ckpt_path: /nvme/hf_models/deepseek-coder-1.3b-base/pytorch_model.bin
+  load_model_state_dict: false
+  use_position: null
+  tokenizer_name_or_path: deepseek-coder-1.3b-base
+
+Error executing job with overrides: ['job_id=1', 'model=deepseek-1_3b', 'model_name=deepseek-1_3b', 'task=longbench_ywj', 'exp_task=longbench_ywj', 'platform=langchao', 'experiment.device_num=1']
+Traceback (most recent call last):
+  File "/public/home/ljt/anaconda3/envs/zecheng/lib/python3.10/site-packages/transformers/utils/hub.py", line 398, in cached_file
+    resolved_file = hf_hub_download(
+  File "/public/home/ljt/anaconda3/envs/zecheng/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 110, in _inner_fn
+    validate_repo_id(arg_value)
+  File "/public/home/ljt/anaconda3/envs/zecheng/lib/python3.10/site-packages/huggingface_hub/utils/_validators.py", line 158, in validate_repo_id
+    raise HFValidationError(
+huggingface_hub.utils._validators.HFValidationError: Repo id must be in the form 'repo_name' or 'namespace/repo_name': '/public/home/ljt/hf_models/deepseek-coder-1.3b-base'. Use `repo_type` argument if needed.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/public/home/ljt/tzc/modelzipper/projects/state-space-model/mamba/test.py", line 109, in main
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+  File "/public/home/ljt/tzc/modelzipper/projects/state-space-model/utils.py", line 108, in get_model_tokenizer
+    model = LlamaForCausalLM.from_pretrained(
+  File "/public/home/ljt/anaconda3/envs/zecheng/lib/python3.10/site-packages/transformers/modeling_utils.py", line 2879, in from_pretrained
+    resolved_config_file = cached_file(
+  File "/public/home/ljt/anaconda3/envs/zecheng/lib/python3.10/site-packages/transformers/utils/hub.py", line 462, in cached_file
+    raise EnvironmentError(
+OSError: Incorrect path_or_model_id: '/public/home/ljt/hf_models/deepseek-coder-1.3b-base'. Please provide either the path to a local folder or the repo_id of a model on the Hub.
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
