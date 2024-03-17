@@ -125,9 +125,7 @@ class MambaMixer(nn.Module):
             )
 
     def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
-        # 1. Gated MLP's linear projection
-        projected_states = self.in_proj(hidden_states).transpose(1, 2)
-
+        
         analysis_mode = False
             
         if extra_kwargs is not None: ## for analysis
@@ -138,7 +136,12 @@ class MambaMixer(nn.Module):
             if ctx_length in [500, 1000, 2000, 4000, 8000, 16000, 32000] and depth in [0.05, 0.55, 1.0]:
                 analysis_mode = True
                 depth = str(depth).replace(".", "_")    
-            
+
+        if analysis_mode:
+            hidden_states.requires_grad_(True)
+
+        # 1. Gated MLP's linear projection
+        projected_states = self.in_proj(hidden_states).transpose(1, 2)
 
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
             contextualized_states = mamba_inner_fn(
@@ -159,9 +162,10 @@ class MambaMixer(nn.Module):
 
         else:  # inference mode
             hidden_states, gate = projected_states.chunk(2, dim=1)
-
+            
             # 2. Convolution sequence transformation
             conv_weights = self.conv1d.weight.view(self.conv1d.weight.size(0), self.conv1d.weight.size(2))
+            
             if cache_params is not None and cache_params.seqlen_offset > 0:
                 hidden_states = causal_conv1d_update(
                     hidden_states.squeeze(-1),

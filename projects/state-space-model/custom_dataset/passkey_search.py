@@ -17,13 +17,14 @@ class PasskeySearchDataset(Dataset):
         self.cluster_batch = kwargs["cluster_batch"]
         self.filter_length(kwargs["testing_max_ctx"])
 
-    def filter_length(self, max_ctx_length=12000):
+    def filter_length(self, max_ctx_length=12000, sort=False):
         new_content = []
         print_c(f"begin to filter the context length | total {len(self.content)} instances", "yellow")
         for item in self.content:
             if item['ctx_length'] <= max_ctx_length:
                 new_content.append(item)
-        new_content = sorted(new_content, key=lambda x: x['ctx_length'], reverse=True)  # from long to short
+        if sort:
+            new_content = sorted(new_content, key=lambda x: x['ctx_length'], reverse=True)  # from long to short
         self.content = new_content
         print_c(f"filtering finished | total {len(self.content)} instances", "yellow")
 
