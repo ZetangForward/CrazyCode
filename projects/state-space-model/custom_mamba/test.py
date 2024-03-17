@@ -4,6 +4,7 @@ from functools import wraps, partial
 from transformers import PreTrainedModel
 from typing import Dict
 import torch.nn.functional as F
+from utils import get_model_tokenizer
 
 def dict_to(d: dict, device):
     for k, v in d.items():
@@ -306,27 +307,28 @@ class GPT2AttentionerManager(AttentionerManagerBase):
         return attention_adapters
     
 
-attentionermanger = GPT2AttentionerManager(model.model)
+# attentionermanger = GPT2AttentionerManager(model.model)
 
 
-for idx, data in tqdm(enumerate(analysis_dataloader)):
-    data = dict_to(data, model.device)
-    print(data['input_ids'].shape)
-    attentionermanger.zero_grad()
-    output = model(**data)
-    label = data['labels']
-    loss = F.cross_entropy(output['logits'], label)
-    loss.backward()
-    class_poss, final_poss = predictor.get_pos({'input_ids': attentionermanger.input_ids})
-    pros = []
-    for i in range(len(attentionermanger.attention_adapters)):
-        saliency = attentionermanger.grad(use_abs=True)[i]
-        pro = get_proportion(saliency, class_poss, final_poss)
-        pros.append(pro)
-    pros = np.array(pros)
-    pros = pros.T
-    pros_list.append(pros)
+# for idx, data in tqdm(enumerate(analysis_dataloader)):
+#     data = dict_to(data, model.device)
+#     print(data['input_ids'].shape)
+#     attentionermanger.zero_grad()
+#     output = model(**data)
+#     label = data['labels']
+#     loss = F.cross_entropy(output['logits'], label)
+#     loss.backward()
+#     class_poss, final_poss = predictor.get_pos({'input_ids': attentionermanger.input_ids})
+#     pros = []
+#     for i in range(len(attentionermanger.attention_adapters)):
+#         saliency = attentionermanger.grad(use_abs=True)[i]
+#         pro = get_proportion(saliency, class_poss, final_poss)
+#         pros.append(pro)
+#     pros = np.array(pros)
+#     pros = pros.T
+#     pros_list.append(pros)
 
 
 if __name__ == "__main__":
-    
+    from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+    model = CustomMambaForCausalLM.from_pretrained("/nvme/hf_models/mamba-1.4b-hf", dtype=torch.bfloat16)
