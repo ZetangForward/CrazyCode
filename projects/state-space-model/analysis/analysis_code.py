@@ -1,10 +1,48 @@
-from argparse import ArgumentParser
 import os
 import numpy as np
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from modelzipper.tutils import *
+from argparse import ArgumentParser
 
+##############################
+##### 1. analysis_rank  ######
+##############################
+
+def analysis_single_hidden_state(hidden_states):
+    """
+    hidden_states is (n, 4096) matrix
+    """
+    if hidden_states.dim() == 3:  # prevent batch size
+        hidden_states = hidden_states.squeeze(0)
+
+    if isinstance(hidden_states, torch.Tensor):
+        hidden_states = hidden_states.float().cpu().numpy()
+    # SVD
+    import pdb; pdb.set_trace()
+    u, s, vh = np.linalg.svd(hidden_states)
+
+    # cal rank
+    rank = np.sum(s > 1e-10)
+    return rank
+
+
+def analysis_multi_hidden_states(dir):
+    """
+    这个实验主要分析一下在生成过程中，随着Conv1d逐渐将历史信息丢弃，剩下内容的Rank变化
+    """
+    hidden_states_list = auto_read_dir(dir, file_prefix="generate", file_suffix=".pkl")
+    all_rks = []
+    for file in hidden_states_list:
+        hidden_states = auto_read_data(os.path.join(dir, file))
+        rk = analysis_single_hidden_state(hidden_states)
+        all_rks.append(rk)
+    return all_rks
+
+
+##############################
+#### 2. analysis_similar  ####
+##############################
 
 def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     """
@@ -138,7 +176,6 @@ def anaylsis_single_file_conv1d(dir, passkey_length: int = None):
     plt.savefig(f"analysis/figures/cosine_similarity_line_figure_offset-ctx_length-{ctx_length}.png")
 
 
-
 def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=40):
     # read text embedding
     text_embedding_file = auto_read_dir(fpath, file_prefix="input_seq_embedding", file_suffix=".pkl")[0]
@@ -259,19 +296,97 @@ def analysis_cov1d_compress(fpath, dir=None, highlight_start=18, highlight_end=4
                 pbar.update(5)   
 
 
-if __name__ == "__main__":
-    argparse = ArgumentParser()
-    argparse.add_argument("--dir", type=str, default="analysis/inner_state")
-    argparse.add_argument("--fpath", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
-    argparse.add_argument("--tokenizer_name_or_path", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
+##############################
+#### 3. analysis_forget  ####
+##############################
 
-    args = argparse.parse_args()
+class ForgetAnalysis:
+    def __init__(self, ctx_dir, save_root_dir) -> None:
+        auto_mkdir(save_root_dir)
+        all_layer_subdirs = list_subdirs(ctx_dir)
+        for subdir in all_layer_subdirs:
+            dir_name = os.path.basename(subdir)
+            layer_subdirs = list_subdirs(subdir)
+            num_subdirs = len(layer_subdirs)
+
+            # 创建一个足够大的子图布局
+            nrows = int(np.ceil(np.sqrt(num_subdirs)))
+            ncols = nrows
+            fig, axs = plt.subplots(nrows, ncols, figsize=(15, 15))  # 调整大小
+            fig.subplots_adjust(hspace=0.4, wspace=0.4)  # 调整子图之间的间距
+
+            for idx, layer_dir in enumerate(layer_subdirs):
+                layer_name = os.path.basename(layer_dir)
+                save_mark = f"{dir_name}-{layer_name}"
+                ax = axs[idx // ncols, idx % ncols]  # 定位当前子图
+                self.analysis_single_dir_hidden_state(layer_dir, save_mark, save_root_dir, ax)
+
+            # 隐藏空白子图
+            for idx in range(num_subdirs, nrows*ncols):
+                axs[idx // ncols, idx % ncols].axis('off')
+
+            # 保存整个子图集合
+            plt.savefig(os.path.join(save_root_dir, f"{dir_name}_all_layers.png"))
+            plt.close(fig)  # 关闭图形，释放内存
+
+    def analysis_single_dir_hidden_state(self, dir, save_mark=None, save_root_dir=None, ax=None):
+        """
+        anchor_states is (1, 4096) vector
+        hidden_states is (n, 4096) matrix
+        """
+        
+        all_files = auto_read_dir(dir, file_suffix=".pkl", file_prefix="hidden_state")
+        anchor_file = auto_read_dir(dir, file_suffix=".pkl", file_prefix="first_hidden_state")
+
+        anchor_vector = auto_read_data(anchor_file[0])
+        if anchor_vector.dim() == 3:
+            anchor_vector = anchor_vector.squeeze(0)
+
+        all_hidden_states = []
+        for file in all_files:
+            hidden_state = auto_read_data(file)
+            if hidden_state.dim() == 3:
+                hidden_state = hidden_state.squeeze(0)
+            all_hidden_states.append(hidden_state)
+
+        all_hidden_states = torch.cat(all_hidden_states, dim=0)
+        cos_sim = F.cosine_similarity(anchor_vector, all_hidden_states)
+        cos_sim = np.abs(cos_sim.float().cpu().numpy())
+        
+        # 使用传入的ax作为绘图的轴
+        ax.plot(cos_sim)
+        ax.set_title(save_mark)
+        ax.set_xlabel('Generation Step')
+        ax.set_ylabel('Cosine Similarity')
+        
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--dir", "-d", type=str, default="analysis/inner_state")
+    parser.add_argument("--fpath", "-f", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
+    parser.add_argument("--tokenizer_name_or_path", "-tkp", type=str, default="/nvme/hf_models/EleutherAI/gpt-neox-20b")
+    parser.add_argument("--analysis_task", "-at", type=str, default="low_rank")
+    parser.add_argument("--save_dir", "-sd", type=str, default="low_rank")
+    args = parser.parse_args() 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path)
 
-    passkey = "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
-    passkey_length = len(tokenizer(passkey)['input_ids'])
+    if "passkey" in args.analysis_task.lower():
 
-    anaylsis_single_file_conv1d(args.dir, passkey_length)
+        passkey = "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
+        passkey_length = len(tokenizer(passkey)['input_ids'])
+
+        anaylsis_single_file_conv1d(args.dir, passkey_length)
+
+    elif "rank" in args.analysis_task.lower():
+        all_rks = analysis_multi_hidden_states(args.dir)
+        print_c(f"all_rks: {all_rks}", "yellow")
+
+    elif "forget" in args.analysis_task.lower():
+        save_root_dir = os.path.join(args.save_dir, args.analysis_task)
+        log_c(f"begin to analysis forget ...\nsave results to {save_root_dir}", "yellow")
+
+        analysisor = ForgetAnalysis(args.dir, save_root_dir)
 
     # analysis_cov1d_compress(
     #     args.fpath, 

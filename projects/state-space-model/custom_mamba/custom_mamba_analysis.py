@@ -48,7 +48,6 @@ class Conv1DWrapper(nn.Module):
         return self.conv1d(x)
 
 
-
 class Mamba(nn.Module):
     def __init__(
         self,
@@ -186,8 +185,6 @@ class Mamba(nn.Module):
         # Compute short convolution
         if conv_state is not None:
             conv_state.copy_(x[:, :, -self.d_conv:])  # Update state (B D W) [1, 4096, 4]
-
-        import pdb; pdb.set_trace()
 
         x = self.act(self.conv1d(x)[..., :seqlen])
         

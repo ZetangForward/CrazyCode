@@ -1,7 +1,7 @@
 dataset:
   data_path: "needle/PaulGrahamEssays/*.txt"
-  processed_data_path: "needle/processed_data/32k_500_insert.pkl"
-  max_seq_length: 32000
+  processed_data_path: "needle/processed_data/128k_500_insert_ids.pkl"
+  max_seq_length: 128000
   module: 'custom_dataset.passkey_search' # Custom dataset module path
   class_name: 'PasskeySearchDataset'  # dataset class name
   depth: 0.5
@@ -14,7 +14,7 @@ dataset:
 
 other_cfgs: 
   max_generation_length: 48
-  testing_max_ctx: 32000
+  testing_max_ctx: 128000
 
 inference_cfg:
   save_keys: ['depth', 'ctx_length', 'real_length']

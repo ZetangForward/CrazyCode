@@ -38,18 +38,26 @@ class Experiment(pl.LightningModule):
         if input_ids.dim() == 3:
             input_ids = input_ids.squeeze(0)
         depth = batch.get('depth').item()
-        ctx_length = batch.get('ctx_length').item()
+        ctx_length = batch.get('before_insert_context_length').item()
+        bos_pos, eos_pos = batch.get('bos_pos'), batch.get('eos_pos')
+        
+        import pdb; pdb.set_trace()
         
         if ctx_length % 1000 != 0:
             pass
+
         extra_kwargs = {
             "ctx_length": ctx_length,
-            "depth": depth
+            "depth": depth,
+            "save_dir": "/nvme/zecheng/modelzipper/projects/state-space-model/analysis/inner_state2",
+            "bos_pos": bos_pos, 
+            "eos_pos": eos_pos,
         }
+
         output = self.model.generate(
             input_ids, min_length=input_ids.size(-1)+10, max_length=input_ids.size(-1)+32, extra_kwargs=extra_kwargs)
 
-        batch['predictions'] = output
+        batch['predictions'] = output.squeeze(0)[input_ids.size(1):]
         batch['depth'] = depth
         batch['ctx_length'] = ctx_length
         return batch
@@ -103,8 +111,8 @@ def main(config):
     )
 
     print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-    
-    save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
+    save_path = "/nvme/zecheng/evaluation/analysis/gen_res.pkl"
+    # save_path = os.path.join(config.platform.result_path, f"{config.experiment.results_save_dir}/predictions.pkl")
     auto_save_data(predictions, save_path)
     print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
 
