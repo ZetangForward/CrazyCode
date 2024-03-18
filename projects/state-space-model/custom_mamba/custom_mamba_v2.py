@@ -96,6 +96,7 @@ class MambaMixer(nn.Module):
                 kernel_size=config.conv_kernel,
                 groups=self.num_heads,  # multi-head (split)
                 padding=config.conv_kernel - 1,
+                dilation=multi_head_config['dilation']
             )
         else:
             self.conv1d = nn.Conv1d(

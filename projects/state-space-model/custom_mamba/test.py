@@ -307,27 +307,42 @@ if __name__ == "__main__":
     model = CustomMambaForCausalLM.from_pretrained("/nvme/hf_models/mamba-1.4b-hf").to('cuda:0')
     tokenizer = AutoTokenizer.from_pretrained("/nvme/hf_models/mamba-1.4b-hf")
     
-    data = auto_read_data("/nvme/zecheng/data/needle/processed_data/32k_500_insert.pkl")
+    raw_data = auto_read_data("/nvme/zecheng/data/needle/processed_data/128k_500_insert_ids.pkl")
     
     conv1d_manger = Conv1dManager(model)
     
-    for idx, data in tqdm(enumerate(data)):
-        token_ids = tokenizer(data['passkey_context'], return_tensors="pt").input_ids[0]
-        data = token_ids.to(model.device).unsqueeze(0)
+    all_score = []
+
+    for idx, data in tqdm(enumerate(raw_data)):
+        token_ids = data['context_ids']
+        bos_pos, eos_pos = data['bos_pos'], data['eos_pos']
+        ctx_length = data['before_insert_context_length']
+        depth = data['depth']
+        if ctx_length > 1000:
+            break
+
+        log_c(f"processing context length: {ctx_length}, depth {depth}", "yellow")
+        
+        per_ctx_length_score = []
+
+        # token_ids = tokenizer(data['passkey_context'], return_tensors="pt").input_ids[0]
+        input_ids = token_ids.to(model.device).unsqueeze(0)
         conv1d_manger.zero_grad()
         
-        output = model(input_ids=data, extra_kwargs=None)
+        output = model(input_ids=input_ids, extra_kwargs=None)
         
-        label = data[:, -1]
+        label = input_ids[:, -1].long()
         loss = F.cross_entropy(output[0][:, -2, :], label)
        
         loss.backward(retain_graph=True)
 
         for i in range(len(conv1d_manger.conv1d_adapters)):
-            import pdb; pdb.set_trace()
-            saliency = conv1d_manger.grad(use_abs=True)[i]
-            # pro = get_proportion(saliency, class_poss, final_poss)
-            # pros.append(pro)
-        # pros = np.array(pros)
-        # pros = pros.T
-        # pros_list.append(pros)
+            saliency = conv1d_manger.grad(use_abs=True)[i].squeeze()
+            important_place_score = saliency[bos_pos: eos_pos].sum()
+            other_place_score = saliency[eos_pos:].sum()
+            proportion = important_place_score / other_place_score  # the larger the better
+            per_ctx_length_score.append({"proportion": proportion, "depth": depth})
+
+        all_score.append(per_ctx_length_score)
+
+    auto_save_data(all_score, "/nvme/zecheng/evaluation/analysis/conv1d_adapter_score.pkl")
