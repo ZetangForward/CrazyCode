@@ -99,7 +99,7 @@ class Mamba(nn.Module):
                 self.up_projector = nn.Linear(self.d_model, self.d_model, bias=False, **factory_kwargs)
 
 
-            # add Linear projection
+        # add Linear projection
         self.conv1d = nn.Conv1d(
             in_channels=self.d_inner,
             out_channels=self.d_inner,
