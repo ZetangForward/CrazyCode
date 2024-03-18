@@ -299,11 +299,11 @@ class MambaMixer(nn.Module):
             # hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])         # [batch, intermediate_size, seq_len]
          
             hidden_states = self.group_conv1d(hidden_states)[..., :seq_len]       # [1,4096,1000]  [1,512,8,1000]
-         
+            #hidden_state_1 = hidden_states.reshape(batch_size, self.intermediate_size//self.num_heads, self.num_heads, seq_len)
             hidden_state_2 = hidden_states.reshape(batch_size,self.num_heads, self.intermediate_size//self.num_heads,  seq_len).transpose(1,2)
 
 
-   # hidden_state_1 = hidden_states.reshape(batch_size, self.intermediate_size//self.num_heads, self.num_heads, seq_len)
+
 
 
             # add
