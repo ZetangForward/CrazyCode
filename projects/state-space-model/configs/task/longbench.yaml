@@ -7,7 +7,7 @@ dataset:
   depth: 0.5
   key: "The best thing to do in San Francisco is"
   value: "eat a sandwich and sit in Dolores Park on a sunny day."
-  nworkers: 12
+  nworkers: 4
   pin_memory: False
   inference_mode: True
   cluster_batch: False

@@ -140,8 +140,13 @@ class CustomDatamodule(pl.LightningDataModule):
         self.prepare_data_per_node = True
         self.dataset_kwargs = {
             "max_seq_length": self.cfg.dataset.max_seq_length,
-            "cluster_batch": self.cfg.dataset.cluster_batch,            
+            "cluster_batch": self.cfg.dataset.cluster_batch,           
         }
+        
+        if "longbench" in self.cfg.dataset.module.lower() and \
+              self.cfg.dataset.subtask is not None:
+            self.dataset_kwargs.update({"subtask": self.cfg.dataset.subtask})
+            self.dataset_kwargs.update({"config_path": os.path.join(self.root_dir, self.cfg.dataset.data_path)})
         
         if self.cfg.other_cfgs is not None:
             self.dataset_kwargs.update(self.cfg.other_cfgs)
@@ -161,7 +166,6 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
-        
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
@@ -178,17 +182,66 @@ class CustomDatamodule(pl.LightningDataModule):
                     log_c("Processed data has been saved\nPlease re-start the program", color="yellow")
                     exit()
             
-            if self.cfg.dataset.processed_data_path is not None:
-                test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
-            else:
-                test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
+            if "ar" in self.cfg.dataset.module.lower():
+                if self.cfg.dataset.processed_data_path is None:
+                    processed_data = CustomDataset.build_dataset(
+                        vocab_size=self.cfg.dataset.vocab_size, 
+                        input_seq_len=self.cfg.dataset.input_seq_len,
+                        num_kv_pairs=self.cfg.dataset.num_kv_pairs,
+                        num_examples=self.cfg.dataset.num_examples,
+                        power_a=self.cfg.dataset.test_power_a,
+                        tokenizer=self.tokenizer,
+                    )
+                    # data_path = "/opt/data/private/zecheng/data/MQAR/" + "test_C8192_N"+str(self.cfg.dataset.input_seq_len) + "_D"+str(self.cfg.dataset.num_kv_pairs)+".pkl"
+                    # auto_save_data(test_data,data_path)
+                # import pdb;pdb.set_trace()
+                # for input_seq_len in [1024, 2048]:
+                #     for number_kv_pairs in [256]:
+                #         test_data = CustomDataset.build_dataset(
+                #             vocab_size=self.cfg.dataset.vocab_size, 
+                #             input_seq_len=input_seq_len,
+                #             num_kv_pairs=number_kv_pairs,
+                #             num_examples=3000,
+                #             power_a=self.cfg.dataset.test_power_a,
+                #             tokenizer=self.tokenizer,
+                #         )
+                #         data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+                #         auto_save_data(test_data,data_path)
+
+
+            if "longbench" in self.cfg.dataset.module.lower():
+                data_path = self.cfg.dataset.data_path
+                if self.cfg.dataset.subtask is not None:
+                    data_path = data_path + self.cfg.dataset.subtask
+                # if self.cfg.dataset.e:
+                #     data_path = data_path + "_e.jsonl"
+                # else:
+                data_path = data_path + ".jsonl"
+                test_data = self.load_data_with_root_dir(data_path)
             
+            else:
+                try:
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
+                except:
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
+                
+           
+                    # auto_save_data(test_data,"/opt/data/private/zecheng/data/MQAR/MQAR.pkl")
+                    # auto save processed data fn
+                    # raise NotImplementedError
+            
+            # if self.cfg.dataset.processed_data_path is not None:
+            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
+            # else:
+            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
+            # import pdb;pdb.set_trace()
             self.test_dataset = CustomDataset(
                 content=test_data, 
                 tokenizer=self.tokenizer, 
                 split="test",
                 **self.dataset_kwargs,
             )
+
         else:
             if self.cfg.dataset.processed_data_path is not None:
                 # check if is a directory
@@ -207,6 +260,8 @@ class CustomDatamodule(pl.LightningDataModule):
                     min_valid_num = min(1000, len(content)*0.1)
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
+
+                    # train_data = self.load_data_with_root_dir(processed_data_path)
             else:
                 # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
@@ -300,4 +355,7 @@ class CustomDatamodule(pl.LightningDataModule):
             drop_last=False, 
             shuffle=False,
         )
+        # import pdb;pdb.set_trace()
+        # for i, data in enumerate(predict_loader):
+        #     print(i)
         return predict_loader

@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 from modelzipper.tutils import *
-from rouge_score import rouge_scorer
+# from rouge_score import rouge_scorer
 import tensor_parallel as tp
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -10,6 +10,30 @@ import seaborn as sns
 from utils import get_model_tokenizer, get_model_tokenizer_simple
 from argparse import ArgumentParser
 
+# from metrics import (
+#     qa_f1_score,
+#     rouge_score,
+#     classification_score,
+#     retrieval_score,
+#     count_score,
+# )
+
+longbench_dataset2metric = {
+    "narrativeqa": qa_f1_score,
+    "qasper": qa_f1_score,
+    "multifieldqa_en": qa_f1_score,
+    "hotpotqa": qa_f1_score,
+    "2wikimqa": qa_f1_score,
+    "musique": qa_f1_score,
+    "gov_report": rouge_score,
+    "qmsum": rouge_score,
+    "multi_news": rouge_score,
+    "trec": classification_score,
+    "triviaqa": qa_f1_score,
+    "samsum": rouge_score,
+    "passage_retrieval_en": retrieval_score,
+    "passage_count": count_score,
+}
 
 class Evaluator:
 
@@ -25,6 +49,12 @@ class Evaluator:
     def begin_fn(self, task, save_evaluation_path, save_gen_res):
         if "passkey" in task.lower():
             self.eval_passkey_search(save_evaluation_path, save_gen_res) 
+        
+        if "ar" in task.lower():
+            self.eval_mqar(save_evaluation_path, save_gen_res)
+
+        if "longbench" in task.lowe():
+            self.eval_longbench(save_evaluation_path, save_gen_res)
 
 
     def eval_passkey_search(self, save_evaluation_path, save_gen_res=True):
@@ -125,6 +155,43 @@ class Evaluator:
         print("saving at %s" % save_path)
         plt.savefig(save_path, dpi=150)
 
+    def eval_mqar(self, save_evaluation_path, save_gen_res=True):
+        # import pdb;pdb.set_trace()
+
+        total_number = len(self.predictions)
+        correct_number = 0
+        for item in self.predictions:
+            pred = item['predictions'].squeeze(0)
+            label = item['labels'].squeeze(0)
+            target_idx = label!=-100
+            pred_value = pred[target_idx]
+            label_value = label[target_idx]
+            correct_predictions = (pred_value == label_value).sum()
+       
+            correct_number += correct_predictions==target_idx.sum()
+
+        # if save_gen_res:
+        #     save_path = os.path.join(save_evaluation_path, "generation.jsonl")
+        #     print_c(f"saving at {save_path}", "yellow")
+        #     auto_save_data(results, save_path)
+        if save_evaluation_path:
+            auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
+
+        print(self.task, save_evaluation_path, correct_number/total_number * 100)
+
+    
+    def eval_longbench(self, save_evaluation, subtask, save_gen_res=True):
+        total_score = 0
+        for item in self.predictions:
+            prediction = item[...]
+            ground_truths = item[...]
+            score = 0
+            if subtask in ["trec", "triviaqa", "samsum", "lsht"]:
+                prediction = prediction.lstrip('\n').split('\n')[0]
+            for ground_truth in ground_truths:
+                score = max(score, longbench_dataset2metric[subtask](prediction, ground_truth, all_classes=subtask))
+            total_score += score
+            return round(100 * total_score / len(self.predictions), 2)
 
 
 if __name__ == "__main__":
