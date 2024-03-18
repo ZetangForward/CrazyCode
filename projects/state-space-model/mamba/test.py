@@ -111,8 +111,6 @@ def main(config):
     # load model and tokenizer
     model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     custom_model = CustomModel(model)
-    
-    # import pdb;pdb.set_trace()
 
     # load testing data
     if "longbench"  in config.exp_task:
@@ -145,7 +143,7 @@ def main(config):
 
         b_t = time.time()
         # import pdb;pdb.set_trace()
-        if config.model.load_model_state_dict and "longbench"  in config.exp_task:
+        if config.model.load_model_state_dict and "longbench"  in config.exp_task and 'mamba' in config.model_name: 
             predictions = tester.predict(
                 model=experiment,
                 dataloaders=data_module.predict_dataloader(),

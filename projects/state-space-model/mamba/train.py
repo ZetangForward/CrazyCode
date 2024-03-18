@@ -169,7 +169,7 @@ class Experiment(pl.LightningModule):
 
 @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
-
+    # import pdb;pdb.set_trace()
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
     print_c(OmegaConf.to_yaml(config), "yellow")
     
@@ -182,7 +182,7 @@ def main(config):
     # load model and tokenizer
     use_custom_module = False
     if hasattr(config.model, "use_custom_module"):
-        use_custom_module = True
+        use_custom_module = config.model.use_custom_module
 
     if not config.experiment.low_rank_train:
         model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
