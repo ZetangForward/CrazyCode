@@ -35,6 +35,7 @@ class Experiment(pl.LightningModule):
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
+            import pdb; pdb.set_trace()
         if "longbench" in self.cfg.exp_task.lower():
             max_gen_len = batch.pop("max_generation_len")
             output = self.model.generate(
