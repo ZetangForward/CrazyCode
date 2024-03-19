@@ -306,10 +306,10 @@ class Conv1dManager(Conv1dManagerBase):
 @hydra.main(config_path='../configs/platform', config_name='h_800', version_base='1.1')
 def main(config):
     print_c(OmegaConf.to_yaml(config), "yellow")
-    model_root_dir = config.platform.hf_model_path
-    # model_root_dir = config.platform.exp_path
-    save_root_dir = config.platform.result_path
-    data_root_dir = config.platform.dataset_path
+    model_root_dir = config.hf_model_path
+    model_root_dir = config.exp_path
+    save_root_dir = config.result_path
+    data_root_dir = config.dataset_path
 
 
     model = CustomMambaForCausalLM.from_pretrained(os.path.join(model_root_dir, "mamba-1.4b-hf")).to('cuda:0')
