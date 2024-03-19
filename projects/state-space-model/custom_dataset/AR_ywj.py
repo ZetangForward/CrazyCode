@@ -68,8 +68,9 @@ class MQARDataset(Dataset):
         inputs, labels = torch.tensor(examples[:, :-1]), torch.tensor(labels[:, 1:])
         
         # replace all the 0 with random values
+        # import pdb;pdb.set_trace()
         if random_non_queries:                          # 随机插入非 key-value值
-            inputs[inputs == 0] = torch.randint(vocab_size+1, 51200, size=inputs.shape)[inputs == 0]
+            inputs[inputs == 0] = torch.randint(vocab_size+1, 20480, size=inputs.shape)[inputs == 0]
 
         all_test_data = []
 

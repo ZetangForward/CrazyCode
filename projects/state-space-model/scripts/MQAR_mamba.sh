@@ -1,5 +1,5 @@
 #!/bin/bash
-model_name=deepseek-1_3b
+model_name=mamba-1_4b
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 platform=h_800
 task=AR_ywj
@@ -27,10 +27,10 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port $random_port  
     experiment.low_rank_train=False \
     experiment.device_num=$device_num \
     experiment.use_deepspeed=False \
-    experiment.num_training_steps=30000 \
-    experiment.warmup_steps=3000 \
+    experiment.num_training_steps=15000 \
+    experiment.warmup_steps=15000 \
     task.dataset.cluster_batch=False \
-    task.dataset.train_batch_size=2 \
+    task.dataset.train_batch_size=4 \
     task.dataset.max_seq_length=10000 \
     task.dataset.input_seq_len=${input_seq_len} \
     task.dataset.num_kv_pairs=${num_kv_pairs} \
