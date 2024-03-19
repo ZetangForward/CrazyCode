@@ -2,6 +2,7 @@
 import os
 import sys
 sys.path.append(os.getcwd())
+import torch
 import lightning.pytorch as pl
 import hydra
 import logging
@@ -12,10 +13,9 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.strategies import DeepSpeedStrategy
-from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
-from utils import *
 from modelzipper.tutils import *
+from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
+from utils import get_model_tokenizer, CustomDatamodule
 
 
 class Experiment(pl.LightningModule):
@@ -54,6 +54,60 @@ class Experiment(pl.LightningModule):
         self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
         self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
       
+
+    def training_step(self, batch, batch_idx):
+        if self.cfg.experiment.hf_trainer:
+            return self.training_step_hf(batch, batch_idx)
+
+        else:
+            input_ids = batch.pop("input_ids")
+            lm_logits = self.forward(input_ids).logits
+            # import pdb;pdb.set_trace()
+            if "mqar" in self.cfg.task.dataset.class_name.lower():
+                labels = batch.pop("label")
+                labels = labels.long()
+                shift_logits = lm_logits.contiguous()
+                labels = labels.contiguous()
+
+            else:
+                labels = batch.pop("labels")
+                shift_logits = lm_logits[:, :-1, :].contiguous()
+                labels = labels[:, 1:].contiguous()
+
+            labels = labels.to(lm_logits.device)
+
+            lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+            ppl = torch.exp(lm_loss)
+            
+            self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+            self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
+            return lm_loss
+
+    def validation_step(self, batch, batch_idx):
+        if self.cfg.experiment.hf_trainer:
+            self.validation_step_hf(batch, batch_idx)
+        else:
+            input_ids = batch.pop("input_ids")
+            lm_logits = self.forward(input_ids).logits
+            # import pdb;pdb.set_trace()
+            if "mqar" in self.cfg.task.dataset.class_name.lower():
+                labels = batch.pop("label")
+                labels = labels.long()
+                shift_logits = lm_logits.contiguous()
+                labels = labels.contiguous()
+
+            else:
+                labels = batch.pop("labels")
+                shift_logits = lm_logits[:, :-1, :].contiguous()
+                labels = labels[:, 1:].contiguous()
+
+            labels = labels.to(lm_logits.device)
+
+            lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
+            ppl = torch.exp(lm_loss)
+            
+            self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+            self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
 
     def configure_optimizers(self):
         # init optimizer
