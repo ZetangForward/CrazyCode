@@ -307,13 +307,14 @@ class Conv1dManager(Conv1dManagerBase):
 def main(config):
     print_c(OmegaConf.to_yaml(config), "yellow")
     model_root_dir = config.hf_model_path
-    model_root_dir = config.exp_path
+    exp_path = config.exp_path
     save_root_dir = config.result_path
     data_root_dir = config.dataset_path
 
+    model_path = os.path.join(model_root_dir, "mamba-1.4b-hf")
 
-    model = CustomMambaForCausalLM.from_pretrained(os.path.join(model_root_dir, "mamba-1.4b-hf")).to('cuda:0')
-    tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_root_dir, "mamba-1.4b-hf"))
+    model = CustomMambaForCausalLM.from_pretrained(model_path).to('cuda:0')
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
     
     raw_data = auto_read_data(os.path.join(data_root_dir, "needle/processed_data/128k_500_insert_ids.pkl"))
     
@@ -336,7 +337,7 @@ def main(config):
         # token_ids = tokenizer(data['passkey_context'], return_tensors="pt").input_ids[0]
         input_ids = token_ids.to(model.device).unsqueeze(0)
         conv1d_manger.zero_grad()
-        import pdb; pbd.set_trace()
+        
         output = model(input_ids=input_ids, extra_kwargs=None)
         
         label = input_ids[:, -1].long()
@@ -346,6 +347,7 @@ def main(config):
 
         for i in range(len(conv1d_manger.conv1d_adapters)):
             saliency = conv1d_manger.grad(use_abs=True)[i].squeeze()
+            import pdb; pdb.set_trace()
             important_place_score = saliency[bos_pos: eos_pos].sum()
             other_place_score = saliency[eos_pos:].sum()
             proportion = important_place_score / other_place_score  # the larger the better
