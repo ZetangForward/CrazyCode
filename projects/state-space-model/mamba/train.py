@@ -15,8 +15,8 @@ from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from modelzipper.tutils import *
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
-from utils import get_model_tokenizer, CustomDatamodule
-
+from utils import *
+from lightning.pytorch.strategies import DeepSpeedStrategy
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
@@ -247,7 +247,7 @@ def main(config):
                 logging_level=logging.INFO,
                 precision_plugin="bf16-mixed",
             ),
-            accumulate_grad_batches=8,
+            accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             enable_checkpointing=True,
             max_steps=config.experiment.num_training_steps,
             devices=config.experiment.device_num,
@@ -264,7 +264,7 @@ def main(config):
             callbacks=[lr_monitor, ckpt_monitor],
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DDPStrategy(find_unused_parameters=True),
-            # strategy="deepspeed_stage_2_offload",
+            accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             precision="bf16-mixed",
             max_steps=config.experiment.num_training_steps,
             devices=config.experiment.device_num,
