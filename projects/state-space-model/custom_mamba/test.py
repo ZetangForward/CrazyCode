@@ -1,4 +1,8 @@
+import os 
+import sys
+sys.path.append(os.getcwd())
 import torch
+import hydra
 import torch.nn as nn
 from functools import wraps, partial
 from transformers import PreTrainedModel
@@ -7,6 +11,8 @@ import torch.nn.functional as F
 from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 from mamba_ssm.ops.triton.selective_state_update import selective_state_update
+from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+from modelzipper.tutils import *
 
 
 class Conv1dAdapterBase(nn.Module):
@@ -57,10 +63,9 @@ class Conv1dManagerBase:
             for conv1d_adapter in self.conv1d_adapters:
                 conv1d_adapter.zero_grad(set_to_none=True)
 
-    def grad_process(self, grad, use_abs = True):
+    def grad_process(self, grad, use_abs = False, use_dist = False):
         # assert len(grad.shape) == 4
-        # import pdb; pdb.set_trace()
-        grad = grad.sum(1)
+        # grad = grad.sum(1)
         if use_abs:
             grad = abs(grad)
         return grad
@@ -95,9 +100,9 @@ class Conv1dAdapter(Conv1dAdapterBase):
 
     def _forward(self, weights):
         if self.params is None:
-            self.params = torch.ones_like(weights, requires_grad=True)
+            self.params = torch.ones_like(weights, requires_grad=True).to(weights.dtype)
         else:
-            self.params.data = torch.ones_like(weights)
+            self.params.data = torch.ones_like(weights).to(weights.dtype)
         return weights * self.params
 
     @property
@@ -112,9 +117,79 @@ class Conv1dAdapter(Conv1dAdapterBase):
                 self.params.grad = torch.zeros_like(self.params.grad)
 
 
-def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None, adapter=None):
+def slow_forward(self, input_states, cache_params=None, extra_kwargs=None, adapter=None):
+    batch_size, seq_len, _ = input_states.shape
+    dtype = input_states.dtype
+    # 1. Gated MLP's linear projection
+    projected_states = self.in_proj(input_states).transpose(1, 2)                   # [batch, 2 * intermediate_size, seq_len]
+    hidden_states, gate = projected_states.chunk(2, dim=1)
 
-    analysis_mode = False
+    # 2. Convolution sequence transformation
+    if cache_params is not None:
+        ssm_state = cache_params.ssm_states[self.layer_idx]
+        if cache_params.seqlen_offset > 0:
+            conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
+            conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
+            conv_state[:, :, -1] = hidden_states[:, :, 0]
+            cache_params.conv_states[self.layer_idx].copy_(conv_state)
+            hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
+            if self.use_conv_bias:
+                hidden_states += self.conv1d.bias
+            hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
+        else:
+            conv_state = nn.functional.pad(  # only save last conv_kernel_size states
+                hidden_states,
+                (self.conv_kernel_size - hidden_states.shape[-1], 0)
+            )
+            cache_params.conv_states[self.layer_idx].copy_(conv_state)
+
+            tmp = self.conv1d(hidden_states)[:, :, :seq_len] # [batch, intermediate_size, seq_len]
+            tmp = adapter(tmp)
+            hidden_states = self.act(tmp)     # [batch, intermediate_size, seq_len]
+    else:
+        ssm_state = torch.zeros(
+            (batch_size, self.intermediate_size, self.ssm_state_size),
+            device=hidden_states.device, dtype=dtype
+        )
+        tmp = self.conv1d(hidden_states)[:, :, :seq_len] # [batch, intermediate_size, seq_len]
+        tmp = adapter(tmp)
+        hidden_states = self.act(tmp)         # [batch, intermediate_size, seq_len]
+
+    # 3. State Space Model sequence transformation
+    # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
+    ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
+    time_step, B, C = torch.split(
+        ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
+    )
+    discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
+    discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
+
+    # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
+    A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
+    discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
+    discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
+    deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
+
+    # 3.c perform the recurrence y ← SSM(A, B, C)(x)
+    scan_outputs = []
+    for i in range(seq_len):
+        ssm_state = discrete_A[:, :, i, :] * ssm_state + deltaB_u[:, :, i, :]      # [batch, intermediade_size, ssm_state]
+        scan_output = torch.matmul(ssm_state.to(dtype), C[:, i, :].unsqueeze(-1))  # [batch, intermediade_size, 1]
+        scan_outputs.append(scan_output[:, :, 0])
+    scan_output = torch.stack(scan_outputs, dim=-1)                                # [batch, seq_len, intermediade_size]
+    scan_output = scan_output + (hidden_states * self.D[None, :, None])
+    scan_output = (scan_output * self.act(gate))
+
+    if cache_params is not None:
+        cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+
+    # 4. Final linear projection
+    contextualized_states = self.out_proj(scan_output.transpose(1, 2))             # [batch, seq_len, hidden_size]
+    return contextualized_states
+
+
+
+def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None, adapter=None):
 
     # 1. Gated MLP's linear projection
     projected_states = self.in_proj(hidden_states).transpose(1, 2)
@@ -211,78 +286,6 @@ def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, e
     return contextualized_states
 
 
-
-def slow_forward(self, input_states, cache_params=None, extra_kwargs=None, adapter=None):
-    batch_size, seq_len, _ = input_states.shape
-    dtype = input_states.dtype
-    # 1. Gated MLP's linear projection
-    projected_states = self.in_proj(input_states).transpose(1, 2)                   # [batch, 2 * intermediate_size, seq_len]
-    hidden_states, gate = projected_states.chunk(2, dim=1)
-
-    # 2. Convolution sequence transformation
-    if cache_params is not None:
-        ssm_state = cache_params.ssm_states[self.layer_idx]
-        if cache_params.seqlen_offset > 0:
-            conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
-            conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
-            conv_state[:, :, -1] = hidden_states[:, :, 0]
-            cache_params.conv_states[self.layer_idx].copy_(conv_state)
-            hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
-            if self.use_conv_bias:
-                hidden_states += self.conv1d.bias
-            hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
-        else:
-            conv_state = nn.functional.pad(  # only save last conv_kernel_size states
-                hidden_states,
-                (self.conv_kernel_size - hidden_states.shape[-1], 0)
-            )
-            cache_params.conv_states[self.layer_idx].copy_(conv_state)
-
-            tmp = self.conv1d(hidden_states)[:, :, :seq_len] # [batch, intermediate_size, seq_len]
-            tmp = adapter(tmp)
-            hidden_states = self.act(tmp)     # [batch, intermediate_size, seq_len]
-    else:
-        ssm_state = torch.zeros(
-            (batch_size, self.intermediate_size, self.ssm_state_size),
-            device=hidden_states.device, dtype=dtype
-        )
-        tmp = self.conv1d(hidden_states)[:, :, :seq_len] # [batch, intermediate_size, seq_len]
-        tmp = adapter(tmp)
-        hidden_states = self.act(tmp)         # [batch, intermediate_size, seq_len]
-
-    # 3. State Space Model sequence transformation
-    # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
-    ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
-    time_step, B, C = torch.split(
-        ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
-    )
-    discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
-    discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
-
-    # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
-    A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
-    discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
-    discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
-    deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
-
-    # 3.c perform the recurrence y ← SSM(A, B, C)(x)
-    scan_outputs = []
-    for i in range(seq_len):
-        ssm_state = discrete_A[:, :, i, :] * ssm_state + deltaB_u[:, :, i, :]      # [batch, intermediade_size, ssm_state]
-        scan_output = torch.matmul(ssm_state.to(dtype), C[:, i, :].unsqueeze(-1))  # [batch, intermediade_size, 1]
-        scan_outputs.append(scan_output[:, :, 0])
-    scan_output = torch.stack(scan_outputs, dim=-1)                                # [batch, seq_len, intermediade_size]
-    scan_output = scan_output + (hidden_states * self.D[None, :, None])
-    scan_output = (scan_output * self.act(gate))
-
-    if cache_params is not None:
-        cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
-
-    # 4. Final linear projection
-    contextualized_states = self.out_proj(scan_output.transpose(1, 2))             # [batch, seq_len, hidden_size]
-    return contextualized_states
-
-
 class Conv1dManager(Conv1dManagerBase):
     def __init__(self, model: PreTrainedModel):
         super().__init__(model)
@@ -297,21 +300,26 @@ class Conv1dManager(Conv1dManagerBase):
         return conv1d_adapters
 
 
-if __name__ == "__main__":
-    import os 
-    import sys
-    sys.path.append(os.getcwd())
-    from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
-    from modelzipper.tutils import *
+@hydra.main(config_path='../configs/platform', config_name='h_800', version_base='1.1')
+def main(config):
+    print_c(OmegaConf.to_yaml(config), "yellow")
+    model_root_dir = config.hf_model_path
+    exp_path = config.exp_path
+    save_root_dir = config.result_path
+    data_root_dir = config.dataset_path
 
-    model = CustomMambaForCausalLM.from_pretrained("/nvme/hf_models/mamba-1.4b-hf").to('cuda:0')
-    tokenizer = AutoTokenizer.from_pretrained("/nvme/hf_models/mamba-1.4b-hf")
+    model_path = os.path.join(model_root_dir, "mamba-1.4b-hf")
+    model = transformers.MambaForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16).to('cuda:0')
+
+    # model = CustomMambaForCausalLM.from_pretrained(model_path).to('cuda:0')
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
     
-    raw_data = auto_read_data("/nvme/zecheng/data/needle/processed_data/128k_500_insert_ids.pkl")
+    raw_data = auto_read_data(os.path.join(data_root_dir, "needle/processed_data/128k_500_insert_ids.pkl"))
     
     conv1d_manger = Conv1dManager(model)
     
     all_score = []
+    model.eval()
 
     for idx, data in tqdm(enumerate(raw_data)):
         token_ids = data['context_ids']
@@ -337,8 +345,8 @@ if __name__ == "__main__":
         loss.backward(retain_graph=True)
 
         for i in range(len(conv1d_manger.conv1d_adapters)):
-            saliency = conv1d_manger.grad(use_abs=True)[i].squeeze()
-            important_place_score = saliency[bos_pos: eos_pos].sum()
+            saliency = conv1d_manger.grad(use_abs=False)[i].squeeze()  # 4096, 532
+            important_place_score = saliency[:, bos_pos: eos_pos].sum()
             other_place_score = saliency[eos_pos:].sum()
             proportion = important_place_score / other_place_score  # the larger the better
             per_ctx_length_score.append({"proportion": proportion, "depth": depth})
@@ -346,3 +354,10 @@ if __name__ == "__main__":
         all_score.append(per_ctx_length_score)
 
     auto_save_data(all_score, "/nvme/zecheng/evaluation/analysis/conv1d_adapter_score.pkl")
+
+
+if __name__ == '__main__':
+    main()
+   
+
+    

@@ -7,7 +7,7 @@ from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import DataLoader
 
 from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM
-from transformers import MambaConfig
+from transformers import MambaConfig, MambaForCausalLM
 from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
@@ -98,15 +98,14 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "mamba" in model_path.lower():
-        model = CustomMambaForCausalLM.from_pretrained(
-            model_path, use_relative_position=model_config.use_relative_position,
-            torch_dtype=torch.bfloat16
+        model = MambaForCausalLM.from_pretrained(
+            model_path, torch_dtype=torch.bfloat16
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "llama" or "deepseek" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
-            model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+            model_pathdsa, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         tokenizer.pad_token = tokenizer.eos_token
