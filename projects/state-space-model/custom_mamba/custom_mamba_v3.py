@@ -419,7 +419,8 @@ class CustomMambaModel(MambaPreTrainedModel):
         elif use_relative_position:
             freqs = torch.exp(-np.log(10000.0) / config.d_model * torch.arange(0, config.d_model, 2).float())
             self.register_buffer('freqs', freqs)
-            
+        
+        import pdb;pdb.set_trace()
         self.layers = nn.ModuleList(
             [
                 MambaBlock(

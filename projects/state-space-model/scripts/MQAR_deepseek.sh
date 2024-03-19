@@ -26,10 +26,10 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  mamba/tr
     experiment.low_rank_train=False \
     experiment.device_num=$device_num \
     experiment.use_deepspeed=False \
-    experiment.num_training_steps=20000 \
-    experiment.warmup_steps=2000 \
+    experiment.num_training_steps=40000 \
+    experiment.warmup_steps=4000 \
     task.dataset.cluster_batch=False \
-    task.dataset.train_batch_size=4 \
+    task.dataset.train_batch_size=1\
     task.dataset.max_seq_length=10000 \
     task.dataset.input_seq_len=${input_seq_len} \
     task.dataset.num_kv_pairs=${num_kv_pairs} \
