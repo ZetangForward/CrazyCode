@@ -36,7 +36,6 @@ class Experiment(pl.LightningModule):
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
-        # import pdb;pdb.set_trace()
         elif "longbench" in self.cfg.exp_task.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
@@ -102,9 +101,9 @@ class CustomModel(nn.Module):
 
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
+    # import pdb;pdb.set_trace()
     print_c(OmegaConf.to_yaml(config), "yellow")
     model_root_dir = config.platform.hf_model_path
-    # model_root_dir = config.platform.exp_path
     save_root_dir = config.platform.result_path
     data_root_dir = config.platform.dataset_path
 
