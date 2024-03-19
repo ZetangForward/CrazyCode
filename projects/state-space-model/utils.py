@@ -105,7 +105,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
 
     elif "llama" or "deepseek" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
-            model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+            model_pathdsa, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         tokenizer.pad_token = tokenizer.eos_token
