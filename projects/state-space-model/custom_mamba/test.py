@@ -63,10 +63,9 @@ class Conv1dManagerBase:
             for conv1d_adapter in self.conv1d_adapters:
                 conv1d_adapter.zero_grad(set_to_none=True)
 
-    def grad_process(self, grad, use_abs = True):
+    def grad_process(self, grad, use_abs = False, use_dist = False):
         # assert len(grad.shape) == 4
-        # import pdb; pdb.set_trace()
-        grad = grad.sum(1)
+        # grad = grad.sum(1)
         if use_abs:
             grad = abs(grad)
         return grad
@@ -101,9 +100,9 @@ class Conv1dAdapter(Conv1dAdapterBase):
 
     def _forward(self, weights):
         if self.params is None:
-            self.params = torch.ones_like(weights, requires_grad=True)
+            self.params = torch.ones_like(weights, requires_grad=True).to(weights.dtype)
         else:
-            self.params.data = torch.ones_like(weights)
+            self.params.data = torch.ones_like(weights).to(weights.dtype)
         return weights * self.params
 
     @property
@@ -236,7 +235,6 @@ def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, e
                 )
                 cache_params.conv_states[self.layer_idx].copy_(conv_states)
             
-            import pdb; pdb.set_trace()
             hidden_states = adapter(hidden_states)
             
             hidden_states = causal_conv1d_fn(
@@ -311,8 +309,9 @@ def main(config):
     data_root_dir = config.dataset_path
 
     model_path = os.path.join(model_root_dir, "mamba-1.4b-hf")
+    model = transformers.MambaForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16).to('cuda:0')
 
-    model = CustomMambaForCausalLM.from_pretrained(model_path).to('cuda:0')
+    # model = CustomMambaForCausalLM.from_pretrained(model_path).to('cuda:0')
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     
     raw_data = auto_read_data(os.path.join(data_root_dir, "needle/processed_data/128k_500_insert_ids.pkl"))
@@ -346,9 +345,8 @@ def main(config):
         loss.backward(retain_graph=True)
 
         for i in range(len(conv1d_manger.conv1d_adapters)):
-            saliency = conv1d_manger.grad(use_abs=True)[i].squeeze()
-            import pdb; pdb.set_trace()
-            important_place_score = saliency[bos_pos: eos_pos].sum()
+            saliency = conv1d_manger.grad(use_abs=False)[i].squeeze()  # 4096, 532
+            important_place_score = saliency[:, bos_pos: eos_pos].sum()
             other_place_score = saliency[eos_pos:].sum()
             proportion = important_place_score / other_place_score  # the larger the better
             per_ctx_length_score.append({"proportion": proportion, "depth": depth})

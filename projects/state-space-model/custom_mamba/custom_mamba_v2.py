@@ -155,7 +155,6 @@ class MambaMixer(nn.Module):
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
 
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
-            
             contextualized_states = mamba_inner_fn(
                 projected_states,
                 self.conv1d.weight,
