@@ -276,7 +276,6 @@ class MambaMixer(nn.Module):
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
                 cache_params.conv_states[self.layer_idx].copy_(conv_state)
                 hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
-
                 
                 if self.use_conv_bias:
                     hidden_states += self.conv1d.bias
