@@ -1,4 +1,8 @@
+import os 
+import sys
+sys.path.append(os.getcwd())
 import torch
+import hydra
 import torch.nn as nn
 from functools import wraps, partial
 from transformers import PreTrainedModel
@@ -7,6 +11,8 @@ import torch.nn.functional as F
 from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 from mamba_ssm.ops.triton.selective_state_update import selective_state_update
+from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+from modelzipper.tutils import *
 
 
 class Conv1dAdapterBase(nn.Module):
@@ -297,22 +303,24 @@ class Conv1dManager(Conv1dManagerBase):
         return conv1d_adapters
 
 
-if __name__ == "__main__":
-    import os 
-    import sys
-    sys.path.append(os.getcwd())
-    from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
-    from modelzipper.tutils import *
+@hydra.main(config_path='../configs/platform', config_name='h_800', version_base='1.1')
+def main(config):
+    print_c(OmegaConf.to_yaml(config), "yellow")
+    model_root_dir = config.platform.hf_model_path
+    # model_root_dir = config.platform.exp_path
+    save_root_dir = config.platform.result_path
+    data_root_dir = config.platform.dataset_path
 
-    model = CustomMambaForCausalLM.from_pretrained("/nvme/hf_models/mamba-1.4b-hf").to('cuda:0')
-    tokenizer = AutoTokenizer.from_pretrained("/nvme/hf_models/mamba-1.4b-hf")
+
+    model = CustomMambaForCausalLM.from_pretrained(os.path.join(model_root_dir, "mamba-1.4b-hf")).to('cuda:0')
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join(model_root_dir, "mamba-1.4b-hf"))
     
-    raw_data = auto_read_data("/nvme/zecheng/data/needle/processed_data/128k_500_insert_ids.pkl")
+    raw_data = auto_read_data(os.path.join(data_root_dir, "needle/processed_data/128k_500_insert_ids.pkl"))
     
     conv1d_manger = Conv1dManager(model)
     
     all_score = []
-
+    
     for idx, data in tqdm(enumerate(raw_data)):
         token_ids = data['context_ids']
         bos_pos, eos_pos = data['bos_pos'], data['eos_pos']
@@ -328,7 +336,7 @@ if __name__ == "__main__":
         # token_ids = tokenizer(data['passkey_context'], return_tensors="pt").input_ids[0]
         input_ids = token_ids.to(model.device).unsqueeze(0)
         conv1d_manger.zero_grad()
-        
+        import pdb; pbd.set_trace()
         output = model(input_ids=input_ids, extra_kwargs=None)
         
         label = input_ids[:, -1].long()
@@ -346,3 +354,10 @@ if __name__ == "__main__":
         all_score.append(per_ctx_length_score)
 
     auto_save_data(all_score, "/nvme/zecheng/evaluation/analysis/conv1d_adapter_score.pkl")
+
+
+if __name__ == '__main__':
+    main()
+   
+
+    
