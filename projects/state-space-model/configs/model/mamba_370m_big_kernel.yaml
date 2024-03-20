@@ -8,5 +8,5 @@ use_abs_position: False
 max_position_embeddings: 16384
 custom_conv1d: True
 conv1d_configs:
-  kernel_size: 8
+  kernel_size: 16
 

@@ -83,7 +83,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
-        config.conv_kernel = 16
+        config.conv_kernel = model_config.conv1d_configs.kernel_size
         model = CustomMambaForCausalLM(config).cuda()
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         return model, tokenizer
