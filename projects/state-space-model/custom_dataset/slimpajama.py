@@ -68,12 +68,18 @@ class Slimpajama(Dataset):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
-        
         sample = self.content[index]
-          
+        input_ids = sample['input_ids']
+        labels = sample['labels']
+         
+        if not isinstance(input_ids, torch.Tensor):
+            input_ids = torch.tensor(input_ids, dtype=torch.long)
+        if not isinstance(labels, torch.Tensor):
+            labels = torch.tensor(labels, dtype=torch.long)
+
         return {
-            "input_ids": sample['input_ids'],
-            "labels": sample['labels'],
+            "input_ids": input_ids,
+            "labels": labels,
         }
 
 

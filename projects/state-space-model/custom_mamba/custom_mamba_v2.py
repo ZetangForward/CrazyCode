@@ -457,7 +457,6 @@ class CustomMambaModel(MambaPreTrainedModel):
             )
    
         if inputs_embeds is None:
-            
             inputs_embeds = self.embedding(input_ids)
 
         if self.gradient_checkpointing and self.training and use_cache:

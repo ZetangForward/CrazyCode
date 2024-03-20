@@ -38,26 +38,23 @@ class Experiment(pl.LightningModule):
     def forward(self, input: Tensor, **kwargs) -> Tensor:
         return self.model(input, **kwargs)
     
-    def training_step(self, batch, batch_idx):
+    def training_step_hf(self, batch, batch_idx):
         outputs = self.model(**batch)
         lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
-        self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
-        self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
-        return lm_loss
+        return lm_loss, ppl
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step_hf(self, batch, batch_idx):
+        
         outputs = self.model(**batch)
         lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
-        
-        self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
-        self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
+        return lm_loss, ppl
       
 
     def training_step(self, batch, batch_idx):
         if self.cfg.experiment.hf_trainer:
-            return self.training_step_hf(batch, batch_idx)
+            lm_loss, ppl = self.training_step_hf(batch, batch_idx)
 
         else:
             input_ids = batch.pop("input_ids")
@@ -79,27 +76,25 @@ class Experiment(pl.LightningModule):
             lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
             ppl = torch.exp(lm_loss)
             
-            self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
-            self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
+        self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+        self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
 
-            self.last_batch_tokens = batch['input_ids'].numel()
-            # 累积 token 数量
-            if not hasattr(self, 'total_tokens'):
-                self.total_tokens = 0
-            self.total_tokens += self.last_batch_tokens
+        self.last_batch_tokens = batch['input_ids'].numel()
 
-            # 将 token 数量记录到 TensorBoard
-            self.log('total_tokens', self.total_tokens)
+        if not hasattr(self, 'total_tokens'):
+            self.total_tokens = 0
+        self.total_tokens += self.last_batch_tokens
+        self.log('total_tokens', self.total_tokens, sync_dist=True, prog_bar=True)
 
-            return lm_loss
+        return lm_loss
 
     def validation_step(self, batch, batch_idx):
         if self.cfg.experiment.hf_trainer:
-            self.validation_step_hf(batch, batch_idx)
+            lm_loss, ppl = self.validation_step_hf(batch, batch_idx)
         else:
             input_ids = batch.pop("input_ids")
             lm_logits = self.forward(input_ids).logits
-            # import pdb;pdb.set_trace()
+
             if "mqar" in self.cfg.task.dataset.class_name.lower():
                 labels = batch.pop("label")
                 labels = labels.long()
@@ -116,8 +111,8 @@ class Experiment(pl.LightningModule):
             lm_loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), labels.view(-1))
             ppl = torch.exp(lm_loss)
             
-            self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
-            self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
+        self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
+        self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
 
 
     def configure_optimizers(self):
@@ -214,7 +209,9 @@ def main(config):
         model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
     else:
         model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-        
+    
+    print_c(model, "magenta")
+
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     

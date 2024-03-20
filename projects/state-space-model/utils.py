@@ -156,7 +156,7 @@ class CustomDatamodule(pl.LightningDataModule):
         if not self.root_dir in fpath:
             fpath = os.path.join(self.root_dir, fpath)
         if type == 'hf':
-            return load_from_disk(fpath)
+            return load_from_disk(fpath)['train']
         return auto_read_data(fpath)
 
     def setup(self, stage: str = 'fit') -> None:
@@ -263,11 +263,10 @@ class CustomDatamodule(pl.LightningDataModule):
             else:
                 # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
-                if not os.path.isdir(data_path):  # custom dataset
-                    train_data = auto_read_data(data_path)
-                elif "hf" in self.cfg.dataset.type.lower():  # huggingface dataset
-                    import pdb; pdb.set_trace()
+                if "hf" in self.cfg.dataset.type.lower():  # huggingface dataset
                     train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
+                elif not os.path.isdir(data_path):  # custom dataset
+                    train_data = auto_read_data(data_path)
                 else:
                     raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
 
