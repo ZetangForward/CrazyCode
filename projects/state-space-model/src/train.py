@@ -245,7 +245,7 @@ def main(config):
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,
             callbacks=[lr_monitor, ckpt_monitor, token_monitor],
-            val_check_interval=1 if data_module.val_dataloader is not None else 0.1,  # set a large number if no validation set
+            val_check_interval=1 if data_module.val_dataloader is not None else 0.02,  # set a large number if no validation set
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DeepSpeedStrategy(
                 stage=3,
