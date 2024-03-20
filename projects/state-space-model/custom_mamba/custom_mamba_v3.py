@@ -67,7 +67,11 @@ class MambaMixer(nn.Module):
     and is why Mamba is called **selective** state spaces)
     """
 
-    def __init__(self, config, layer_idx, use_multi_head=False, multi_head_config=None):
+    def __init__(
+            self, config, layer_idx, use_multi_head=False, 
+            multi_head_config=None, custom_conv1d=False,
+            conv1d_configs=None,
+    ):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
@@ -98,6 +102,8 @@ class MambaMixer(nn.Module):
                 padding=config.conv_kernel - 1,
                 dilation=multi_head_config['dilation']
             )
+        elif custom_conv1d:
+            self.conv1d = causal_conv1d_fn(**conv1d_configs)
         else:
             self.conv1d = nn.Conv1d(
                 in_channels=self.intermediate_size,
@@ -339,13 +345,25 @@ class MambaMixer(nn.Module):
 
 
 class MambaBlock(nn.Module):
-    def __init__(self, config, layer_idx, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None):
+    def __init__(
+            self, config, layer_idx, use_relative_position=False, 
+            max_position_embeddings=None, use_abs_position=False, 
+            use_multi_head=False, multi_head_config=None, 
+            custom_conv1d=False, conv1d_configs=None,
+    ):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
         self.residual_in_fp32 = config.residual_in_fp32
         self.norm = MambaRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.mixer = MambaMixer(config, layer_idx=layer_idx, use_multi_head=use_multi_head, multi_head_config=multi_head_config)
+        self.mixer = MambaMixer(
+            config, 
+            layer_idx=layer_idx, 
+            use_multi_head=use_multi_head, 
+            multi_head_config=multi_head_config,
+            custom_conv1d=custom_conv1d,
+            conv1d_configs=conv1d_configs,
+        )
         self.use_relative_position = use_relative_position
         self.max_position_embeddings = max_position_embeddings
         self.use_abs_position = use_abs_position
@@ -395,7 +413,12 @@ class MambaCausalLMOutput(ModelOutput):
 
 
 class CustomMambaModel(MambaPreTrainedModel):
-    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None) -> None:
+    def __init__(
+            self, config, use_relative_position=False, 
+            max_position_embeddings=None, use_abs_position=False, 
+            use_multi_head=False, multi_head_config=None, 
+            custom_conv1d=False, conv1d_configs=None,
+    ) -> None:
         super().__init__(config)
         
         self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
@@ -417,6 +440,8 @@ class CustomMambaModel(MambaPreTrainedModel):
                     layer_idx=idx,
                     use_multi_head=use_multi_head, 
                     multi_head_config=multi_head_config,
+                    custom_conv1d=custom_conv1d,
+                    conv1d_configs=conv1d_configs,
                 ) for idx in range(config.num_hidden_layers)
             ]
         )
@@ -523,9 +548,19 @@ class CustomMambaModel(MambaPreTrainedModel):
 class CustomMambaForCausalLM(MambaPreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
 
-    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False):
+    def __init__(
+            self, config, use_relative_position=False, 
+            max_position_embeddings=None, use_abs_position=False, 
+            custom_conv1d=False, conv1d_configs=None,
+    ) -> None:
         super().__init__(config)
-        self.backbone = CustomMambaModel(config, use_relative_position=use_relative_position, max_position_embeddings=max_position_embeddings, use_abs_position=use_abs_position)
+        self.backbone = CustomMambaModel(
+            config, use_relative_position=use_relative_position, 
+            max_position_embeddings=max_position_embeddings, 
+            use_abs_position=use_abs_position,
+            custom_conv1d=custom_conv1d,
+            conv1d_configs=conv1d_configs,
+        )
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # Initialize weights and apply final processing
         self.post_init()
