@@ -150,13 +150,13 @@ class CustomDatamodule(pl.LightningDataModule):
         if self.cfg.other_cfgs is not None:
             self.dataset_kwargs.update(self.cfg.other_cfgs)
     
-    def load_data_with_root_dir(self, fpath):
+    def load_data_with_root_dir(self, fpath, type='custom'):
         '''
         read data with root dir
         '''
         if not self.root_dir in fpath:
             fpath = os.path.join(self.root_dir, fpath)
-        if 'hf' in fpath:
+        if type == 'hf':
             return load_from_disk(fpath)
         return auto_read_data(fpath)
 
@@ -264,21 +264,16 @@ class CustomDatamodule(pl.LightningDataModule):
             else:
                 # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
-                if not os.path.isdir(data_path):
+                if not os.path.isdir(data_path):  # custom dataset
                     train_data = auto_read_data(data_path)
-
-                elif "hf" in self.cfg.dataset.data_path.lower():
-                    if "pajama" in self.cfg.dataset.data_path.lower():
-                        all_data = self.load_data_with_root_dir(self.cfg.dataset.data_path)
-                        import pdb; pdb.set_trace()  
-                        ...
+                elif "hf" in self.cfg.dataset.type.lower():  # huggingface dataset
+                    train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
                 else:
                     raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
 
         # further process data with stage
         if stage == "fit":  # training mode
-            # check data & initialization  
-           
+            # check data & initialization
             assert train_data is not None, f"train data should not be None during {stage} stage"
             try:
                 assert valid_data is not None, f"valid data is None during {stage} stage"
