@@ -2,11 +2,11 @@
 
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 
-model_name=deepseek-1_3b
-mkdir -p /public/home/ljt/tzc/data/evaluation/AR_ywj/${model_name}/
-MODEL_N=$1
-MODEL_D=$2
-data_n_list="512 1024 2048 4096"
+model_name=$1
+# mkdir -p /public/home/ljt/tzc/data/evaluation/AR_ywj/${model_name}/
+MODEL_N=$2
+MODEL_D=$3
+data_n_list="512 1024 2048 4096 8192"
 for DATA_N in $data_n_list
 do
     data_d_list="32 48 64 96 128 192 256"
