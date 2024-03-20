@@ -2,7 +2,7 @@
 model_name=mamba_370m_big_kernel
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 platform=$1
-task=simplepajama
+task=slimpajama
 
 nproc_per_node=$num_devices
 device_num=$num_devices
