@@ -144,7 +144,7 @@ class Experiment(pl.LightningModule):
             scheduler = transformers.get_cosine_schedule_with_warmup(
                 optimizer=optimizer,
                 num_warmup_steps=self.cfg.lr_scheduler.warmup_steps,
-                num_training_steps=self.cfg.experiment.num_training_steps,
+                num_training_steps=self.cfg.optimizer.num_training_steps,
             )
         else:
             def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
@@ -161,7 +161,7 @@ class Experiment(pl.LightningModule):
 
             scheduler = get_scheduler(
                 optimizer, 
-                self.cfg.experiment.num_training_steps, 
+                self.cfg.optimizer.num_training_steps, 
                 self.cfg.experiment.warmup_steps, 
                 self.cfg.experiment.peak_lr, 
                 self.cfg.experiment.last_lr
@@ -220,8 +220,6 @@ def main(config):
     
     # load experiment
     experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
-    
-    import pdb; pdb.set_trace()
 
     # init logger
     tb_logger = TensorBoardLogger(
@@ -240,7 +238,8 @@ def main(config):
         mode='min',
         save_weights_only=True, # only save state dict
     )
-    token_monitor = TokenCountCallback(max_tokens=200e9)
+    token_monitor = TokenCountCallback(max_tokens=100e9)
+    
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
     if config.experiment.use_deepspeed:
@@ -264,7 +263,7 @@ def main(config):
             precision="bf16",
             accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             enable_checkpointing=True,
-            max_steps=config.experiment.num_training_steps,
+            max_steps=config.optimizer.num_training_steps,
             devices=config.experiment.device_num,
             gradient_clip_val=1.0,
             enable_model_summary=True,
@@ -280,7 +279,7 @@ def main(config):
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DDPStrategy(find_unused_parameters=True),
             precision="bf16",
-            max_steps=config.experiment.num_training_steps,
+            max_steps=config.optimizer.num_training_steps,
             devices=config.experiment.device_num,
             gradient_clip_val=1,
             enable_model_summary=True,
