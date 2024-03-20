@@ -235,7 +235,7 @@ def main(config):
         mode='min',
         save_weights_only=True, # only save state dict
     )
-    token_monitor = TokenCountCallback(max_tokens=100e9)
+    token_monitor = TokenCountCallback(max_tokens=10e9)
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
@@ -245,6 +245,7 @@ def main(config):
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,
             callbacks=[lr_monitor, ckpt_monitor, token_monitor],
+            val_check_interval=1 if data_module.val_dataloader is not None else 0.1,  # set a large number if no validation set
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DeepSpeedStrategy(
                 stage=3,

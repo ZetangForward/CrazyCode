@@ -18,16 +18,17 @@ CUDA_LAUNCH_BLOCKING=1 torchrun --nnode=1 --nproc_per_node=$nproc_per_node --mas
     task=$task \
     exp_task=$task \
     platform=$platform \
-    experiment.debug=True \
+    experiment.debug=False \
     experiment.hf_trainer=True \
     experiment.low_rank_train=False \
     experiment.device_num=$device_num \
-    experiment.use_deepspeed=False \
-    experiment.accumulate_grad_batches=1 \
+    experiment.use_deepspeed=True \
+    experiment.accumulate_grad_batches=6 \
+    experiment.save_top_k=5 \
     task.dataset.cluster_batch=False \
-    task.dataset.train_batch_size=60 \
+    task.dataset.train_batch_size=10 \
     task.dataset.max_seq_length=2048 \
-    task.dataset.nworkers=0 \
+    task.dataset.nworkers=12 \
     
     
 
