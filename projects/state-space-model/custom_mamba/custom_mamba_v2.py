@@ -297,7 +297,6 @@ class MambaMixer(nn.Module):
         )
 
         if selective_scan_fn is not None:
-            import pdb; pdb.set_trace()
             discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
             A = -torch.exp(self.A_log.float())
             time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
@@ -315,6 +314,8 @@ class MambaMixer(nn.Module):
             )
             if ssm_state is not None and cache_params is not None:
                 cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+             # 4. Final linear projection
+            contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
 
         else:
             discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
@@ -339,10 +340,11 @@ class MambaMixer(nn.Module):
             if cache_params is not None:
                 cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
 
-        # 4. Final linear projection
-        contextualized_states = self.out_proj(scan_output.transpose(1, 2))             # [batch, seq_len, hidden_size]
+            # 4. Final linear projection
+            contextualized_states = self.out_proj(scan_output.transpose(1, 2))  # [batch, seq_len, hidden_size]
+        
         return contextualized_states
-    # fmt: on
+   
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
