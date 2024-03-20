@@ -185,7 +185,10 @@ class Evaluator:
         #     print_c(f"saving at {save_path}", "yellow")
         #     auto_save_data(results, save_path)
         if save_evaluation_path:
-            auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
+            # auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
+            result = str(correct_number/total_number * 100)
+            with open(save_evaluation_path,'a+') as f:
+                f.write(result+"\n")
 
         print(self.task, save_evaluation_path, correct_number/total_number * 100)
 
