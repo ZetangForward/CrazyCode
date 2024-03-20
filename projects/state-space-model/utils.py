@@ -98,7 +98,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
     elif "mamba" in model_path.lower():
-        model = MambaForCausalLM.from_pretrained(
+        model = CustomMambaForCausalLM.from_pretrained(
             model_path, torch_dtype=torch.bfloat16
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
