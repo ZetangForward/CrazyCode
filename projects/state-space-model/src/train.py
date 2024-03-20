@@ -272,7 +272,7 @@ def main(config):
         pl_trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,
-            callbacks=[lr_monitor, ckpt_monitor],
+            callbacks=[lr_monitor, ckpt_monitor, token_monitor],
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DDPStrategy(find_unused_parameters=True),
             precision="bf16",
