@@ -1,5 +1,5 @@
 #!/bin/bash
-model_name=mamba-370m
+model_name=mamba_370m_big_kernel
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 platform=$1
 task=longalpaca
@@ -18,15 +18,15 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  src/trai
     task=$task \
     exp_task=$task \
     platform=$platform \
-    experiment.debug=False \
+    experiment.debug=True \
     experiment.low_rank_train=False \
     experiment.device_num=$device_num \
-    experiment.use_deepspeed=False \
-    experiment.accumulate_grad_batches=12 \
+    experiment.use_deepspeed=True \
+    experiment.accumulate_grad_batches=1 \
     task.dataset.cluster_batch=False \
-    task.dataset.train_batch_size=1 \
-    task.dataset.max_seq_length=14000 \
-    task.dataset.nworkers=8 \
+    task.dataset.train_batch_size=60 \
+    task.dataset.max_seq_length=2048 \
+    task.dataset.nworkers=0 \
     
     
 

@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 from modelzipper.tutils import *
 import datasets
+from itertools import chain
 
 class Slimpajama(Dataset):
     def __init__(self, content=None, tokenizer=None, split="train", *args, **kwargs):
@@ -10,13 +11,6 @@ class Slimpajama(Dataset):
         self.content = content
         self.tokenizer = tokenizer
         self.max_seq_length = kwargs["max_seq_length"]
-        self.cluster_batch = kwargs["cluster_batch"]
-
-        if self.cluster_batch: 
-            print_c("Requires clustering batch, begin to process", "yellow")
-            bt = time.time()
-            self.cluster_batch_fn()
-            print_c(f"Clustering batch finished, time elapsed: {time.time()-bt}", "yellow")
 
     def cluster_batch_fn(self):
         tmp = [item['source'] + ' ' + item['target'] for item in self.content]
@@ -25,67 +19,70 @@ class Slimpajama(Dataset):
         self.content = sorted_tok_tmp
 
     @classmethod
-    def preprocess_data(cls, content, tokenizer, max_seq_length):
-        all_process_data = []
-        import pdb; pdb.set_trace()
-        for item in content:
-            src, tgt = item['source'], item['target']
-            str_format = src + " " + tgt
-            tokenized_sequence = tokenizer(
-                str_format,  
-                truncation=True, 
-                padding="max_length",
-                max_length=max_seq_length,
-                return_tensors="pt",
-            )
-            input_ids = tokenized_sequence.input_ids[0]
-            attention_mask = tokenized_sequence.attention_mask[0]
-            labels = torch.where(
-                input_ids != tokenizer.pad_token_id, input_ids, -100
-            )
-            all_process_data.append({
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "labels": labels,
-            })
+    def preprocess_data(cls, content, tokenizer, block_size, num_workers=1, column_names='text'):
+        """
+        (Pdb) content['train'][0].keys()
+        dict_keys(['text', 'meta', '__index_level_0__'])
+        """
 
+        def tokenize_function(examples):
+            res = tokenizer(examples[column_names])
+            res.pop('attention_mask')
+            return res
+
+        def group_texts(examples):
+            # Concatenate all texts.
+            concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
+            total_length = len(concatenated_examples[list(examples.keys())[0]])
+            # We drop the small remainder, and if the total_length < block_size  we exclude this batch and return an empty dict.
+            # We could add padding if the model supported it instead of this drop, you can customize this part to your needs.
+            total_length = (total_length // block_size) * block_size
+            # Split by chunks of max_len.
+            result = {
+                k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+                for k, t in concatenated_examples.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        tokenized_datasets = content.map(
+            tokenize_function,
+            batched=True,
+            num_proc=num_workers,
+            remove_columns=['text', 'meta', '__index_level_0__'],
+            load_from_cache_file=False,
+            desc="Running tokenizer on dataset",
+        )
+
+        lm_datasets = tokenized_datasets.map(
+            group_texts,
+            batched=True,
+            num_proc=num_workers,
+            load_from_cache_file=False,
+            desc=f"Grouping texts in chunks of {block_size}",
+        )
+
+        return lm_datasets
 
     def __len__(self):
         return len(self.content)
     
     def __getitem__(self, index) -> Any:
-        if not self.cluster_batch:
-            sample = self.content[index]
-            src, tgt = sample['source'], sample['target']
-            str_format = src + " " + tgt
-        else: # after clustering batch, already in id format
-            str_format = self.content[index]
-
-        tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
-            str_format,  
-            truncation=True, 
-            padding="max_length",
-            max_length=self.max_seq_length,
-            return_tensors="pt",
-        )
-
-        input_ids = tokenized_sequence.input_ids[0]
-        attention_mask = tokenized_sequence.attention_mask[0]
-        labels = torch.where(
-            input_ids != self.tokenizer.pad_token_id, input_ids, -100
-        )
-
+        
+        sample = self.content[index]
+          
         return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels,
+            "input_ids": sample['input_ids'],
+            "labels": sample['labels'],
         }
 
 
-if __name__ == "__main__":
-    dataset_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/slim_pajama_chunk1/data"
+def main():
     data = datasets.load_dataset("/aifs4su/ziliwang/txw/InternLM/zecheng/data/slim_pajama_chunk1")
-    max_seq_length = 4000  
+    max_seq_length = 2048  
     tokenizer = AutoTokenizer.from_pretrained("/aifs4su/ziliwang/txw/InternLM/zecheng/hf_models/mamba-370m-hf")
-
-    processed_dataset = Slimpajama.preprocess_data(data, tokenizer, max_seq_length)
+    processed_dataset = Slimpajama.preprocess_data(data, tokenizer, max_seq_length, num_workers=200)
+    processed_dataset.save_to_disk("/aifs4su/ziliwang/txw/InternLM/zecheng/data/slim_pajama_chunk1/processed_data")
+    
+if __name__ == "__main__":
+    main()

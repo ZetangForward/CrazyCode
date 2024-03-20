@@ -81,12 +81,11 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         return model, tokenizer
     
-    elif use_custom_module:  # custom model
-        model = load_big_kernel_mamba(
-            model_path, use_relative_position=model_config.use_relative_position,
-        )
+    elif use_custom_module:  # custom model just for mamba now
+        config = MambaConfig.from_pretrained(model_path)
+        config.conv_kernel = 16
+        model = CustomMambaForCausalLM(config).cuda()
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-
         return model, tokenizer
     else:
         ...
@@ -105,7 +104,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
 
     elif "llama" or "deepseek" in model_path.lower():
         model = LlamaForCausalLM.from_pretrained(
-            model_pathdsa, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+            model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
         ).to('cuda')
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         tokenizer.pad_token = tokenizer.eos_token
@@ -267,6 +266,7 @@ class CustomDatamodule(pl.LightningDataModule):
                 if not os.path.isdir(data_path):  # custom dataset
                     train_data = auto_read_data(data_path)
                 elif "hf" in self.cfg.dataset.type.lower():  # huggingface dataset
+                    import pdb; pdb.set_trace()
                     train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
                 else:
                     raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
@@ -349,7 +349,4 @@ class CustomDatamodule(pl.LightningDataModule):
             drop_last=False, 
             shuffle=False,
         )
-        # import pdb;pdb.set_trace()
-        # for i, data in enumerate(predict_loader):
-        #     print(i)
         return predict_loader

@@ -10,13 +10,13 @@ import torch
 from builtins import hasattr
 from torch import optim, Tensor 
 from lightning.pytorch import Trainer
-from lightning.pytorch.strategies import DDPStrategy
+from lightning.pytorch.strategies import DDPStrategy, DeepSpeedStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from modelzipper.tutils import *
-from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from utils import *
-from lightning.pytorch.strategies import DeepSpeedStrategy
+from lightning.pytorch import Callback
+
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
@@ -81,6 +81,16 @@ class Experiment(pl.LightningModule):
             
             self.log("train_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
             self.log("train_ppl", ppl, sync_dist=True, prog_bar=True)
+
+            self.last_batch_tokens = batch['input_ids'].numel()
+            # 累积 token 数量
+            if not hasattr(self, 'total_tokens'):
+                self.total_tokens = 0
+            self.total_tokens += self.last_batch_tokens
+
+            # 将 token 数量记录到 TensorBoard
+            self.log('total_tokens', self.total_tokens)
+
             return lm_loss
 
     def validation_step(self, batch, batch_idx):
@@ -109,12 +119,15 @@ class Experiment(pl.LightningModule):
             self.log("valid_lm_loss", lm_loss, sync_dist=True, prog_bar=True)
             self.log("valid_ppl", ppl, sync_dist=True, prog_bar=True)
 
+
     def configure_optimizers(self):
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
             optimizer = transformers.AdamW(
                 self.model.parameters(), 
                 lr=self.cfg.optimizer.lr,
+                weight_decay=0.1,
+                betas=(self.cfg.optimizer.beta_1, self.cfg.optimizer.beta_2),
             )
         else: # implement with adam as default 
             betas = (self.cfg.experiment.beta_1, self.cfg.experiment.beta_2)
@@ -165,7 +178,20 @@ class Experiment(pl.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": lr_scheduler,
         }
-    
+
+
+class TokenCountCallback(Callback):
+    def __init__(self, max_tokens):
+        super().__init__()
+        self.max_tokens = max_tokens
+        self.total_tokens = 0
+
+    def on_batch_end(self, trainer, pl_module):
+        # update token nums
+        self.total_tokens += pl_module.last_batch_tokens
+        if self.total_tokens >= self.max_tokens:
+            trainer.should_stop = True
+
 
 @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
@@ -195,6 +221,8 @@ def main(config):
     # load experiment
     experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
     
+    import pdb; pdb.set_trace()
+
     # init logger
     tb_logger = TensorBoardLogger(
         save_dir=save_root_dir, 
@@ -212,21 +240,7 @@ def main(config):
         mode='min',
         save_weights_only=True, # only save state dict
     )
-    
-    # # TODO: add deepspeed strategy
-    # deepspeed_config = {
-    #     "zero_allow_untested_optimizer": True,
-    #     "zero_optimization": {
-    #         "stage": 2,  # Enable Stage 2 ZeRO (Optimizer/Gradient state partitioning)
-    #         "offload_optimizer": {"device": "cpu"},  # Enable Offloading optimizer state/calculation to the host CPU
-    #         "contiguous_gradients": True,  # Reduce gradient fragmentation.
-    #         "overlap_comm": True,  # Overlap reduce/backward operation of gradients for speed.
-    #         "allgather_bucket_size": 2e8,  # Number of elements to all gather at once.
-    #         "reduce_bucket_size": 2e8,  # Number of elements we reduce/allreduce at once.
-    #     },
-    # }
-
-    
+    token_monitor = TokenCountCallback(max_tokens=200e9)
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
     if config.experiment.use_deepspeed:
@@ -234,7 +248,7 @@ def main(config):
         deepspeed_trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,
-            callbacks=[lr_monitor, ckpt_monitor],
+            callbacks=[lr_monitor, ckpt_monitor, token_monitor],
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DeepSpeedStrategy(
                 stage=3,
@@ -252,7 +266,7 @@ def main(config):
             enable_checkpointing=True,
             max_steps=config.experiment.num_training_steps,
             devices=config.experiment.device_num,
-            gradient_clip_val=1,
+            gradient_clip_val=1.0,
             enable_model_summary=True,
             num_sanity_val_steps=5,
             fast_dev_run=5 if config.experiment.debug else False # for debugging

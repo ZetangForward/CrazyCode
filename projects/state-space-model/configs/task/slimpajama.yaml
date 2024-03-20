@@ -1,11 +1,11 @@
 dataset:
-  data_path: "slim_pajama_chunk1"
+  data_path: "slim_pajama_chunk1/processed_data"
   processed_data_path: null
   split: null
   module: 'custom_dataset.slimpajama' # Custom dataset module path
   class_name: 'Slimpajama'  # dataset class name
   type: hf
-  max_seq_length: 4000
+  max_seq_length: 2048
   nworkers: 16
   train_batch_size: 8
   val_batch_size: 1
