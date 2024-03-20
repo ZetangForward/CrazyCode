@@ -12,9 +12,10 @@ echo "Number of devices: $num_devices"
 echo "Available GPU device IDs: $CUDA_VISIBLE_DEVICES"
 
 CUDA_LAUNCH_BLOCKING=1 torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  src/train.py \
-    mark=mamba_370m_big_kernel \
+    mark=$model_name-k16 \
     model=$model_name \
-    model_name=$model_name \
+    model_name=$model_name-k16 \
+    model.conv1d_configs.kernel_size=16 \
     task=$task \
     exp_task=$task \
     platform=$platform \
