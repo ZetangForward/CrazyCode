@@ -40,8 +40,6 @@ is_fast_path_available = all(
     (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update)
 )
 
-# we custom the mamba_inner_fn so that we didn't use it
-
 
 
 class MambaRMSNorm(nn.Module):
@@ -89,9 +87,9 @@ class MambaMixer(nn.Module):
     """
 
     def __init__(
-            self, config, layer_idx, use_multi_head=False, 
-            multi_head_config=None, custom_conv1d=False,
-            conv1d_configs=None,
+        self, config, layer_idx, 
+        custom_conv1d=False,
+        conv1d_configs=None,
     ):
         super().__init__()
         self.hidden_size = config.hidden_size
@@ -100,23 +98,26 @@ class MambaMixer(nn.Module):
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
-        self.use_multi_head = use_multi_head
- 
-        if self.use_multi_head:
-            self.num_heads = multi_head_config['num_head']
-            self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
-            assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
-            self.per_head_size = int(self.intermediate_size / self.num_heads)
+        
+        # judge whether use multi-conv1d module
+        
+
+        # if self.use_multi_head:
+        #     self.num_heads = multi_head_config['num_head']
+        #     self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
+        #     assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
+        #     self.per_head_size = int(self.intermediate_size / self.num_heads)
             
-            if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
-                self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
+        #     if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
+        #         self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
 
         self.use_conv_bias = config.use_conv_bias
+
+        import pdb; pdb.set_trace()
 
         if self.use_multi_head:
             kernel_sizes = conv1d_configs['kernel_sizes']
             self.convs = MultiScaleConv1d(config.intermediate_size, config.intermediate_size, kernel_sizes)
-
         elif custom_conv1d:
             self.conv1d = causal_conv1d_fn(**conv1d_configs)
         else:
@@ -428,7 +429,6 @@ class MambaBlock(nn.Module):
     def __init__(
             self, config, layer_idx, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            use_multi_head=False, multi_head_config=None, 
             custom_conv1d=False, conv1d_configs=None,
     ):
         super().__init__()
@@ -439,8 +439,6 @@ class MambaBlock(nn.Module):
         self.mixer = MambaMixer(
             config, 
             layer_idx=layer_idx, 
-            use_multi_head=use_multi_head, 
-            multi_head_config=multi_head_config,
             custom_conv1d=custom_conv1d,
             conv1d_configs=conv1d_configs,
         )
