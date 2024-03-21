@@ -60,22 +60,24 @@ class MambaRMSNorm(nn.Module):
 
 
 
-class MultiScaleConv1d(nn.Module):
+class GatedMultiScaleConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes):
-        super(MultiScaleConv1d, self).__init__()
-
+        super(GatedMultiScaleConv1d, self).__init__()
         self.convs = nn.ModuleList([
             nn.Sequential(
-                nn.ConstantPad1d((kernel_size - 1, 0), 0),  # Only pad at the beginning
-                nn.Conv1d(in_channels, in_channels, kernel_size, groups=in_channels),
-                nn.Conv1d(in_channels, out_channels, 1)
-            )
-            for kernel_size in kernel_sizes
+                nn.ConstantPad1d((kernel_size - 1, 0), 0),
+                nn.Conv1d(in_channels, out_channels * 2, kernel_size, groups=in_channels),  # Double the output channels
+            ) for kernel_size in kernel_sizes
         ])
-
-    def forward(self, x):  # [batch, intermediate_size, seq_len]
-        import pdb; pdb.set_trace()  
-        return torch.cat([conv(x) for conv in self.convs], dim=1) 
+        
+    def forward(self, x):
+        outputs = []
+        for conv in self.convs:
+            conv_output = conv(x)
+            gate, output = torch.split(conv_output, conv_output.size(1) // 2, dim=1)  # Split the output into two equal parts
+            gate = torch.sigmoid(gate)
+            outputs.append(output * gate)
+        return sum(outputs)
 
 
 class MambaMixer(nn.Module):
@@ -114,7 +116,7 @@ class MambaMixer(nn.Module):
             if isinstance(kernel_sizes, int) or len(kernel_sizes) == 1:
                 self.conv1d = causal_conv1d_fn(**conv1d_configs)
             else:
-                self.convs = MultiScaleConv1d(
+                self.convs = GatedMultiScaleConv1d(
                     config.intermediate_size, 
                     config.intermediate_size, 
                     kernel_sizes
