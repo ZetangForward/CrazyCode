@@ -204,7 +204,7 @@ class Evaluator:
             total_score = 0
             self.predictions = auto_read_data(self.fpath+subtask+"_predictions.pkl")
             if subtask == "trec": 
-                all_class = auto_read_data("/public/home/ljt/tzc/data/longbench/data/trec.jsonl")[0]['all_classes']
+                all_class = auto_read_data("/aifs4su/ziliwang/txw/InternLM/zecheng/data/longbench/data/trec.jsonl")[0]['all_classes']
             else:
                 all_class = None
             for item in self.predictions:

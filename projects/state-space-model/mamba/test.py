@@ -106,15 +106,17 @@ def main(config):
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.result_path
     data_root_dir = config.platform.dataset_path
-
+    # import pdb;pdb.set_trace()
     # load model and tokenizer
     model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
     custom_model = CustomModel(model)
 
     # load testing data
     if "longbench"  in config.exp_task:
-        subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
-                    ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
+        # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
+        #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
+        subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
+            "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         subtask = subtask[int(config.job_id)]
     else:
         subtask =  [config.exp_task]
@@ -127,13 +129,20 @@ def main(config):
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
 
-        if config.model.load_model_state_dict and "longbench"  in config.exp_task and 'mamba' in config.model_name:
+        if config.model.load_model_state_dict and "longbench"  in config.exp_task:
             state_dict = torch.load(
                 os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
                 map_location='cuda'
             )
-            custom_model.load_state_dict(state_dict, strict=True)
-            model = custom_model.model
+            # import pdb;pdb.set_trace()
+            if state_dict.get('state_dict'):
+                state_dict = state_dict['state_dict']
+
+            try:
+                custom_model.load_state_dict(state_dict, strict=True)
+                model = custom_model.model
+            except:
+                model.load_state_dict(state_dict, strict=True)
 
         # load experiment (and model checkpoint)
         experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
@@ -142,7 +151,7 @@ def main(config):
 
         b_t = time.time()
         # import pdb;pdb.set_trace()
-        if config.model.load_model_state_dict and "longbench"  in config.exp_task and 'mamba' in config.model_name: 
+        if config.model.load_model_state_dict and "longbench"  in config.exp_task: 
             predictions = tester.predict(
                 model=experiment,
                 dataloaders=data_module.predict_dataloader(),

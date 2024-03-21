@@ -379,7 +379,7 @@ class CustomMambaModel(MambaPreTrainedModel):
     def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None) -> None:
         super().__init__(config)
         
-        self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
 
         self.max_position_embeddings = max_position_embeddings
         self.use_relative_position = use_relative_position
@@ -408,10 +408,10 @@ class CustomMambaModel(MambaPreTrainedModel):
         self.post_init()
 
     def get_input_embeddings(self):
-        return self.embedding
+        return self.embeddings
 
     def set_input_embeddings(self, new_embeddings):
-        self.embedding = new_embeddings
+        self.embeddings = new_embeddings
 
     def forward(
         self,
@@ -440,7 +440,7 @@ class CustomMambaModel(MambaPreTrainedModel):
    
         if inputs_embeds is None:
             
-            inputs_embeds = self.embedding(input_ids)
+            inputs_embeds = self.embeddings(input_ids)
 
         if self.gradient_checkpointing and self.training and use_cache:
             use_cache = False
