@@ -10,7 +10,6 @@ dataset:
   pin_memory: False
   inference_mode: False
   cluster_batch: True  # must be False for LongAlpaca
-
 other_cfgs: null
 
 

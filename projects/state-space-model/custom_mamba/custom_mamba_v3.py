@@ -86,11 +86,7 @@ class MambaMixer(nn.Module):
     and is why Mamba is called **selective** state spaces)
     """
 
-    def __init__(
-        self, config, layer_idx, 
-        custom_conv1d=False,
-        conv1d_configs=None,
-    ):
+    def __init__(self, config, layer_idx, conv1d_configs=None):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
@@ -101,7 +97,7 @@ class MambaMixer(nn.Module):
         
         # judge whether use multi-conv1d module
         
-
+        self.use_custom_conv1d = conv1d_configs is not None
         # if self.use_multi_head:
         #     self.num_heads = multi_head_config['num_head']
         #     self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
@@ -113,13 +109,16 @@ class MambaMixer(nn.Module):
 
         self.use_conv_bias = config.use_conv_bias
 
-        import pdb; pdb.set_trace()
-
-        if self.use_multi_head:
+        if self.use_custom_conv1d:
             kernel_sizes = conv1d_configs['kernel_sizes']
-            self.convs = MultiScaleConv1d(config.intermediate_size, config.intermediate_size, kernel_sizes)
-        elif custom_conv1d:
-            self.conv1d = causal_conv1d_fn(**conv1d_configs)
+            if isinstance(kernel_sizes, int) or len(kernel_sizes) == 1:
+                self.conv1d = causal_conv1d_fn(**conv1d_configs)
+            else:
+                self.convs = MultiScaleConv1d(
+                    config.intermediate_size, 
+                    config.intermediate_size, 
+                    kernel_sizes
+                )
         else:
             self.conv1d = nn.Conv1d(
                 in_channels=self.intermediate_size,
@@ -412,7 +411,13 @@ class MambaMixer(nn.Module):
     # fmt: on
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
-        if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
+        if self.use_custom_conv1d:
+            return self.custom_multi_conv_forward(
+                hidden_states, 
+                cache_params, 
+                extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+            )
+        elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
             return self.cuda_kernels_forward(
                 hidden_states, 
                 cache_params, 
@@ -429,7 +434,7 @@ class MambaBlock(nn.Module):
     def __init__(
             self, config, layer_idx, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            custom_conv1d=False, conv1d_configs=None,
+            conv1d_configs=None,
     ):
         super().__init__()
         self.config = config
@@ -439,7 +444,6 @@ class MambaBlock(nn.Module):
         self.mixer = MambaMixer(
             config, 
             layer_idx=layer_idx, 
-            custom_conv1d=custom_conv1d,
             conv1d_configs=conv1d_configs,
         )
         self.use_relative_position = use_relative_position
@@ -494,8 +498,7 @@ class CustomMambaModel(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            use_multi_head=False, multi_head_config=None, 
-            custom_conv1d=False, conv1d_configs=None,
+            conv1d_configs=None,
     ) -> None:
         super().__init__(config)
         
@@ -516,9 +519,6 @@ class CustomMambaModel(MambaPreTrainedModel):
                 MambaBlock(
                     config, 
                     layer_idx=idx,
-                    use_multi_head=use_multi_head, 
-                    multi_head_config=multi_head_config,
-                    custom_conv1d=custom_conv1d,
                     conv1d_configs=conv1d_configs,
                 ) for idx in range(config.num_hidden_layers)
             ]
@@ -629,15 +629,14 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            custom_conv1d=False, conv1d_configs=None,
+            custom_conv1d_configs=None,
     ) -> None:
         super().__init__(config)
         self.backbone = CustomMambaModel(
             config, use_relative_position=use_relative_position, 
             max_position_embeddings=max_position_embeddings, 
             use_abs_position=use_abs_position,
-            custom_conv1d=custom_conv1d,
-            conv1d_configs=conv1d_configs,
+            conv1d_configs=custom_conv1d_configs,
         )
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # Initialize weights and apply final processing
