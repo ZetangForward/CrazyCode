@@ -73,9 +73,9 @@ class MultiScaleConv1d(nn.Module):
             for kernel_size in kernel_sizes
         ])
 
-    def forward(self, x):
-        import pdb; pdb.set_trace()
-        return torch.cat([conv(x) for conv in self.convs], dim=1)
+    def forward(self, x):  # [batch, intermediate_size, seq_len]
+        import pdb; pdb.set_trace()  
+        return torch.cat([conv(x) for conv in self.convs], dim=1) 
 
 
 class MambaMixer(nn.Module):
@@ -160,13 +160,13 @@ class MambaMixer(nn.Module):
         batch_size, seq_len, _ = hidden_states.shape
         dtype = hidden_states.dtype
         # 1. Gated MLP's linear projection
-        projected_states = self.in_proj(hidden_states).transpose(1, 2)                   # [batch, 2 * intermediate_size, seq_len]
+        projected_states = self.in_proj(hidden_states).transpose(1, 2)  # [batch, 2 * intermediate_size, seq_len]
         hidden_states, gate = projected_states.chunk(2, dim=1)
 
         if cache_params is not None:
             ssm_state = cache_params.ssm_states[self.layer_idx]
             if cache_params.seqlen_offset > 0:
-                conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
+                conv_state = cache_params.conv_states[self.layer_idx] # [batch, intermediate_size, conv_kernel_size]
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
@@ -218,6 +218,7 @@ class MambaMixer(nn.Module):
         # 4. Final linear projection
         contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
         return contextualized_states
+
 
     def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
         
