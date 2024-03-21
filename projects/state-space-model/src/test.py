@@ -36,7 +36,8 @@ class Experiment(pl.LightningModule):
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
-        elif "longbench" in self.cfg.exp_task.lower():
+            import pdb; pdb.set_trace()
+        if "longbench" in self.cfg.exp_task.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
             if self.cfg.task.dataset.subtask == "samsum": 

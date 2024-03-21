@@ -40,8 +40,7 @@ class Experiment(pl.LightningModule):
         depth = batch.get('depth').item()
         ctx_length = batch.get('before_insert_context_length').item()
         bos_pos, eos_pos = batch.get('bos_pos'), batch.get('eos_pos')
-        
-        import pdb; pdb.set_trace()
+
         
         if ctx_length % 1000 != 0:
             pass
@@ -60,6 +59,9 @@ class Experiment(pl.LightningModule):
         batch['predictions'] = output.squeeze(0)[input_ids.size(1):]
         batch['depth'] = depth
         batch['ctx_length'] = ctx_length
+        batch['bos_pos'] = bos_pos
+        batch['eos_pos'] = eos_pos
+        
         return batch
 
 

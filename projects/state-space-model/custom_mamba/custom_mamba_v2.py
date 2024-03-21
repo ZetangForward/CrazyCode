@@ -41,8 +41,8 @@ is_fast_path_available = all(
     (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update, mamba_inner_fn)
 )
 
-# for analysis
-is_fast_path_available = True
+is_fast_path_available = False  # as cuda_covn1d only support 4 width kernel
+
 
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -82,22 +82,33 @@ class MambaMixer(nn.Module):
         if self.use_multi_head:
             self.num_heads = multi_head_config['num_head']
             self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
-            assert self.d_model % self.num_heads == 0, "d_model must be divisible by num_heads"
-            self.per_head_size = int(self.d_model / self.num_heads)
+            assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
+            self.per_head_size = int(self.intermediate_size / self.num_heads)
             
             if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
-                self.up_projector = nn.Linear(self.d_model, self.d_model, bias=False)
+                self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
 
         self.use_conv_bias = config.use_conv_bias
-        
-        self.conv1d = nn.Conv1d(
-            in_channels=self.intermediate_size,
-            out_channels=self.intermediate_size,
-            bias=config.use_conv_bias,
-            kernel_size=config.conv_kernel,
-            groups=self.intermediate_size,
-            padding=config.conv_kernel - 1,
-        )
+
+        if self.use_multi_head:
+            self.conv1d = nn.Conv1d(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.num_heads,  # multi-head (split)
+                padding=config.conv_kernel - 1,
+                dilation=multi_head_config['dilation']
+            )
+        else:
+            self.conv1d = nn.Conv1d(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.intermediate_size,
+                padding=config.conv_kernel - 1,
+            )
 
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
@@ -138,9 +149,6 @@ class MambaMixer(nn.Module):
             if ctx_length in [500, 1000, 2000, 4000, 8000, 16000, 32000] and depth in [0.05, 0.55, 1.0]:
                 analysis_mode = True
                 depth = str(depth).replace(".", "_")    
-
-        if analysis_mode:
-            hidden_states.requires_grad_(True)
 
         # 1. Gated MLP's linear projection
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
@@ -261,8 +269,9 @@ class MambaMixer(nn.Module):
                 conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
-                cache_params.conv_states[self.layer_idx].copy_(conv_state)
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
                 hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
+
                 if self.use_conv_bias:
                     hidden_states += self.conv1d.bias
                 hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
@@ -271,7 +280,7 @@ class MambaMixer(nn.Module):
                     hidden_states,
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
-                cache_params.conv_states[self.layer_idx].copy_(conv_state)
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
                 hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
         else:
             ssm_state = torch.zeros(
@@ -286,37 +295,69 @@ class MambaMixer(nn.Module):
         time_step, B, C = torch.split(
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
-        discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
-        discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
 
-        # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
-        A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
-        discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
-        discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
-        deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
+        if selective_scan_fn is not None:
+            discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
+            A = -torch.exp(self.A_log.float())
+            time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
+            scan_outputs, ssm_state = selective_scan_fn(
+                hidden_states,
+                discrete_time_step,
+                A,
+                B.transpose(1, 2),
+                C.transpose(1, 2),
+                self.D.float(),
+                gate,
+                time_proj_bias,
+                delta_softplus=True,
+                return_last_state=True,
+            )
+            if ssm_state is not None and cache_params is not None:
+                cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+             # 4. Final linear projection
+            contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
 
-        # 3.c perform the recurrence y ← SSM(A, B, C)(x)
-        scan_outputs = []
-        for i in range(seq_len):
-            ssm_state = discrete_A[:, :, i, :] * ssm_state + deltaB_u[:, :, i, :]      # [batch, intermediade_size, ssm_state]
-            scan_output = torch.matmul(ssm_state.to(dtype), C[:, i, :].unsqueeze(-1))  # [batch, intermediade_size, 1]
-            scan_outputs.append(scan_output[:, :, 0])
-        scan_output = torch.stack(scan_outputs, dim=-1)                                # [batch, seq_len, intermediade_size]
-        scan_output = scan_output + (hidden_states * self.D[None, :, None])
-        scan_output = (scan_output * self.act(gate))
+        else:
+            discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
+            discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
 
-        if cache_params is not None:
-            cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+            # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
+            A = -torch.exp(self.A_log.float())  # [intermediate_size, ssm_state_size]
+            discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
+            discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
+            deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
 
-        # 4. Final linear projection
-        contextualized_states = self.out_proj(scan_output.transpose(1, 2))             # [batch, seq_len, hidden_size]
+            # 3.c perform the recurrence y ← SSM(A, B, C)(x)
+            scan_outputs = []
+            for i in range(seq_len):
+                ssm_state = discrete_A[:, :, i, :] * ssm_state + deltaB_u[:, :, i, :]      # [batch, intermediade_size, ssm_state]
+                scan_output = torch.matmul(ssm_state.to(dtype), C[:, i, :].unsqueeze(-1))  # [batch, intermediade_size, 1]
+                scan_outputs.append(scan_output[:, :, 0])
+            scan_output = torch.stack(scan_outputs, dim=-1)                                # [batch, seq_len, intermediade_size]
+            scan_output = scan_output + (hidden_states * self.D[None, :, None])
+            scan_output = (scan_output * self.act(gate))
+
+            if cache_params is not None:
+                cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
+
+            # 4. Final linear projection
+            contextualized_states = self.out_proj(scan_output.transpose(1, 2))  # [batch, seq_len, hidden_size]
+        
         return contextualized_states
-    # fmt: on
+   
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
-            return self.cuda_kernels_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs['extra_kwargs'] if extra_kwargs.get('extra_kwargs')else None)
-        return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs['extra_kwargs'])
+            return self.cuda_kernels_forward(
+                hidden_states, 
+                cache_params, 
+                extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+            )
+        return self.slow_forward(
+            hidden_states, 
+            cache_params, 
+            extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+        )
 
 
 class MambaBlock(nn.Module):
@@ -439,8 +480,7 @@ class CustomMambaModel(MambaPreTrainedModel):
             )
    
         if inputs_embeds is None:
-            
-            inputs_embeds = self.embeddings(input_ids)
+            inputs_embeds = self.embedding(input_ids)
 
         if self.gradient_checkpointing and self.training and use_cache:
             use_cache = False
