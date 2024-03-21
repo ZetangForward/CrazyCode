@@ -59,7 +59,26 @@ class MambaRMSNorm(nn.Module):
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
-   
+
+
+
+class MultiScaleConv1d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_sizes):
+        super(MultiScaleConv1d, self).__init__()
+
+        self.convs = nn.ModuleList([
+            nn.Sequential(
+                nn.ConstantPad1d((kernel_size - 1, 0), 0),  # Only pad at the beginning
+                nn.Conv1d(in_channels, in_channels, kernel_size, groups=in_channels),
+                nn.Conv1d(in_channels, out_channels, 1)
+            )
+            for kernel_size in kernel_sizes
+        ])
+
+    def forward(self, x):
+        import pdb; pdb.set_trace()
+        return torch.cat([conv(x) for conv in self.convs], dim=1)
+
 
 class MambaMixer(nn.Module):
     """
@@ -96,14 +115,7 @@ class MambaMixer(nn.Module):
 
         if self.use_multi_head:
             kernel_sizes = conv1d_configs['kernel_sizes']
-            self.convs = nn.ModuleList([
-                nn.Sequential(
-                    nn.ConstantPad1d((kernel_size - 1, 0), 0),  # Only pad at the beginning
-                    nn.Conv1d(self.intermediate_size, self.intermediate_size, kernel_size, groups=self.intermediate_size),
-                    nn.Conv1d(self.intermediate_size, self.intermediate_size, 1)
-                )
-                for kernel_size in kernel_sizes
-            ])
+            self.convs = MultiScaleConv1d(config.intermediate_size, config.intermediate_size, kernel_sizes)
 
         elif custom_conv1d:
             self.conv1d = causal_conv1d_fn(**conv1d_configs)
@@ -151,10 +163,29 @@ class MambaMixer(nn.Module):
         projected_states = self.in_proj(hidden_states).transpose(1, 2)                   # [batch, 2 * intermediate_size, seq_len]
         hidden_states, gate = projected_states.chunk(2, dim=1)
 
-        hidden_states, gate = projected_states.chunk(2, dim=1)
-        hidden_states = torch.cat([conv(hidden_states) for conv in self.convs], dim=1)
-        hidden_states = self.act(hidden_states[..., :seq_len]) 
-        
+        if cache_params is not None:
+            ssm_state = cache_params.ssm_states[self.layer_idx]
+            if cache_params.seqlen_offset > 0:
+                conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
+                conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
+                conv_state[:, :, -1] = hidden_states[:, :, 0]
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
+                hidden_states = self.convs(conv_state)
+                hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
+            else:
+                conv_state = nn.functional.pad(  # only save last conv_kernel_size states
+                    hidden_states,
+                    (self.conv_kernel_size - hidden_states.shape[-1], 0)
+                )
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
+                hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
+        else:
+            ssm_state = torch.zeros(
+                (batch_size, self.intermediate_size, self.ssm_state_size),
+                device=hidden_states.device, dtype=dtype
+            )
+            hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])
+
         # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
         ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
         time_step, B, C = torch.split(
@@ -167,6 +198,7 @@ class MambaMixer(nn.Module):
         A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
         time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
         
+        import pdb; pdb.set_trace()
         scan_outputs, ssm_state = selective_scan_fn(
             hidden_states,
             discrete_time_step,
@@ -179,8 +211,13 @@ class MambaMixer(nn.Module):
             delta_softplus=True,
             return_last_state=True,
         )
+
+        if cache_params is not None:
+            cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
+
         # 4. Final linear projection
         contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
+        return contextualized_states
 
     def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
         
@@ -205,22 +242,21 @@ class MambaMixer(nn.Module):
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
 
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
-            else:
-                contextualized_states = mamba_inner_fn(
-                    projected_states,
-                    self.conv1d.weight,
-                    self.conv1d.bias if self.use_conv_bias else None,
-                    self.x_proj.weight,
-                    self.dt_proj.weight,
-                    self.out_proj.weight,
-                    self.out_proj.bias.float() if self.use_bias else None,
-                    -torch.exp(self.A_log.float()),
-                    None,  # input-dependent B
-                    None,  # input-dependent C
-                    self.D.float(),
-                    delta_bias=self.dt_proj.bias.float(),
-                    delta_softplus=True,
-                )
+            contextualized_states = mamba_inner_fn(
+                projected_states,
+                self.conv1d.weight,
+                self.conv1d.bias if self.use_conv_bias else None,
+                self.x_proj.weight,
+                self.dt_proj.weight,
+                self.out_proj.weight,
+                self.out_proj.bias.float() if self.use_bias else None,
+                -torch.exp(self.A_log.float()),
+                None,  # input-dependent B
+                None,  # input-dependent C
+                self.D.float(),
+                delta_bias=self.dt_proj.bias.float(),
+                delta_softplus=True,
+            )
 
         else:  # inference mode
             hidden_states, gate = projected_states.chunk(2, dim=1)
