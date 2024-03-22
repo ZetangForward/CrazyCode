@@ -11,7 +11,12 @@ echo "Number of devices: $num_devices"
 
 echo "Available GPU device IDs: $CUDA_VISIBLE_DEVICES"
 
-CUDA_LAUNCH_BLOCKING=1 torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6789  src/train.py \
+torchrun --nproc_per_node=8 \
+    --nnodes=4 \
+    --node_rank=1 \
+    --master_addr dgx-021 \
+    --master_port 6668 \
+    src/train.py \
     mark=$model_name-multi \
     model=$model_name \
     model_name=$model_name-multi \

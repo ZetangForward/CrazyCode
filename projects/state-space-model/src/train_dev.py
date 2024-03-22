@@ -16,6 +16,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from modelzipper.tutils import *
 from utils import *
 from lightning.pytorch import Callback
+import argparse
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
@@ -187,7 +188,7 @@ class TokenCountCallback(Callback):
             trainer.should_stop = True
 
 
-@hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
+# @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
 
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
@@ -290,7 +291,18 @@ def main(config):
     trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--local_rank", type=int, default=None)
+    args = parser.parse_args()
+
+    with hydra.initialize_config_module(config_module="config"):
+        hydra_args = {
+            "config_path": "../configs/",
+            "config_name": "train_config",
+            "version": "1.1"
+        }
+        hydra.main(config_path=hydra_args["config_path"], config_name=hydra_args["config_name"])(main)()
+    
 
 
 
