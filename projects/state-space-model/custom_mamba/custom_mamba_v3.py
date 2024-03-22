@@ -516,7 +516,6 @@ class CustomMambaModel(MambaPreTrainedModel):
         elif use_relative_position:
             freqs = torch.exp(-np.log(10000.0) / config.d_model * torch.arange(0, config.d_model, 2).float())
             self.register_buffer('freqs', freqs)
-            
         self.layers = nn.ModuleList(
             [
                 MambaBlock(
@@ -526,7 +525,7 @@ class CustomMambaModel(MambaPreTrainedModel):
                 ) for idx in range(config.num_hidden_layers)
             ]
         )
-
+        import pdb;pdb.set_trace()
         self.gradient_checkpointing = False
         self.norm_f = MambaRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
         

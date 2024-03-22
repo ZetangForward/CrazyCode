@@ -1,2 +1,0 @@
-[2024-03-12 15:53:54,475][pytorch_lightning.utilities.rank_zero][INFO] - `Trainer.fit` stopped: `max_steps=5` reached.
-[2024-03-12 21:34:53,749][pytorch_lightning.utilities.rank_zero][INFO] - `Trainer.fit` stopped: `max_steps=10000` reached.

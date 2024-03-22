@@ -1,5 +1,0 @@
-- model.ckpt_path=/public/home/ljt/tzc/ckpt/simplepajama/longalpaca_1/checkpoints
-- model.load_model_state_dict=True
-- task=longbench_ywj
-- exp_task=longbench_ywj
-- platform=langchao

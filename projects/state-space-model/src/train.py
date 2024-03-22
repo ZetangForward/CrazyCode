@@ -190,7 +190,7 @@ class TokenCountCallback(Callback):
 
 @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
-    # import pdb;pdb.set_trace()
+
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
     print_c(OmegaConf.to_yaml(config), "yellow")
     
@@ -230,7 +230,7 @@ def main(config):
         save_top_k=config.experiment.save_top_k, 
         dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
         monitor=config.experiment.monitor_metric,
-        filename=f"mamba-{config.exp_task}"+"-{epoch:02d}",
+        filename=f"{config.model_name}-{config.exp_task}"+"-{epoch:02d}",
         save_last=True,
         mode='min',
         save_weights_only=True, # only save state dict
