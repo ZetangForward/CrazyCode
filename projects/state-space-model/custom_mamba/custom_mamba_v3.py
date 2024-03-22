@@ -200,7 +200,7 @@ class MambaMixer(nn.Module):
         A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
         time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
         
-        import pdb; pdb.set_trace()
+
         scan_outputs, ssm_state = selective_scan_fn(
             hidden_states,
             discrete_time_step,
@@ -219,6 +219,7 @@ class MambaMixer(nn.Module):
 
         # 4. Final linear projection
         contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
+        # import pdb; pdb.set_trace()
         return contextualized_states
 
 
@@ -525,7 +526,6 @@ class CustomMambaModel(MambaPreTrainedModel):
                 ) for idx in range(config.num_hidden_layers)
             ]
         )
-        import pdb;pdb.set_trace()
         self.gradient_checkpointing = False
         self.norm_f = MambaRMSNorm(config.hidden_size, eps=config.layer_norm_epsilon)
         
