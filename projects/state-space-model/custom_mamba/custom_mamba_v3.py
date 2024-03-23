@@ -14,14 +14,13 @@ from transformers.utils import ModelOutput
 from dataclasses import dataclass
 from modelzipper.tutils import *
 
-
 try:
     from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
 except ImportError:
     causal_conv1d_fn, causal_conv1d_update = None, None
 
 try:
-    from .mamba_kernel_fn import mamba_inner_fn  # custom module
+    # from .mamba_kernel_fn import mamba_inner_fn  # custom module
     from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
 except ImportError:
     selective_scan_fn, mamba_inner_fn = None, None
@@ -38,8 +37,9 @@ except ImportError:
 
 
 is_fast_path_available = all(
-    (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update, mamba_inner_fn)
+    (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update)
 )
+
 
 
 class MambaRMSNorm(nn.Module):
@@ -57,7 +57,28 @@ class MambaRMSNorm(nn.Module):
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
-    
+
+
+
+class GatedMultiScaleConv1d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_sizes):
+        super(GatedMultiScaleConv1d, self).__init__()
+        self.convs = nn.ModuleList([
+            nn.Sequential(
+                nn.ConstantPad1d((kernel_size - 1, 0), 0),
+                nn.Conv1d(in_channels, out_channels * 2, kernel_size, groups=in_channels),  # Double the output channels
+            ) for kernel_size in kernel_sizes
+        ])
+        
+    def forward(self, x):
+        outputs = []
+        for conv in self.convs:
+            conv_output = conv(x)
+            gate, output = torch.split(conv_output, conv_output.size(1) // 2, dim=1)  # Split the output into two equal parts
+            gate = torch.sigmoid(gate)
+            outputs.append(output * gate)
+        return sum(outputs)
+
 
 class MambaMixer(nn.Module):
     """
@@ -67,11 +88,7 @@ class MambaMixer(nn.Module):
     and is why Mamba is called **selective** state spaces)
     """
 
-    def __init__(
-            self, config, layer_idx, use_multi_head=False, 
-            multi_head_config=None, custom_conv1d=False,
-            conv1d_configs=None,
-    ):
+    def __init__(self, config, layer_idx, conv1d_configs=None):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
@@ -79,31 +96,31 @@ class MambaMixer(nn.Module):
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
-        self.use_multi_head = use_multi_head
-
-        if self.use_multi_head:
-            self.num_heads = multi_head_config['num_head']
-            self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
-            assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
-            self.per_head_size = int(self.intermediate_size / self.num_heads)
+        
+        # judge whether use multi-conv1d module
+        
+        self.use_custom_conv1d = conv1d_configs is not None
+        # if self.use_multi_head:
+        #     self.num_heads = multi_head_config['num_head']
+        #     self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
+        #     assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
+        #     self.per_head_size = int(self.intermediate_size / self.num_heads)
             
-            if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
-                self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
+        #     if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
+        #         self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
 
         self.use_conv_bias = config.use_conv_bias
 
-        if self.use_multi_head:
-            self.conv1d = nn.Conv1d(
-                in_channels=self.intermediate_size,
-                out_channels=self.intermediate_size,
-                bias=config.use_conv_bias,
-                kernel_size=config.conv_kernel,
-                groups=self.num_heads,  # multi-head (split)
-                padding=config.conv_kernel - 1,
-                dilation=multi_head_config['dilation']
-            )
-        elif custom_conv1d:
-            self.conv1d = causal_conv1d_fn(**conv1d_configs)
+        if self.use_custom_conv1d:
+            kernel_sizes = conv1d_configs['kernel_sizes']
+            if isinstance(kernel_sizes, int) or len(kernel_sizes) == 1:
+                self.conv1d = causal_conv1d_fn(**conv1d_configs)
+            else:
+                self.convs = GatedMultiScaleConv1d(
+                    config.intermediate_size, 
+                    config.intermediate_size, 
+                    kernel_sizes
+                )
         else:
             self.conv1d = nn.Conv1d(
                 in_channels=self.intermediate_size,
@@ -140,11 +157,75 @@ class MambaMixer(nn.Module):
                 " is None. Falling back to the naive implementation. To install follow https://github.com/state-spaces/mamba/#installation and"
                 " https://github.com/Dao-AILab/causal-conv1d", "red"
             )
+    
+    def custom_multi_conv_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
+        batch_size, seq_len, _ = hidden_states.shape
+        dtype = hidden_states.dtype
+        # 1. Gated MLP's linear projection
+        projected_states = self.in_proj(hidden_states).transpose(1, 2)  # [batch, 2 * intermediate_size, seq_len]
+        hidden_states, gate = projected_states.chunk(2, dim=1)
+
+        if cache_params is not None:
+            ssm_state = cache_params.ssm_states[self.layer_idx]
+            if cache_params.seqlen_offset > 0:
+                conv_state = cache_params.conv_states[self.layer_idx] # [batch, intermediate_size, conv_kernel_size]
+                conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
+                conv_state[:, :, -1] = hidden_states[:, :, 0]
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
+                hidden_states = self.convs(conv_state)
+                hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
+            else:
+                conv_state = nn.functional.pad(  # only save last conv_kernel_size states
+                    hidden_states,
+                    (self.conv_kernel_size - hidden_states.shape[-1], 0)
+                )
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
+                hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
+        else:
+            ssm_state = torch.zeros(
+                (batch_size, self.intermediate_size, self.ssm_state_size),
+                device=hidden_states.device, dtype=dtype
+            )
+            hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])
+
+        # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
+        ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
+        time_step, B, C = torch.split(
+            ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
+        )
+        discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
+        discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
+
+        # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
+        A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
+        time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
+        
+        import pdb; pdb.set_trace()
+        scan_outputs, ssm_state = selective_scan_fn(
+            hidden_states,
+            discrete_time_step,
+            A,
+            B.transpose(1, 2),
+            C.transpose(1, 2),
+            self.D.float(),
+            gate,
+            time_proj_bias,
+            delta_softplus=True,
+            return_last_state=True,
+        )
+
+        if cache_params is not None:
+            cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
+
+        # 4. Final linear projection
+        contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
+        return contextualized_states
+
 
     def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
         
         analysis_mode = False
-            
+        
         if extra_kwargs is not None: ## for analysis
             analysis_layers = [0, 11, 23, 35, 47]
             depth = extra_kwargs.get("depth", None)
@@ -157,11 +238,13 @@ class MambaMixer(nn.Module):
         if analysis_mode:
             hidden_states.requires_grad_(True)
 
+        batch_size, seq_len, _ = hidden_states.shape
+        dtype = hidden_states.dtype
+
         # 1. Gated MLP's linear projection
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
 
         if self.training and cache_params is None:  # Doesn't support outputting the states -> used for training
-            
             contextualized_states = mamba_inner_fn(
                 projected_states,
                 self.conv1d.weight,
@@ -331,7 +414,13 @@ class MambaMixer(nn.Module):
     # fmt: on
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
-        if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
+        if self.use_custom_conv1d:
+            return self.custom_multi_conv_forward(
+                hidden_states, 
+                cache_params, 
+                extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+            )
+        elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
             return self.cuda_kernels_forward(
                 hidden_states, 
                 cache_params, 
@@ -348,8 +437,7 @@ class MambaBlock(nn.Module):
     def __init__(
             self, config, layer_idx, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            use_multi_head=False, multi_head_config=None, 
-            custom_conv1d=False, conv1d_configs=None,
+            conv1d_configs=None,
     ):
         super().__init__()
         self.config = config
@@ -359,9 +447,6 @@ class MambaBlock(nn.Module):
         self.mixer = MambaMixer(
             config, 
             layer_idx=layer_idx, 
-            use_multi_head=use_multi_head, 
-            multi_head_config=multi_head_config,
-            custom_conv1d=custom_conv1d,
             conv1d_configs=conv1d_configs,
         )
         self.use_relative_position = use_relative_position
@@ -416,8 +501,7 @@ class CustomMambaModel(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            use_multi_head=False, multi_head_config=None, 
-            custom_conv1d=False, conv1d_configs=None,
+            conv1d_configs=None,
     ) -> None:
         super().__init__(config)
         
@@ -438,9 +522,6 @@ class CustomMambaModel(MambaPreTrainedModel):
                 MambaBlock(
                     config, 
                     layer_idx=idx,
-                    use_multi_head=use_multi_head, 
-                    multi_head_config=multi_head_config,
-                    custom_conv1d=custom_conv1d,
                     conv1d_configs=conv1d_configs,
                 ) for idx in range(config.num_hidden_layers)
             ]
@@ -551,15 +632,14 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            custom_conv1d=False, conv1d_configs=None,
+            custom_conv1d_configs=None,
     ) -> None:
         super().__init__(config)
         self.backbone = CustomMambaModel(
             config, use_relative_position=use_relative_position, 
             max_position_embeddings=max_position_embeddings, 
             use_abs_position=use_abs_position,
-            custom_conv1d=custom_conv1d,
-            conv1d_configs=conv1d_configs,
+            conv1d_configs=custom_conv1d_configs,
         )
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # Initialize weights and apply final processing

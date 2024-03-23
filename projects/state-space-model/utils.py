@@ -13,7 +13,7 @@ from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
-from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+from custom_mamba.custom_mamba_v3 import CustomMambaForCausalLM
 
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
@@ -83,8 +83,13 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
-        config.conv_kernel = model_config.conv1d_configs.kernel_size
-        model = CustomMambaForCausalLM(config).cuda()
+        model = CustomMambaForCausalLM(
+            config, 
+            use_relative_position=model_config.use_relative_position,
+            max_position_embeddings=model_config.max_position_embeddings,
+            use_abs_position=model_config.use_abs_position,
+            custom_conv1d_configs=model_config.conv1d_configs,
+        ).cuda()
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         return model, tokenizer
     else:
@@ -263,8 +268,14 @@ class CustomDatamodule(pl.LightningDataModule):
             else:
                 # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
-                if "hf" in self.cfg.dataset.type.lower():  # huggingface dataset
-                    train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
+                if hasattr(self.cfg.dataset, "type"):
+                    if "hf" in self.cfg.dataset.type.lower() or "huggingface" in self.cfg.dataset.type.lower():  # huggingface dataset
+                        train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
+                    else:
+                        try:
+                            train_data = auto_read_data(data_path)
+                        except:
+                            raise NotImplementedError(f"{self.cfg.dataset.type} is not support")
                 elif not os.path.isdir(data_path):  # custom dataset
                     train_data = auto_read_data(data_path)
                 else:
