@@ -17,6 +17,7 @@ from modelzipper.tutils import *
 from utils import *
 from lightning.pytorch import Callback
 import argparse
+from collections import namedtuple
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
@@ -188,11 +189,10 @@ class TokenCountCallback(Callback):
             trainer.should_stop = True
 
 
-# @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
 
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
-    print_c(OmegaConf.to_yaml(config), "yellow")
+    # print_c(OmegaConf.to_yaml(config), "yellow")
     
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
@@ -240,6 +240,8 @@ def main(config):
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
+    # print(config.optimizer)
+    # print(config.optimizer.num_training_steps)
     if config.experiment.use_deepspeed:
         log_c("Using DeepSpeed", "yellow")
         deepspeed_trainer = Trainer(
@@ -290,22 +292,113 @@ def main(config):
     
     trainer.fit(experiment, datamodule=data_module)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--local_rank", type=int, default=None)
-    args = parser.parse_args()
 
-    with hydra.initialize_config_module(config_module="config"):
-        hydra_args = {
-            "config_path": "../configs/",
-            "config_name": "train_config",
-            "version": "1.1"
-        }
-        hydra.main(config_path=hydra_args["config_path"], config_name=hydra_args["config_name"])(main)()
+
+
+class Model:
+    model_name_or_path = "mamba-370m-hf"
+    tokenizer_name_or_path = "mamba-370m-hf"
+    ckpt_path = "mamba-370m-hf/pytorch_model.bin"
+    use_custom_module = True
+    load_model_state_dict = False
+    use_relative_position = False
+    use_abs_position = False
+    max_position_embeddings = 16384
+    custom_conv1d = True
+    class Conv1d_configs:
+        kernel_sizes = [2, 4, 8, 16, 32, 64]
+    conv1d_configs = Conv1d_configs()
+
+class platform:
+    name = "光年之外 H800"
+    hf_model_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/hf_models"
+    dataset_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data"
+    exp_path = "/aifs4su/ziliwang/txw/InternLM/zecheng"
+    result_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/evaluation"
+
+class task:
+    class Dataset: 
+        data_path = "slim_pajama_chunk1/processed_data"
+        processed_data_path = ""
+        split = ""
+        module = "custom_dataset.slimpajama"
+        class_name = 'Slimpajama'
+        type = "hf"
+        max_seq_length = 2048
+        nworkers = 8
+        train_batch_size = 4
+        val_batch_size = 1
+        pin_memory = True
+        inference_mode = False
+        cluster_batch = False
+    dataset = Dataset()
+    other_cfgs = ""
+
+class experiment:
+    seed = 27
+    model_save_dir = "simplepajama-mamba_370m_multi-multi"
+    save_top_k = 5
+    monitor_metric = "train_lm_loss"
+    weight_decay = 0.1
+    eps = 0.001
+    every_n_train_steps = 2000
+    accumulate_grad_batches = 2
+    use_deepspeed = True
+    debug = False
+    hf_trainer = True
+    low_rank_train = False
+    device_num = 8
+    node_num = 4
+
+class Optimizer:
+    optimizer_type = "adamw"
+    lr = 5e-5
+    beta_1 = 0.9
+    beta_2 = 0.95
+    num_training_steps = 20000
+    warmup_steps = 2000
+    peak_lr = 0.0002
+    last_lr = 0.00001
+
+class lr_scheduler:
+    scheduler_type = "get_cosine_schedule_with_warmup"
+    warmup_steps = 0
+
+class Configs:
+    model_name = "mamba_370m_multi"
+    mark = model_name + "multi" 
+    state = "train"
+    exp_task = "simplepajama"
+    task = task()
+    platform = platform()
+    model = Model()
+    experiment = experiment()
+    optimizer = Optimizer()
+    lr_scheduler = lr_scheduler()
+    
     
 
 
+if __name__ == '__main__':
+    config = Configs()
+    # import pdb;pdb.set_trace()
+    main(config)
 
+    # with hydra.initialize_config_module(config_module="config"):
+        # parser = argparse.ArgumentParser()
+        # parser.add_argument("--local_rank", type=int, default=None)
+        # parser.add_argument("--other_param", type=str, default=None)
+        # args, unknown_args = parser.parse_known_args()
+        # args = parser.parse_args()
+
+        # torch.distributed.init_process_group(backend='nccl')
+        # torch.cuda.set_device(args.local_rank)
+        # hydra_args = {
+        #     config_path = "../configs/",
+        #     config_name = "train_config",
+        #     version = "1.1"
+        # }
+        # hydra.main(config_path=hydra_args["config_path"], config_name=hydra_args["config_name"])(main)()
 
 
 

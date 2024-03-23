@@ -142,6 +142,8 @@ class CustomDatamodule(pl.LightningDataModule):
         self.root_dir = root_dir
         self.tokenizer = tokenizer
         self.prepare_data_per_node = True
+        # import pdb;pdb.set_trace()
+        print(self.cfg.dataset)
         self.dataset_kwargs = {
             "max_seq_length": self.cfg.dataset.max_seq_length,
             "cluster_batch": self.cfg.dataset.cluster_batch,           
@@ -247,7 +249,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if self.cfg.dataset.processed_data_path is not None:
+            if self.cfg.dataset.processed_data_path is not None and self.cfg.dataset.processed_data_path != "":
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 
@@ -270,6 +272,7 @@ class CustomDatamodule(pl.LightningDataModule):
                 # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
                 if hasattr(self.cfg.dataset, "type"):
+                    # import pdb;pdb.set_trace()
                     if "hf" in self.cfg.dataset.type.lower() or "huggingface" in self.cfg.dataset.type.lower():  # huggingface dataset
                         train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
                     else:

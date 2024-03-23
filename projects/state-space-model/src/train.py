@@ -257,6 +257,7 @@ def main(config):
                 logging_level=logging.INFO,
                 precision_plugin="bf16",
             ),
+            num_nodes=2,  ##### warning
             precision="bf16",
             accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             enable_checkpointing=True,

@@ -11,10 +11,12 @@ echo "Number of devices: $num_devices"
 
 echo "Available GPU device IDs: $CUDA_VISIBLE_DEVICES"
 
+# 避免多线程导致死锁
+# OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 torchrun --nproc_per_node=8 \
-    --nnodes=4 \
+    --nnodes=2 \
     --node_rank=0 \
-    --master_addr dgx-021 \
+    --master_addr dgx-071 \
     --master_port 6668 \
     src/train.py \
     mark=$model_name-multi \
@@ -26,14 +28,14 @@ torchrun --nproc_per_node=8 \
     experiment.debug=False \
     experiment.hf_trainer=True \
     experiment.low_rank_train=False \
-    experiment.device_num=$device_num \
+    experiment.device_num=8 \
     experiment.use_deepspeed=True \
-    experiment.accumulate_grad_batches=5 \
+    experiment.accumulate_grad_batches=10 \
     experiment.save_top_k=5 \
     task.dataset.cluster_batch=False \
     task.dataset.train_batch_size=4 \
     task.dataset.max_seq_length=2048 \
-    task.dataset.nworkers=12 \
+    task.dataset.nworkers=4 \
     
     
 

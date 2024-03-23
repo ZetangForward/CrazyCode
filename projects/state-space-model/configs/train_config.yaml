@@ -3,7 +3,7 @@ mark: &mark 1
 state: &state "train"
 exp_task: &exp_task "simplepajama"
 model_name: &model_name "mamba-1_4b"
-local_rank: null
+--local_rank: null
 
 defaults:
   - _self_
