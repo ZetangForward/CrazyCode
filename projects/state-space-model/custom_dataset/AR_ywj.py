@@ -132,18 +132,30 @@ if __name__ == '__main__':
     #     data_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/" + "train_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
     #     auto_save_data(test_data,data_path)
         
-    for input_seq_len in [512, 1024, 2048, 4096, 8192, 16384]:
-        for number_kv_pairs in [48, 96, 192, 384, 768]:
-            try:
-                test_data = MQARDataset.build_dataset(
-                    vocab_size=8192, 
-                    input_seq_len=input_seq_len,
-                    num_kv_pairs=number_kv_pairs,
-                    num_examples=3000,
-                    power_a=0.01,
-                    tokenizer=None,
-                    )
-                data_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
-                auto_save_data(test_data,data_path)
-            except:
-                print(input_seq_len,number_kv_pairs,"save+-failed")
+    # for input_seq_len in [512, 1024, 2048, 4096, 8192, 16384]:
+    #     for number_kv_pairs in [48, 96, 192, 384, 768]:
+    #         try:
+    #             test_data = MQARDataset.build_dataset(
+    #                 vocab_size=8192, 
+    #                 input_seq_len=input_seq_len,
+    #                 num_kv_pairs=number_kv_pairs,
+    #                 num_examples=10,
+    #                 power_a=0.01,
+    #                 tokenizer=None,
+    #                 )
+    #             data_path = "/nvme/zecheng/data/MQAR/test_for_test.pkl"
+    #             # data_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+    #             auto_save_data(test_data,data_path)
+    #         except:
+    #             print(input_seq_len,number_kv_pairs,"save+-failed")
+    test_data = MQARDataset.build_dataset(
+                vocab_size=8192, 
+                input_seq_len=512,
+                num_kv_pairs=32,
+                num_examples=10,
+                power_a=0.01,
+                tokenizer=None,
+                )
+    data_path = "/nvme/zecheng/data/MQAR/test_for_test.pkl"
+    # data_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+    auto_save_data(test_data,data_path)

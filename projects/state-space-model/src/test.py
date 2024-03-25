@@ -37,8 +37,8 @@ class Experiment(pl.LightningModule):
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
-            import pdb; pdb.set_trace()
-        if "longbench" in self.cfg.exp_task.lower():
+            # import pdb; pdb.set_trace()
+        elif "longbench" in self.cfg.exp_task.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
             if self.cfg.task.dataset.subtask == "samsum": 
@@ -95,7 +95,7 @@ class CustomModel(nn.Module):
     
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
-    import pdb;pdb.set_trace()
+
     print_c(OmegaConf.to_yaml(config), "yellow")
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.result_path
@@ -133,6 +133,7 @@ def main(config):
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
 
+        # import pdb;pdb.set_trace()
         if config.model.load_model_state_dict :
             state_dict = torch.load(
                 os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
@@ -155,23 +156,18 @@ def main(config):
 
         b_t = time.time()
         # import pdb;pdb.set_trace()
-        if config.model.load_model_state_dict and "longbench"  in config.exp_task: 
-            predictions = tester.predict(
-                model=experiment,
-                dataloaders=data_module.predict_dataloader(),
-                return_predictions=True,
-                # ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
-            )
-        else: 
-            predictions = tester.predict(
-                model=experiment,
-                dataloaders=data_module.predict_dataloader(),
-                return_predictions=True,
-                ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
-            )
+      
+        predictions = tester.predict(
+            model=experiment,
+            dataloaders=data_module.predict_dataloader(),
+            return_predictions=True,
+        )
+    
         
         print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-        if task == config.exp_task:
+        if task == config.exp_task: 
+            save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
+            save_path=os.path.dirname(os.path.dirname(os.path.dirname(save_path)))
             save_final_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
         else:
             save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
@@ -183,10 +179,10 @@ def main(config):
             root_dir=save_root_dir, fpath=save_final_path, 
             data_path=os.path.join(data_root_dir, config.task.dataset.data_path), 
             task=config.exp_task,
-            subtask=task if subtask!=config.exp_task else None,
+            subtask=task if task!=config.exp_task else config.mark,
             tokenizer_name_or_path=None,
             value=None, save_evaluation_path=save_path,
-            save_gen_res=save_path,
+            save_gen_res=True,
         )
 
     
