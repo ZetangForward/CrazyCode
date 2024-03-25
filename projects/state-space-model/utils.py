@@ -7,13 +7,13 @@ from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADER
 from torch.utils.data import DataLoader
 
 from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM
-from transformers import MambaConfig
+from transformers import MambaConfig, MambaForCausalLM
 from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
-from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+from custom_mamba.custom_mamba_v3 import CustomMambaForCausalLM
 
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
@@ -81,13 +81,18 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         return model, tokenizer
     
-    elif use_custom_module:  # custom model
-        model = load_big_kernel_mamba(
-            model_path, use_relative_position=model_config.use_relative_position,
-        )
+    elif use_custom_module:  # custom model just for mamba now
+        config = MambaConfig.from_pretrained(model_path)
+        model = CustomMambaForCausalLM(
+            config, 
+            use_relative_position=model_config.use_relative_position,
+            max_position_embeddings=model_config.max_position_embeddings,
+            use_abs_position=model_config.use_abs_position,
+            custom_conv1d_configs=model_config.conv1d_configs,
+        ).cuda()
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-
         return model, tokenizer
+    
     else:
         ...
     
@@ -99,8 +104,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
 
     elif "mamba" in model_path.lower():
         model = CustomMambaForCausalLM.from_pretrained(
-            model_path, use_relative_position=model_config.use_relative_position,
-            torch_dtype=torch.bfloat16
+            model_path, torch_dtype=torch.bfloat16
         )
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
@@ -138,6 +142,8 @@ class CustomDatamodule(pl.LightningDataModule):
         self.root_dir = root_dir
         self.tokenizer = tokenizer
         self.prepare_data_per_node = True
+        # import pdb;pdb.set_trace()
+        print(self.cfg.dataset)
         self.dataset_kwargs = {
             "max_seq_length": self.cfg.dataset.max_seq_length,
             "cluster_batch": self.cfg.dataset.cluster_batch,           
@@ -151,14 +157,14 @@ class CustomDatamodule(pl.LightningDataModule):
         if self.cfg.other_cfgs is not None:
             self.dataset_kwargs.update(self.cfg.other_cfgs)
     
-    def load_data_with_root_dir(self, fpath):
+    def load_data_with_root_dir(self, fpath, type='custom'):
         '''
         read data with root dir
         '''
         if not self.root_dir in fpath:
             fpath = os.path.join(self.root_dir, fpath)
-        if 'hf' in fpath:
-            return load_from_disk(fpath)
+        if type == 'hf':
+            return load_from_disk(fpath)['train']
         return auto_read_data(fpath)
 
     def setup(self, stage: str = 'fit') -> None:
@@ -169,7 +175,8 @@ class CustomDatamodule(pl.LightningDataModule):
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
-                if self.cfg.dataset.processed_data_path is None:  # preporcess the passkey_search data on-the-fly
+                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                if self.cfg.dataset.processed_data_path is None or not os.path.exists(processed_data_path):  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(
                         fpath=os.path.join(self.root_dir, self.cfg.dataset.data_path), 
                         key=self.cfg.dataset.key,
@@ -177,8 +184,9 @@ class CustomDatamodule(pl.LightningDataModule):
                         ctx_len=self.cfg.dataset.max_seq_length,
                         tokenizer=self.tokenizer,
                     )
-                    auto_save_data(...)  # auto save processed data fn
-                    raise NotImplementedError
+                    auto_save_data(processed_data, processed_data_path)  # auto save processed data fn
+                    log_c("Processed data has been saved\nPlease re-start the program", color="yellow")
+                    exit()
             
             if "ar" in self.cfg.dataset.module.lower():
                 if self.cfg.dataset.processed_data_path is None:
@@ -241,7 +249,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if self.cfg.dataset.processed_data_path is not None:
+            if self.cfg.dataset.processed_data_path is not None and self.cfg.dataset.processed_data_path != "":
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 
@@ -263,21 +271,23 @@ class CustomDatamodule(pl.LightningDataModule):
             else:
                 # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
-                if not os.path.isdir(data_path):
+                if hasattr(self.cfg.dataset, "type"):
+                    # import pdb;pdb.set_trace()
+                    if "hf" in self.cfg.dataset.type.lower() or "huggingface" in self.cfg.dataset.type.lower():  # huggingface dataset
+                        train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
+                    else:
+                        try:
+                            train_data = auto_read_data(data_path)
+                        except:
+                            raise NotImplementedError(f"{self.cfg.dataset.type} is not support")
+                elif not os.path.isdir(data_path):  # custom dataset
                     train_data = auto_read_data(data_path)
-
-                elif "hf" in self.cfg.dataset.data_path.lower():
-                    if "pajama" in self.cfg.dataset.data_path.lower():
-                        all_data = self.load_data_with_root_dir(self.cfg.dataset.data_path)
-                        import pdb; pdb.set_trace()  
-                        ...
                 else:
                     raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
 
         # further process data with stage
         if stage == "fit":  # training mode
-            # check data & initialization  
-           
+            # check data & initialization
             assert train_data is not None, f"train data should not be None during {stage} stage"
             try:
                 assert valid_data is not None, f"valid data is None during {stage} stage"
@@ -353,7 +363,4 @@ class CustomDatamodule(pl.LightningDataModule):
             drop_last=False, 
             shuffle=False,
         )
-        # import pdb;pdb.set_trace()
-        # for i, data in enumerate(predict_loader):
-        #     print(i)
         return predict_loader

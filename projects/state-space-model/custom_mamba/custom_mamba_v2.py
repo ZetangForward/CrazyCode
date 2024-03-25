@@ -2,24 +2,17 @@ import torch
 import os
 import sys
 sys.path.append(os.getcwd())
-import math
 import torch
 import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
 from typing import Optional
-from einops import rearrange, repeat
-from modelzipper.tutils import *
-from torch import Tensor 
-from functools import partial
-from collections import namedtuple
-from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
 from transformers.generation import GreedySearchDecoderOnlyOutput, SampleDecoderOnlyOutput
 from mamba_ssm.utils.generation import update_graph_cache, InferenceParams, sample
 from transformers import MambaPreTrainedModel
 from transformers.activations import ACT2FN
 from transformers.utils import ModelOutput
 from dataclasses import dataclass
+from modelzipper.tutils import *
 
 
 try:
@@ -28,8 +21,8 @@ except ImportError:
     causal_conv1d_fn, causal_conv1d_update = None, None
 
 try:
-    from .mamba_kernel_fn import mamba_inner_fn  # custom module
-    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    # from .mamba_kernel_fn import mamba_inner_fn  # custom module
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 except ImportError:
     selective_scan_fn, mamba_inner_fn = None, None
 
@@ -48,8 +41,8 @@ is_fast_path_available = all(
     (selective_state_update, selective_scan_fn, causal_conv1d_fn, causal_conv1d_update, mamba_inner_fn)
 )
 
-# for analysis
-is_fast_path_available = True
+is_fast_path_available = False  # as cuda_covn1d only support 4 width kernel
+
 
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -66,7 +59,7 @@ class MambaRMSNorm(nn.Module):
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
-
+    
 
 class MambaMixer(nn.Module):
     """
@@ -89,27 +82,38 @@ class MambaMixer(nn.Module):
         if self.use_multi_head:
             self.num_heads = multi_head_config['num_head']
             self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
-            assert self.d_model % self.num_heads == 0, "d_model must be divisible by num_heads"
-            self.per_head_size = int(self.d_model / self.num_heads)
+            assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
+            self.per_head_size = int(self.intermediate_size / self.num_heads)
             
             if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
-                self.up_projector = nn.Linear(self.d_model, self.d_model, bias=False)
+                self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
 
         self.use_conv_bias = config.use_conv_bias
-        
-        self.conv1d = nn.Conv1d(
-            in_channels=self.intermediate_size,
-            out_channels=self.intermediate_size,
-            bias=config.use_conv_bias,
-            kernel_size=config.conv_kernel,
-            groups=self.intermediate_size,
-            padding=config.conv_kernel - 1,
-        )
+
+        if self.use_multi_head:
+            self.conv1d = nn.Conv1d(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.num_heads,  # multi-head (split)
+                padding=config.conv_kernel - 1,
+                dilation=multi_head_config['dilation']
+            )
+        else:
+            self.conv1d = nn.Conv1d(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.intermediate_size,
+                padding=config.conv_kernel - 1,
+            )
 
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
 
-        # projection of the input hidden states
+        # projection of the input hidden statesa
         self.in_proj = nn.Linear(self.hidden_size, self.intermediate_size * 2, bias=config.use_bias)
         # selective projection used to make dt, B and C input dependant
         self.x_proj = nn.Linear(self.intermediate_size, self.time_step_rank + self.ssm_state_size * 2, bias=False)
@@ -133,7 +137,19 @@ class MambaMixer(nn.Module):
                 " https://github.com/Dao-AILab/causal-conv1d", "red"
             )
 
-    def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, **kwargs):
+    def cuda_kernels_forward(self, hidden_states: torch.Tensor, cache_params=None, extra_kwargs=None):
+        
+        analysis_mode = False
+            
+        if extra_kwargs is not None: ## for analysis
+            analysis_layers = [0, 11, 23, 35, 47]
+            depth = extra_kwargs.get("depth", None)
+            save_dir = extra_kwargs.get("save_dir", None)
+            ctx_length = extra_kwargs.get("ctx_length", None)
+            if ctx_length in [500, 1000, 2000, 4000, 8000, 16000, 32000] and depth in [0.05, 0.55, 1.0]:
+                analysis_mode = True
+                depth = str(depth).replace(".", "_")    
+
         # 1. Gated MLP's linear projection
         projected_states = self.in_proj(hidden_states).transpose(1, 2)
 
@@ -154,11 +170,12 @@ class MambaMixer(nn.Module):
                 delta_softplus=True,
             )
 
-        else:
+        else:  # inference mode
             hidden_states, gate = projected_states.chunk(2, dim=1)
-
+            
             # 2. Convolution sequence transformation
             conv_weights = self.conv1d.weight.view(self.conv1d.weight.size(0), self.conv1d.weight.size(2))
+            
             if cache_params is not None and cache_params.seqlen_offset > 0:
                 hidden_states = causal_conv1d_update(
                     hidden_states.squeeze(-1),
@@ -168,15 +185,29 @@ class MambaMixer(nn.Module):
                     self.activation,
                 )
                 hidden_states = hidden_states.unsqueeze(-1)
+
+                if analysis_mode:  # save first hidden state
+                    if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
+                        save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", f"hidden_states_{cache_params.seqlen_offset}.pkl")
+                        auto_save_data(hidden_states[:, :, 0].cpu(), save_path)
+            
             else:
                 if cache_params is not None:
+                    
+                    if analysis_mode:  # save first hidden state
+                        if self.layer_idx in analysis_layers:  # analysis step: save the 1-st hidden_state
+                            save_path = os.path.join(f"{save_dir}/ctx_length_{ctx_length}-depth_{depth}/layer_{self.layer_idx}", "first_hidden_state.pkl")
+                            auto_save_data(hidden_states.cpu(), save_path)
+
                     conv_states = nn.functional.pad(
                         hidden_states, (self.conv_kernel_size - hidden_states.shape[-1], 0)
                     )
                     cache_params.conv_states[self.layer_idx].copy_(conv_states)
+                
                 hidden_states = causal_conv1d_fn(
                     hidden_states, conv_weights, self.conv1d.bias, activation=self.activation
                 )
+
 
             # 3. State Space Model sequence transformation
             # 3.a. input varying initialization of time_step, B and C
@@ -224,6 +255,7 @@ class MambaMixer(nn.Module):
 
     # fmt: off
     def slow_forward(self, input_states, cache_params=None, extra_kwargs=None):
+        
         batch_size, seq_len, _ = input_states.shape
         dtype = input_states.dtype
         # 1. Gated MLP's linear projection
@@ -237,17 +269,18 @@ class MambaMixer(nn.Module):
                 conv_state = cache_params.conv_states[self.layer_idx]                   # [batch, intermediate_size, conv_kernel_size]
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
-                cache_params.conv_states[self.layer_idx].copy_(conv_state)
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
                 hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
+
                 if self.use_conv_bias:
                     hidden_states += self.conv1d.bias
                 hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
             else:
-                conv_state = nn.functional.pad(
+                conv_state = nn.functional.pad(  # only save last conv_kernel_size states
                     hidden_states,
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
-                cache_params.conv_states[self.layer_idx].copy_(conv_state)
+                cache_params.conv_states[self.layer_idx] = conv_state.clone()
                 hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
         else:
             ssm_state = torch.zeros(
@@ -262,37 +295,69 @@ class MambaMixer(nn.Module):
         time_step, B, C = torch.split(
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
-        discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
-        discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
 
-        # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
-        A = -torch.exp(self.A_log.float())                                              # [intermediate_size, ssm_state_size]
-        discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
-        discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
-        deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
+        if selective_scan_fn is not None:
+            discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
+            A = -torch.exp(self.A_log.float())
+            time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
+            scan_outputs, ssm_state = selective_scan_fn(
+                hidden_states,
+                discrete_time_step,
+                A,
+                B.transpose(1, 2),
+                C.transpose(1, 2),
+                self.D.float(),
+                gate,
+                time_proj_bias,
+                delta_softplus=True,
+                return_last_state=True,
+            )
+            if ssm_state is not None and cache_params is not None:
+                cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+             # 4. Final linear projection
+            contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
 
-        # 3.c perform the recurrence y ← SSM(A, B, C)(x)
-        scan_outputs = []
-        for i in range(seq_len):
-            ssm_state = discrete_A[:, :, i, :] * ssm_state + deltaB_u[:, :, i, :]      # [batch, intermediade_size, ssm_state]
-            scan_output = torch.matmul(ssm_state.to(dtype), C[:, i, :].unsqueeze(-1))  # [batch, intermediade_size, 1]
-            scan_outputs.append(scan_output[:, :, 0])
-        scan_output = torch.stack(scan_outputs, dim=-1)                                # [batch, seq_len, intermediade_size]
-        scan_output = scan_output + (hidden_states * self.D[None, :, None])
-        scan_output = (scan_output * self.act(gate))
+        else:
+            discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
+            discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
 
-        if cache_params is not None:
-            cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
+            # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
+            A = -torch.exp(self.A_log.float())  # [intermediate_size, ssm_state_size]
+            discrete_A = torch.exp(A[None, :, None, :] * discrete_time_step[:, :, :, None]) # [batch, intermediate_size, seq_len, ssm_state_size]
+            discrete_B = discrete_time_step[:, :, :, None] * B[:, None, :, :].float()       # [batch, intermediade_size, seq_len, ssm_state_size]
+            deltaB_u = discrete_B * hidden_states[:, :, :, None].float()
 
-        # 4. Final linear projection
-        contextualized_states = self.out_proj(scan_output.transpose(1, 2))             # [batch, seq_len, hidden_size]
+            # 3.c perform the recurrence y ← SSM(A, B, C)(x)
+            scan_outputs = []
+            for i in range(seq_len):
+                ssm_state = discrete_A[:, :, i, :] * ssm_state + deltaB_u[:, :, i, :]      # [batch, intermediade_size, ssm_state]
+                scan_output = torch.matmul(ssm_state.to(dtype), C[:, i, :].unsqueeze(-1))  # [batch, intermediade_size, 1]
+                scan_outputs.append(scan_output[:, :, 0])
+            scan_output = torch.stack(scan_outputs, dim=-1)                                # [batch, seq_len, intermediade_size]
+            scan_output = scan_output + (hidden_states * self.D[None, :, None])
+            scan_output = (scan_output * self.act(gate))
+
+            if cache_params is not None:
+                cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
+
+            # 4. Final linear projection
+            contextualized_states = self.out_proj(scan_output.transpose(1, 2))  # [batch, seq_len, hidden_size]
+        
         return contextualized_states
-    # fmt: on
+   
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
-            return self.cuda_kernels_forward(hidden_states, cache_params)
-        return self.slow_forward(hidden_states, cache_params, extra_kwargs=extra_kwargs)
+            return self.cuda_kernels_forward(
+                hidden_states, 
+                cache_params, 
+                extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+            )
+        return self.slow_forward(
+            hidden_states, 
+            cache_params, 
+            extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+        )
 
 
 class MambaBlock(nn.Module):
@@ -316,144 +381,6 @@ class MambaBlock(nn.Module):
         hidden_states = self.mixer(hidden_states, cache_params=cache_params, extra_kwargs=extra_kwargs)
         hidden_states = residual + hidden_states
         return hidden_states
-
-
-@torch.inference_mode()
-def decode(
-    input_ids,
-    model,
-    max_length,
-    min_length,  # new: add a min_length parameters
-    top_k=1,
-    top_p=0.0,
-    temperature=1.0,
-    eos_token_id=None,
-    teacher_outputs=None,
-    vocab_size=None,
-    tensor_parallel=1,
-    cg=False,
-    enable_timing=False,
-):
-    """Decoding, either greedy or with top-k or top-p sampling.
-    If top-k = 0, don't limit the number of candidates (pure sampling).
-    Top-k and top-p can be used together. If top_k > 0 and top_p > 0, then top-k is applied first,
-    then top-p.
-    We assume that all sequences in the same batch have the same length.
-
-    Arguments:
-        input_ids: (batch, seq_len)
-        max_length: int
-        teacher_outputs (optional): (batch, seq_len). If provided, instead of sampling from the
-            logits, the next token is taken from the teacher_outputs. Useful for testing.
-    Returns: GreedySearchDecoderOnlyOutput or SampleDecoderOnlyOutput, with the following fields:
-        sequences: (batch, max_length)
-        scores: tuples of (batch, vocab_size)
-    """
-    batch_size, seqlen_og = input_ids.shape
-    teacher_output_len = teacher_outputs.shape[1] if teacher_outputs is not None else 0
-    if cg:
-        if not hasattr(model, "_decoding_cache"):
-            model._decoding_cache = None
-        model._decoding_cache = update_graph_cache(
-            model,
-            model._decoding_cache,
-            batch_size,
-            seqlen_og,
-            max_length,
-            tensor_parallel=tensor_parallel,
-        )
-        inference_params = model._decoding_cache.inference_params
-        inference_params.reset(max_length, batch_size)
-    else:
-        inference_params = InferenceParams(max_seqlen=max_length, max_batch_size=batch_size)
-
-    def get_logits(input_ids, inference_params):
-        decoding = inference_params.seqlen_offset > 0
-        if decoding:
-            position_ids = torch.full(
-                (batch_size, 1),
-                inference_params.seqlen_offset,
-                dtype=torch.long,
-                device=input_ids.device,
-            )
-        else:
-            position_ids = None
-        if not cg or not decoding:
-            logits = model(
-                input_ids,
-                position_ids=position_ids,
-                inference_params=inference_params,
-                num_last_tokens=1,
-            ).logits.squeeze(dim=1)
-        else:
-            logits = model._decoding_cache.run(
-                input_ids, position_ids, inference_params.seqlen_offset
-            ).squeeze(dim=1)
-        return logits[..., :vocab_size] if vocab_size is not None else logits
-
-    def sample_tokens(logits, inference_params):
-        if teacher_outputs is None or teacher_output_len <= inference_params.seqlen_offset:
-            token = sample(logits, top_k=top_k, top_p=top_p, temperature=temperature)
-        else:
-            token = teacher_outputs[:, inference_params.seqlen_offset]
-        # return rearrange(token, "b -> b 1")
-        return token.unsqueeze(1)
-
-    def should_stop(current_token, inference_params):
-        if inference_params.seqlen_offset == 0 or inference_params.seqlen_offset < min_length:
-            return False
-        if eos_token_id is not None and (current_token == eos_token_id).all():
-            return True
-        if inference_params.seqlen_offset >= max_length - 1:
-            return True
-        return False
-
-    start = torch.cuda.Event(enable_timing=enable_timing)
-    end = torch.cuda.Event(enable_timing=enable_timing)
-
-    if enable_timing:
-        if tensor_parallel > 1:
-            torch.distributed.barrier()
-        start.record()
-    scores, sequences = [], [input_ids]
-
-    while not should_stop(sequences[-1], inference_params):
-        scores.append(get_logits(sequences[-1], inference_params))
-        inference_params.seqlen_offset += sequences[-1].shape[1]
-        sequences.append(sample_tokens(scores[-1], inference_params))
-    
-    if enable_timing:
-        end.record()
-        if tensor_parallel > 1:
-            torch.distributed.barrier()
-        torch.cuda.synchronize()
-        print(f"Prompt processing + decoding time: {(start.elapsed_time(end)):.0f}ms")
-    output_cls = GreedySearchDecoderOnlyOutput if top_k == 1 else SampleDecoderOnlyOutput
-    return output_cls(sequences=torch.cat(sequences, dim=1), scores=tuple(scores))
-
-
-class GenerationMixin:
-    def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
-        raise NotImplementedError
-
-    def generate(
-        self,
-        input_ids,
-        max_length,
-        min_length,
-        top_k=1,
-        top_p=0.0,
-        temperature=1.0,
-        return_dict_in_generate=False,
-        output_scores=False,
-        **kwargs,
-    ):
-        output = decode(
-            input_ids, self, max_length, min_length, top_k=top_k, top_p=top_p, temperature=temperature, 
-        )
-        if not output_scores:
-            output.scores = None
-        return output if return_dict_in_generate else output.sequences
 
 
 class MambaCache:
@@ -489,11 +416,11 @@ class MambaCausalLMOutput(ModelOutput):
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
 
 
-class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
+class CustomMambaModel(MambaPreTrainedModel):
     def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None) -> None:
         super().__init__(config)
         
-        self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
 
         self.max_position_embeddings = max_position_embeddings
         self.use_relative_position = use_relative_position
@@ -522,10 +449,10 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
         self.post_init()
 
     def get_input_embeddings(self):
-        return self.embedding
+        return self.embeddings
 
     def set_input_embeddings(self, new_embeddings):
-        self.embedding = new_embeddings
+        self.embeddings = new_embeddings
 
     def forward(
         self,
@@ -553,7 +480,6 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
             )
    
         if inputs_embeds is None:
-            
             inputs_embeds = self.embedding(input_ids)
 
         if self.gradient_checkpointing and self.training and use_cache:
@@ -613,14 +539,6 @@ class CustomMambaModel(MambaPreTrainedModel, GenerationMixin):
             cache_params=cache_params if use_cache else None,
             hidden_states=all_hidden_states,
         )
-
-
-    # @classmethod
-    # def from_pretrained(cls, pretrained_model_name, device=None, dtype=None, strict=True, **kwargs):
-    #     config = load_config_hf(pretrained_model_name)
-    #     model = cls(**config, device=device, dtype=dtype, **kwargs)
-    #     model.load_state_dict(load_state_dict_hf(pretrained_model_name, device=device, dtype=dtype), strict=strict)
-    #     return model
 
 
 class CustomMambaForCausalLM(MambaPreTrainedModel):

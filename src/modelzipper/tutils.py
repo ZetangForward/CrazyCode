@@ -58,6 +58,32 @@ def print_c(s, c='green', *args, **kwargs):
     # Pass 'attrs' as a keyword argument to 'colored'
     print(colored(s, color=c, attrs=attributes))
 
+def log_c(s, c='yellow', *args, **kwargs):
+    """
+    灰色：'grey'
+    红色：'red'
+    绿色：'green'
+    黄色：'yellow'
+    蓝色：'blue'
+    洋红色：'magenta'
+    青色：'cyan'
+    白色：'white'
+    
+    高亮：'on_<color>'（例如 'on_red' 会使用红色背景）
+    加粗：'bold'
+    下划线：'underline'
+    闪烁：'blink'
+    反转：'reverse'
+    隐藏：'concealed'
+    
+    e.g., print(colored('Hello, World!', 'green', 'on_red', attrs=['blink']))
+    """
+    s = f"|||---- {s} ----|||"
+    attributes = kwargs.pop('attrs', [])
+    kwargs.pop('color', None)  
+    # Pass 'attrs' as a keyword argument to 'colored'
+    print(colored(s, color=c, attrs=attributes))
+
 ###########################
 ##### Automatic utils #####
 ###########################
@@ -223,6 +249,16 @@ def auto_read_dir(dir_path, file_prefix=None, file_suffix=None):
     return file_names
 
 
+def list_subdirs(directory_path):
+    """
+    打印并返回给定目录下的所有子目录名
+    """
+    root_dir = directory_path
+    subdirectories = [os.path.join(root_dir, d) for d in os.listdir(directory_path) 
+                      if os.path.isdir(os.path.join(directory_path, d))]
+    return subdirectories
+
+
 def convert_list_to_dict(lst: List[Dict], key: str):
     """
     Convert a list of dictionaries to a dictionary of dictionaries.
@@ -232,6 +268,14 @@ def convert_list_to_dict(lst: List[Dict], key: str):
         res[item[key]] = item
     return res
 
+
+def count_file_num(directory, file_suffix=".png"):  
+    """
+    Quick count the number of png files in a directory
+    """
+    len_ = len([f for f in os.listdir(directory) if f.endswith(file_suffix)])
+    print_c(f"Total {len_} {file_suffix} files in {directory}")
+    return len_
 
 ###########################
 ###### model  utils #######
@@ -354,13 +398,7 @@ def load_yaml_config(config_path):
     return config
 
 
-def count_png_files(directory, file_type=".png"):  
-    """
-    Quick count the number of png files in a directory
-    """
-    len_ = len([f for f in os.listdir(directory) if f.endswith(file_type)])
-    print_c(f"Total {len_} {file_type} files in {directory}")
-    return len_
+
 
 
 def random_sample_from_file(file_path, num_samples=10, output_file=None):

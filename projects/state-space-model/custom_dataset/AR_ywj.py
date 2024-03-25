@@ -3,6 +3,7 @@ from modelzipper.tutils import *
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader, Dataset
 import pytorch_lightning as pl
+import random
 import numpy as np
 import numpy as np
 import torch
@@ -20,7 +21,17 @@ class MQARDataset(Dataset):
         self.cluster_batch = kwargs["cluster_batch"]
 
     @classmethod
-    def build_dataset(cls, vocab_size, num_examples, input_seq_len, num_kv_pairs, power_a, tokenizer, random_non_queries=True):
+    def build_dataset(cls, vocab_size, num_examples, input_seq_len, num_kv_pairs, power_a, tokenizer, random_non_queries=True , random_seed=42):
+        
+        assert input_seq_len % 2 == 0, "input_seq_len must be even"
+        # assert vocab_size > input_seq_len
+        assert num_kv_pairs * 4 <= input_seq_len
+        seed = random_seed
+
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        
         context_size = num_kv_pairs * 2
         # import pdb;pdb.set_trace()
         # create keys so that each key is present exactly once in each example
@@ -61,8 +72,9 @@ class MQARDataset(Dataset):
         inputs, labels = torch.tensor(examples[:, :-1]), torch.tensor(labels[:, 1:])
         
         # replace all the 0 with random values
-        if random_non_queries:
-            inputs[inputs == 0] = torch.randint(vocab_size, size=inputs.shape)[inputs == 0]
+        # import pdb;pdb.set_trace()
+        if random_non_queries:                          # 随机插入非 key-value值
+            inputs[inputs == 0] = torch.randint(vocab_size+1, 20480, size=inputs.shape)[inputs == 0]
 
         all_test_data = []
 
@@ -104,15 +116,34 @@ class MQARDataset(Dataset):
         return res
 
 if __name__ == '__main__':
-    for input_seq_len in [1024, 2048, 4096]:
-        for number_kv_pairs in [48, 96, 192]:
-            test_data = MQARDataset.build_dataset(
-                vocab_size=8192, 
-                input_seq_len=input_seq_len,
-                num_kv_pairs=number_kv_pairs,
-                num_examples=3000,
-                power_a=0.01,
-                tokenizer=None,
-                )
-            data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
-            auto_save_data(test_data,data_path)
+    # train_len_num = [512, 1024, 2048, 4096, 8192] 
+    # train_kv_num = [32, 64, 128, 256, 512]
+    # for i in range(0,len(train_kv_num)):
+    #     input_seq_len = train_len_num[i]
+    #     number_kv_pairs = train_kv_num[i]
+    #     test_data = MQARDataset.build_dataset(
+    #         vocab_size=8192, 
+    #         input_seq_len=input_seq_len,
+    #         num_kv_pairs=number_kv_pairs,
+    #         num_examples=100000,
+    #         power_a=0.01,
+    #         tokenizer=None,
+    #         )
+    #     data_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/" + "train_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+    #     auto_save_data(test_data,data_path)
+        
+    for input_seq_len in [512, 1024, 2048, 4096, 8192, 16384]:
+        for number_kv_pairs in [48, 96, 192, 384, 768]:
+            try:
+                test_data = MQARDataset.build_dataset(
+                    vocab_size=8192, 
+                    input_seq_len=input_seq_len,
+                    num_kv_pairs=number_kv_pairs,
+                    num_examples=3000,
+                    power_a=0.01,
+                    tokenizer=None,
+                    )
+                data_path = "/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
+                auto_save_data(test_data,data_path)
+            except:
+                print(input_seq_len,number_kv_pairs,"save+-failed")

@@ -1,12 +1,9 @@
 platform: &platform "amax_a100"
-<<<<<<< HEAD
-JOB_ID: &JOB_ID MQAR_C8192_N2048_D128
-=======
 mark: &mark 1
->>>>>>> main
 state: &state "train"
 exp_task: &exp_task "simplepajama"
 model_name: &model_name "mamba-1_4b"
+--local_rank: null
 
 defaults:
   - _self_
@@ -23,6 +20,12 @@ hydra:
 optimizer:
   optimizer_type: "adamw"
   lr: 5e-5
+  beta_1: 0.9
+  beta_2: 0.95
+  num_training_steps: 20000
+  warmup_steps: 2000
+  peak_lr: 0.0002
+  last_lr: 0.00001
 
 lr_scheduler:
   scheduler_type: "get_cosine_schedule_with_warmup"
@@ -30,17 +33,13 @@ lr_scheduler:
 
 experiment:
   seed: 27
-  model_save_dir: ${exp_task}-${model_name}
+  model_save_dir: ${exp_task}-${model_name}-${mark}
   save_top_k: 2
   monitor_metric: "train_lm_loss"
-  beta_1: 0.9
-  beta_2: 0.95
   weight_decay: 0.1
   eps: 0.001
-  num_training_steps: 20000
-  warmup_steps: 2000
-  peak_lr: 0.0002
-  last_lr: 0.00001
+  every_n_train_steps: 2000
+  accumulate_grad_batches: 1
   use_deepspeed: False
   debug: False
   hf_trainer: False

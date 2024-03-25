@@ -1,24 +1,29 @@
-export CUDA_VISIBLE_DEVICES=0
+# export CUDA_VISIBLE_DEVICES=$1
+num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
+job_id=0
+model=$1
+# model=deepseek-1_3b
 
+# python mamba/test.py \
+#     job_id=${job_id} \
+#     model=$model \
+#     model_name=$model \
+#     model.ckpt_path=/aifs4su/ziliwang/txw/InternLM/zecheng/ckpt/longalpaca/mamba-1_4b/checkpoints/last.ckpt \
+#     model.load_model_state_dict=True \
+#     task='longbench_ywj' \
+#     exp_task='longbench_ywj' \
+#     platform=h_800 \
+#     experiment.device_num=${num_devices} \
+#     experiment.results_save_dir=longbench_ywj/$model/results;
+#     # >/public/home/ljt/tzc/modelzipper/projects/state-space-model/scripts/${model}_${job_id}.log 2>&1 &
 
-python mamba/test.py \
-    model.ckpt_path=/public/home/ljt/tzc/ckpt/simplepajama/longalpaca_1/checkpoints/last.ckpt/model.bin \
-    model.load_model_state_dict=True \
-    task='longbench_ywj' \
-    exp_task='longbench_ywj' \
-    platform=langchao 
+# wait 
+
+python evaluate/evaluator.py \
+    --task longbench_ywj \
+    --fpath /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/ \
+    --save_evaluation_path /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/;
+   
+
     
     
-    
-    \
-    # job_id=$JOB_ID \
-    # task.dataset.processed_data_path=MQAR/test_C8192_N${DATA_N}_D${DATA_D}.pkl \
-    # task.dataset.input_seq_len=$DATA_N \
-    # task.dataset.num_kv_pairs=$DATA_D;
-
-# wait
-
-# python evaluate/evaluator.py \
-#     --task AR_ywj \
-#     --fpath /nvme/zecheng/evaluation/AR_ywj/mamba-1_4b/version_$JOB_ID/results/predictions.pkl \
-#     --save_evaluation_path /nvme/zecheng/evaluation/AR_ywj/mamba-1_4b/version_$JOB_ID/results/eval.txt;

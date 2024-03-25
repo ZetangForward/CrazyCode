@@ -21,6 +21,7 @@ class LongbenchDataset(Dataset):
         self.max_seq_length = kwargs["max_seq_length"]          #
         self.cluster_batch = kwargs["cluster_batch"]            #
         # self.filter_length(kwargs["testing_max_ctx"])           #
+        # import pdb;pdb.set_trace()
     
     def get_task_config(self, subtask):
         with open (self.config_path+"longbench_config.yaml", encoding='utf-8') as f:
@@ -53,11 +54,7 @@ class LongbenchDataset(Dataset):
         item = self.content[index]
         prompt = self.prompt_format.format(**item)
 
-        tokenized_sequence = self.tokenizer(  # re-tokenize to get attention mask
-            prompt,  
-            max_length=self.max_seq_length,
-            return_tensors="pt",
-        )
+        tokenized_sequence = self.tokenizer(  prompt,  max_length=self.max_seq_length,return_tensors="pt",)
         
         input_ids = tokenized_sequence.input_ids[0]
         attention_mask = tokenized_sequence.attention_mask[0]
