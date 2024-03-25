@@ -13,7 +13,7 @@ from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
-# from custom_mamba.custom_mamba_v3 import CustomMambaForCausalLM
+import custom_mamba.custom_mamba_v3
 from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
@@ -85,13 +85,23 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
-        model = CustomMambaForCausalLM(
-            config, 
-            use_relative_position=model_config.use_relative_position,
-            max_position_embeddings=model_config.max_position_embeddings,
-            use_abs_position=model_config.use_abs_position,
-            custom_conv1d_configs=model_config.conv1d_configs,
-        ).cuda()
+
+        if "multi" in model_config.model_name.lower():
+            model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
+                config, 
+                use_relative_position=model_config.use_relative_position,
+                max_position_embeddings=model_config.max_position_embeddings,
+                use_abs_position=model_config.use_abs_position,
+                custom_conv1d_configs=model_config.conv1d_configs,
+            ).cuda()
+        else:
+            model = CustomMambaForCausalLM(
+                config, 
+                use_relative_position=model_config.use_relative_position,
+                max_position_embeddings=model_config.max_position_embeddings,
+                use_abs_position=model_config.use_abs_position,
+                custom_conv1d_configs=model_config.conv1d_configs,
+            ).cuda()
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         return model, tokenizer
     
