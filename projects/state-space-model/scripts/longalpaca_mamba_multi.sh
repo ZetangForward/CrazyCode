@@ -21,15 +21,19 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6948  src/trai
     platform=$platform \
     experiment.debug=False \
     experiment.low_rank_train=False \
+    experiment.use_deepspeed=True \
     experiment.device_num=$device_num \
     task.dataset.cluster_batch=False \
     task.dataset.train_batch_size=1 \
-    task.dataset.max_seq_length=1000 \
+    task.dataset.max_seq_length=4923 \
     task.dataset.nworkers=4 \
-    experiment.accumulate_grad_batches=12 \
+    optimizer.num_training_steps=10000 \
+    optimizer.warmup_steps=1000 \
+    experiment.accumulate_grad_batches=8 \
     task.dataset.cluster_batch=False \
     task.dataset.train_batch_size=1 \
-    model.use_custom_module=True;
+    model.use_custom_module=True \
+    model.ckpt_path=/public/home/ljt/tzc/ckpt/mamba_370m_slimpajama_1Btoken/mamba-multi-pretraining/checkpoints/model.bin;
 
 
     

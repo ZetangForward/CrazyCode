@@ -207,18 +207,46 @@ class MambaMixer(nn.Module):
         time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
         
 
-        scan_outputs, ssm_state = selective_scan_fn(
-            hidden_states,
-            discrete_time_step,
-            A,
-            B.transpose(1, 2),
-            C.transpose(1, 2),
-            self.D.float(),
-            gate,
-            time_proj_bias,
-            delta_softplus=True,
-            return_last_state=True,
-        )
+        # scan_outputs, ssm_state = selective_scan_fn(
+        #     hidden_states,
+        #     discrete_time_step,
+        #     A,
+        #     B.transpose(1, 2),
+        #     C.transpose(1, 2),
+        #     self.D.float(),
+        #     gate,
+        #     time_proj_bias,
+        #     delta_softplus=True,
+        #     return_last_state=True,
+        # )
+        if cache_params is not None and cache_params.seqlen_offset > 0:
+            scan_outputs = selective_state_update(
+                cache_params.ssm_states[self.layer_idx],
+                hidden_states[..., 0],
+                discrete_time_step[..., 0],
+                A,
+                B[:, 0],
+                C[:, 0],
+                self.D,
+                gate[..., 0],
+                time_proj_bias,
+                dt_softplus=True,
+            ).unsqueeze(-1)
+        else:
+            # import pdb;pdb.set_trace()
+            scan_outputs, ssm_state = selective_scan_fn(
+                hidden_states,
+                discrete_time_step,
+                A,
+                B.transpose(1, 2),
+                C.transpose(1, 2),
+                self.D.float(),
+                gate,
+                time_proj_bias,
+                delta_softplus=True,
+                return_last_state=True,
+            )
+
 
         if cache_params is not None:
             cache_params.ssm_states[self.layer_idx] = ssm_state.clone()

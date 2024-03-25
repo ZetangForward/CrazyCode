@@ -56,7 +56,7 @@ class Experiment(pl.LightningModule):
             lm_loss, ppl = self.training_step_hf(batch, batch_idx)
 
         else:
-            input_ids = batch.pop("input_ids")
+            input_ids = batch["input_ids"]
             lm_logits = self.forward(input_ids).logits
             if "mqar" in self.cfg.task.dataset.class_name.lower():
                 labels = batch.pop("label")
@@ -191,7 +191,7 @@ def main(config):
 
     # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
     print_c(OmegaConf.to_yaml(config), "yellow")
-    
+    # import pdb;pdb.set_trace()
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
     data_root_dir = config.platform.dataset_path
@@ -256,7 +256,9 @@ def main(config):
                 logging_level=logging.INFO,
                 precision_plugin="bf16",
             ),
-            num_nodes=2,  ##### warning
+
+            # num_nodes=2,  ##### warning
+
             precision="bf16",
             accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             enable_checkpointing=True,

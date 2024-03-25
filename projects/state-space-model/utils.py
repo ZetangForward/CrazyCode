@@ -86,7 +86,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
 
-        if "multi" in model_config.model_name.lower():
+        if "multi" in model_config.ckpt_path.lower():
             model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
                 config, 
                 use_relative_position=model_config.use_relative_position,
