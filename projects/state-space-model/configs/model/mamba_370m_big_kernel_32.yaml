@@ -1,12 +1,12 @@
 model_name_or_path: "mamba-370m-hf"
 tokenizer_name_or_path: "mamba-370m-hf"
-ckpt_path: "mamba-370m-hf/pytorch_model.bin"
+ckpt_path: "/aifs4su/ziliwang/txw/InternLM/zecheng/ckpt/slimpajama/mamba_370m_big_kernel-k32/checkpoints/last.ckpt/model.bin"
 use_custom_module: True
-load_model_state_dict: False
+load_model_state_dict: True
 use_relative_position: False
 use_abs_position: False
 max_position_embeddings: 16384
 custom_conv1d: True
 conv1d_configs:
-  kernel_sizes: 16
+  kernel_sizes: 32
 

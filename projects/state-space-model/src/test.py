@@ -92,14 +92,6 @@ class CustomModel(nn.Module):
         super().__init__()
         self.model = model
     
-    # def load_state_dict(self,state_dict, strict=True):
-    #     self.model.load_state_dict(state_dict,strict)
-
-
-# class CustomModel:
-#     def __init__(self, model) -> None:
-#         self.model = model
-
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
     # import pdb;pdb.set_trace()
@@ -118,7 +110,8 @@ def main(config):
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
             "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
-        subtask = subtask[int(config.job_id)]
+        subtask = subtask[0]                    #   改
+        # subtask = subtask[int(config.job_id)]
     else:
         subtask =  [config.exp_task]
             

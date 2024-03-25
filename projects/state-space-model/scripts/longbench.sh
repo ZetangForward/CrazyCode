@@ -1,14 +1,16 @@
 # export CUDA_VISIBLE_DEVICES=$1
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
-job_id=0
-model=mam
-model=deepseek-1_3b
+id=$1
+model=mamba_370m_big_kernel_$id
 
-python mamba/test.py \
-    job_id=${job_id} \
+mark=${model}
+
+
+python src/test.py \
+    mark=${mark} \
     model=$model \
     model_name=$model \
-    model.ckpt_path=/aifs4su/ziliwang/txw/InternLM/zecheng/ckpt/longalpaca/mamba-1_4b/checkpoints/last.ckpt \
+    model.ckpt_path=/nvme/zecheng/ckpt/h_800/ckpt/longalpaca/${model}/checkpoints/last.ckpt \
     model.load_model_state_dict=True \
     task='longbench_ywj' \
     exp_task='longbench_ywj' \
@@ -19,10 +21,10 @@ python mamba/test.py \
 
 # wait 
 
-python evaluate/evaluator.py \
-    --task longbench_ywj \
-    --fpath /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/ \
-    --save_evaluation_path /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/;
+# python evaluate/evaluator.py \
+#     --task longbench_ywj \
+#     --fpath /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/ \
+#     --save_evaluation_path /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/;
    
 
     
