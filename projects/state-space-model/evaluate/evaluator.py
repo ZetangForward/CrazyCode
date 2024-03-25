@@ -227,7 +227,7 @@ class Evaluator:
             scores[subtask] = str(round(100 * total_score / len(self.predictions), 2))
             print(subtask, round(100 * total_score / len(self.predictions), 2), longbench_dataset2metric[subtask])
         with open(save_evaluation_path+"eval.jsonl","a+") as f:
-            f.write(str(subtask) + str(round(100 * total_score / len(self.predictions), 2)) + "\n")
+            f.write(str(subtask) + " : " + str(round(100 * total_score / len(self.predictions), 2)) + "\n")
         # auto_save_data([scores],save_evaluation_path+"eval.jsonl")
 
 if __name__ == "__main__":
