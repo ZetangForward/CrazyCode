@@ -94,14 +94,19 @@ class CustomModel(nn.Module):
     
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
-    # import pdb;pdb.set_trace()
+    import pdb;pdb.set_trace()
+
     print_c(OmegaConf.to_yaml(config), "yellow")
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.result_path
     data_root_dir = config.platform.dataset_path
-    # import pdb;pdb.set_trace()
-    # load model and tokenizer
-    model, tokenizer = get_model_tokenizer(model_root_dir, config.model)
+
+    # if use_custom_module 
+    use_custom_module = False
+    if hasattr(config.model, "use_custom_module"):
+        use_custom_module = config.model.use_custom_module
+
+    model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
     custom_model = CustomModel(model)
 
     # load testing data
@@ -110,8 +115,10 @@ def main(config):
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
             "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
-        subtask = subtask[0]                    #   改
-        # subtask = subtask[int(config.job_id)]
+        if config.task.dataset.subtask == "None":
+            subtask = subtask[0]    
+        elif isinstance(config.task.dataset.subtask, list):
+            subtask = config.task.dataset.subtask
     else:
         subtask =  [config.exp_task]
             

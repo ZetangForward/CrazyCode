@@ -73,7 +73,7 @@ class MambaMixer(nn.Module):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
-        self.conv_kernel_size = config.conv_kernel
+        self.conv_kernel_size = multi_head_config['kernel_sizes']
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
@@ -95,9 +95,9 @@ class MambaMixer(nn.Module):
                 in_channels=self.intermediate_size,
                 out_channels=self.intermediate_size,
                 bias=config.use_conv_bias,
-                kernel_size=config.conv_kernel,
+                kernel_size=multi_head_config['kernel_sizes'],
                 groups=self.num_heads,  # multi-head (split)
-                padding=config.conv_kernel - 1,
+                padding=multi_head_config['kernel_sizes'] - 1,
                 dilation=multi_head_config['dilation']
             )
         else:
@@ -105,9 +105,9 @@ class MambaMixer(nn.Module):
                 in_channels=self.intermediate_size,
                 out_channels=self.intermediate_size,
                 bias=config.use_conv_bias,
-                kernel_size=config.conv_kernel,
+                kernel_size=multi_head_config['kernel_sizes'],
                 groups=self.intermediate_size,
-                padding=config.conv_kernel - 1,
+                padding=multi_head_config['kernel_sizes'] - 1,
             )
 
         self.activation = config.hidden_act
@@ -384,12 +384,12 @@ class MambaBlock(nn.Module):
 
 
 class MambaCache:
-    def __init__(self, config, batch_size, dtype=torch.float16, device=None):
+    def __init__(self, config, batch_size, dtype=torch.float16, device=None, multi_head_config=None ):
         self.seqlen_offset = 0
         self.dtype = dtype
         intermediate_size = config.intermediate_size
         ssm_state_size = config.state_size
-        conv_kernel_size = config.conv_kernel
+        conv_kernel_size = multi_head_config['kernel_sizes']
 
         self.conv_states = {
             i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
@@ -420,12 +420,13 @@ class CustomMambaModel(MambaPreTrainedModel):
     def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, use_multi_head=False, multi_head_config=None) -> None:
         super().__init__(config)
         
-        self.embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
 
         self.max_position_embeddings = max_position_embeddings
         self.use_relative_position = use_relative_position
         self.use_abs_position = use_abs_position
-        
+        self.multi_head_config = multi_head_config
+
         if use_abs_position:
             self.wpe = nn.Embedding(max_position_embeddings, config.d_model)
         elif use_relative_position:
@@ -449,10 +450,10 @@ class CustomMambaModel(MambaPreTrainedModel):
         self.post_init()
 
     def get_input_embeddings(self):
-        return self.embeddings
+        return self.embedding
 
     def set_input_embeddings(self, new_embeddings):
-        self.embeddings = new_embeddings
+        self.embedding = new_embeddings
 
     def forward(
         self,
@@ -487,7 +488,7 @@ class CustomMambaModel(MambaPreTrainedModel):
 
         if cache_params is None and use_cache:
             cache_params = MambaCache(
-                self.config, inputs_embeds.size(0), device=inputs_embeds.device, dtype=inputs_embeds.dtype
+                self.config, inputs_embeds.size(0), device=inputs_embeds.device, dtype=inputs_embeds.dtype, multi_head_config= self.multi_head_config
             )
 
         position_embeds = None
@@ -544,9 +545,9 @@ class CustomMambaModel(MambaPreTrainedModel):
 class CustomMambaForCausalLM(MambaPreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
 
-    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False):
+    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, custom_conv1d_configs=None):
         super().__init__(config)
-        self.backbone = CustomMambaModel(config, use_relative_position=use_relative_position, max_position_embeddings=max_position_embeddings, use_abs_position=use_abs_position)
+        self.backbone = CustomMambaModel(config, use_relative_position=use_relative_position, max_position_embeddings=max_position_embeddings, use_abs_position=use_abs_position, multi_head_config=custom_conv1d_configs)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # Initialize weights and apply final processing
         self.post_init()
