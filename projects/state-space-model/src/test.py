@@ -174,7 +174,7 @@ def main(config):
         else:
             save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
             save_final_path = save_path + str(task)+ "_predictions.pkl"
-        auto_save_data(save_final_path, save_path)
+        auto_save_data(predictions, save_final_path)
         print_c(f"save predictions to {save_final_path}, total cost time: {time.time() - b_t}", "magenta")
 
         eval = Evaluator(

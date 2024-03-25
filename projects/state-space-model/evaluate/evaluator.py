@@ -10,7 +10,7 @@ import seaborn as sns
 from utils import get_model_tokenizer, get_model_tokenizer_simple
 from argparse import ArgumentParser
 
-from metrics import (
+from evaluate.metrics import (
     qa_f1_score,
     rouge_score,
     classification_score,
