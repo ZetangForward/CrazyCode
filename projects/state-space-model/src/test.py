@@ -114,6 +114,7 @@ def main(config):
     if "longbench"  in config.exp_task:
         # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
+        # subtask = [["qasper"]]
         subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
             "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         if config.task.dataset.subtask == "None":
@@ -178,10 +179,10 @@ def main(config):
         print_c(f"save predictions to {save_final_path}, total cost time: {time.time() - b_t}", "magenta")
 
         eval = Evaluator(
-            root_dir=save_root_dir, fpath=save_path, 
+            root_dir=save_root_dir, fpath=save_final_path, 
             data_path=os.path.join(data_root_dir, config.task.dataset.data_path), 
             task=config.exp_task,
-            subtask=subtask if subtask!=config.exp_task else None,
+            subtask=task if subtask!=config.exp_task else None,
             tokenizer_name_or_path=None,
             value=None, save_evaluation_path=save_path,
             save_gen_res=save_path,

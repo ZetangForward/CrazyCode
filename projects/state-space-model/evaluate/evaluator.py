@@ -197,7 +197,7 @@ class Evaluator:
     def eval_longbench(self, save_evaluation_path, save_gen_res=True):
 
         scores = dict()
-        if subtask is None:
+        if self.subtask is None:
             sub_tasks = ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
                         "musique", "gov_report", "qmsum", "multi_news", "trec", \
                         "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
@@ -226,7 +226,9 @@ class Evaluator:
                 total_score += score
             scores[subtask] = str(round(100 * total_score / len(self.predictions), 2))
             print(subtask, round(100 * total_score / len(self.predictions), 2), longbench_dataset2metric[subtask])
-        auto_save_data([scores],save_evaluation_path+"eval.jsonl")
+        with open(save_evaluation_path+"eval.jsonl","a+") as f:
+            f.write(str(subtask) + str(round(100 * total_score / len(self.predictions), 2)) + "\n")
+        # auto_save_data([scores],save_evaluation_path+"eval.jsonl")
 
 if __name__ == "__main__":
 
