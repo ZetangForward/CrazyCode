@@ -58,7 +58,6 @@ class Experiment(pl.LightningModule):
         else:
             input_ids = batch.pop("input_ids")
             lm_logits = self.forward(input_ids).logits
-            # import pdb;pdb.set_trace()
             if "mqar" in self.cfg.task.dataset.class_name.lower():
                 labels = batch.pop("label")
                 labels = labels.long()

@@ -1,6 +1,6 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES=4
-model_name=mamba-1_4b-mha
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+model_name=mamba_370m_multi
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 platform=$1
 task=longalpaca
@@ -12,9 +12,8 @@ echo "Number of devices: $num_devices"
 
 echo "Available GPU device IDs: $CUDA_VISIBLE_DEVICES"
 
-torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6948  mamba/train.py \
-    experiment.hf_trainer=False \
-    mark=longalpaca_1 \
+torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6948  src/train.py \
+    mark=longalpaca \
     model=$model_name \
     model_name=$model_name \
     task=$task \
@@ -27,7 +26,11 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6948  mamba/tr
     task.dataset.train_batch_size=1 \
     task.dataset.max_seq_length=1000 \
     task.dataset.nworkers=4 \
+    experiment.accumulate_grad_batches=12 \
+    task.dataset.cluster_batch=False \
+    task.dataset.train_batch_size=1 \
     model.use_custom_module=True;
+
 
     
 
