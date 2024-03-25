@@ -112,7 +112,10 @@ class MambaMixer(nn.Module):
         self.use_conv_bias = config.use_conv_bias
 
         if self.use_custom_conv1d:
-            kernel_sizes = conv1d_configs.kernel_sizes
+            if isinstance(conv1d_configs,dict):
+                kernel_sizes = conv1d_configs['kernel_sizes']
+            else:
+                kernel_sizes = conv1d_configs.kernel_sizes
             # print(conv1d_configs)
             # print(conv1d_configs.kernel_sizes)
             # print(type(conv1d_configs.kernel_sizes))

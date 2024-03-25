@@ -73,7 +73,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
     
-    import pdb;pdb.set_trace()
+
 
     if analysis: # load model for analysis
         model = LongContextMambaAna.from_pretrained(

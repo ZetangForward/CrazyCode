@@ -73,7 +73,9 @@ class MambaMixer(nn.Module):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
-        self.conv_kernel_size = multi_head_config['kernel_sizes']
+        self.conv_kernel_size=4
+        if multi_head_config is not None:
+            self.conv_kernel_size = multi_head_config['kernel_sizes']
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
@@ -105,9 +107,9 @@ class MambaMixer(nn.Module):
                 in_channels=self.intermediate_size,
                 out_channels=self.intermediate_size,
                 bias=config.use_conv_bias,
-                kernel_size=multi_head_config['kernel_sizes'],
+                kernel_size=self.conv_kernel_size,
                 groups=self.intermediate_size,
-                padding=multi_head_config['kernel_sizes'] - 1,
+                padding=self.conv_kernel_size - 1,
             )
 
         self.activation = config.hidden_act
@@ -297,9 +299,12 @@ class MambaMixer(nn.Module):
         )
 
         if selective_scan_fn is not None:
-            discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
+            discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
+            discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
+
             A = -torch.exp(self.A_log.float())
             time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
+            import pdb; pdb.set_trace()
             scan_outputs, ssm_state = selective_scan_fn(
                 hidden_states,
                 discrete_time_step,
@@ -389,7 +394,9 @@ class MambaCache:
         self.dtype = dtype
         intermediate_size = config.intermediate_size
         ssm_state_size = config.state_size
-        conv_kernel_size = multi_head_config['kernel_sizes']
+        conv_kernel_size = 4
+        if multi_head_config is not None:
+            conv_kernel_size = multi_head_config['kernel_sizes']
 
         self.conv_states = {
             i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)

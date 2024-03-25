@@ -1,7 +1,7 @@
 # export CUDA_VISIBLE_DEVICES=$1
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 id=$1
-model=mamba_370m_big_kernel_$id
+model=mamba-1_4b
 platform=amax_a100
 task=longbench_ywj
 mark=${model}
@@ -11,7 +11,7 @@ python src/test.py \
     mark=${mark} \
     model=$model \
     model_name=$model \
-    model.ckpt_path=/nvme/zecheng/ckpt/h_800/ckpt/longalpaca/${model}/checkpoints/last.ckpt \
+    model.ckpt_path=/nvme/zecheng/ckpt/AR_ywj-mamba-1_4b/version_MQAR_C8192_N512_D32/AR_ywj/MQAR_C8192_N512_D32/checkpoints/last.ckpt \
     model.load_model_state_dict=True \
     task=${task} \
     exp_task=${task} \
