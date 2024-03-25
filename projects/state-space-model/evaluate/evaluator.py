@@ -211,8 +211,8 @@ class Evaluator:
             total_score = 0
             self.predictions = auto_read_data(self.fpath)
             if subtask == "trec": 
-                trec_path = os.join(self.data_path, "/trec.jsonl")
-                all_class = auto_read_data(trec_path)[0]['all_classes']
+                # trec_path = os.path.join(self.data_path, "/trec.jsonl")
+                all_class = auto_read_data("/nvme/zecheng/data/longbench/data/trec.jsonl")[0]['all_classes']
             else:
                 all_class = None
             for item in self.predictions:
