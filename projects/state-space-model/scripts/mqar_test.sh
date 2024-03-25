@@ -1,42 +1,47 @@
 # export CUDA_VISIBLE_DEVICES=0
 
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
+id=$1
+model_name=mamba_370m_big_kernel_$id
+platform=amax_a100
+task=AR_ywj
 
-model_name=$1
-# mkdir -p /public/home/ljt/tzc/data/evaluation/AR_ywj/${model_name}/
-# MODEL_N=$2
-# MODEL_D=$3
-model_n_list="512 1024 2048 4096"
-for MODEL_N in $model_n_list
-do
-    model_d_list="32 64 128 256 512"
-    for MODEL_D in $model_d_list
-    do
-        data_n_list="512 1024 2048 4096 8192 16384"
-        for DATA_N in $data_n_list
-        do
-            data_d_list="96"
-            for DATA_D in $data_d_list
-            do
-                JOB_ID=N${MODEL_N}_D${MODEL_D}-N${DATA_N}_D${DATA_D}
-                MODEL_PATH=file_path="/path/to/file.txt"
-                DATA_PATH=/aifs4su/ziliwang/txw/InternLM/zecheng/data/MQAR/test_C8192_N${DATA_N}_D${DATA_D}.pkl
-                PREDICTION_PATH=/home/tianxiangwu/zecheng/evaluation/AR_ywj/${model_name}/version_$JOB_ID/results/predictions.pkl 
-                python mamba/test.py \
-                    model=$model_name \
-                    model_name=$model_name \
-                    model.ckpt_path=/aifs4su/ziliwang/txw/InternLM/zecheng/ckpt/AR_ywj/$model_name/version_${MODEL_N}${MODEL_D}/checkpoints/last.ckpt \
-                    model.load_model_state_dict=True \
-                    platform=h_800 \
-                    task='AR_ywj' \
-                    exp_task='AR_ywj' \
-                    job_id=$JOB_ID \
-                    experiment.device_num=$num_devices \
-                    task.dataset.processed_data_path=MQAR/test_C8192_N${DATA_N}_D${DATA_D}.pkl \
-                    task.dataset.input_seq_len=$DATA_N \
-                    task.dataset.num_kv_pairs=$DATA_D;
+declare -A model_pairs=(
+    [512]=32
+    [1024]=64
+    [2048]=128
+    [4096]=256
+)
 
-            done
+declare -A kv_pair_list=(
+    [512]="32 48 64 96 128"
+    [1024]="32 48 64 96 128 192 256"
+    [2048]="32 48 64 96 128 192 256 384 512"
+    [4096]="32 48 64 96 128 192 256 384 512 768 1024"
+    # [8192]="32 48 64 96 128 192 256 384 512 768 1024"
+)
+
+for MODEL_N in "${!model_pairs[@]}"; do
+    MODEL_D=${model_pairs[$MODEL_N]}
+    for DATA_N in "${!kv_pair_list[@]}"; do
+        DATA_D_LSIT=${kv_pair_list[$DATA_N]}
+        for DATA_D in $DATA_D_LSIT; do
+            mark=N${MODEL_N}_D${MODEL_D}-N${DATA_N}_D${DATA_D}
+            model_path=/nvme/zecheng/ckpt/h_800/ckpt/AR_ywj/${model_name}_${MODEL_N}_${MODEL_D}/checkpoints/last.ckpt
+            python src/test.py \
+                mark=$mark
+                model=$model_name \
+                model_name=$model_name \
+                model.ckpt_path=$model_path \
+                model.load_model_state_dict=True \
+                platform=$platform \
+                task=$task \
+                exp_task=$task \
+                task.dataset.processed_data_path=MQAR/test_C8192_N${DATA_N}_D${DATA_D}.pkl \
+                task.dataset.input_seq_len=$DATA_N \
+                task.dataset.num_kv_pairs=$DATA_D \
+                experiment.device_num=$num_devices \
+                experiment.results_save_dir=$task/${model_name}/${mark}/results;
         done
     done
 done

@@ -18,8 +18,9 @@ python src/test.py \
     exp_task=${task} \
     platform=${platform} \
     experiment.device_num=${num_devices} \
-    experiment.results_save_dir=longbench_ywj/$model/results \
-    >/nvme/zecheng/modelzipper/projects/state-space-model/scripts/log/${model}_${mark}.log 2>&1 &
+    experiment.results_save_dir=longbench_ywj/$model/results 
+
+    # >/nvme/zecheng/modelzipper/projects/state-space-model/scripts/log/${model}_${mark}.log 2>&1 &
 
 # wait 
 

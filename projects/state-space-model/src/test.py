@@ -95,7 +95,7 @@ class CustomModel(nn.Module):
     
 @hydra.main(config_path='../configs', config_name='test_config', version_base='1.1')
 def main(config):
-
+    import pdb;pdb.set_trace()
     print_c(OmegaConf.to_yaml(config), "yellow")
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.result_path
@@ -115,8 +115,9 @@ def main(config):
         # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         # subtask = [["qasper"]]
-        subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
-            "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
+        # subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
+        #     "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
+        subtask = [["trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         if config.task.dataset.subtask == "None":
             subtask = subtask[0]    
         elif isinstance(config.task.dataset.subtask, list):
