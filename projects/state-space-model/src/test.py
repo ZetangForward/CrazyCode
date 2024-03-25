@@ -6,6 +6,7 @@ import hydra
 import lightning.pytorch as pl
 from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
+from evaluate.evaluator import Evaluator
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -135,7 +136,7 @@ def main(config):
                 os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
                 map_location='cuda'
             )
-            import pdb;pdb.set_trace()
+            # import pdb;pdb.set_trace()
             if state_dict.get('state_dict'):
                 state_dict = state_dict['state_dict']
 
@@ -166,16 +167,26 @@ def main(config):
                 return_predictions=True,
                 ckpt_path=config.model.ckpt_path if config.model.load_model_state_dict else None
             )
-            
         
         print_c(f"======= prediction end, begin to post process and save =======", "magenta")
         if task == config.exp_task:
-            save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
+            save_final_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
         else:
             save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
-            save_path = save_path + str(task)+ "_predictions.pkl"
-        auto_save_data(predictions, save_path)
-        print_c(f"save predictions to {save_path}, total cost time: {time.time() - b_t}", "magenta")
+            save_final_path = save_path + str(task)+ "_predictions.pkl"
+        auto_save_data(save_final_path, save_path)
+        print_c(f"save predictions to {save_final_path}, total cost time: {time.time() - b_t}", "magenta")
+
+        eval = Evaluator(
+            root_dir=save_root_dir, fpath=save_path, 
+            data_path=os.path.join(data_root_dir, config.task.dataset.data_path), 
+            task=config.exp_task,
+            subtask=subtask if subtask!=config.exp_task else None,
+            tokenizer_name_or_path=None,
+            value=None, save_evaluation_path=save_path,
+            save_gen_res=save_path,
+        )
+
     
    
 

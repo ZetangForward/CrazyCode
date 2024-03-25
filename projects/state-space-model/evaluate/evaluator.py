@@ -37,8 +37,9 @@ longbench_dataset2metric = {
 
 class Evaluator:
 
-    def __init__(self, root_dir, fpath, data_path, task, tokenizer_name_or_path, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
+    def __init__(self, root_dir, fpath, data_path, task, tokenizer_name_or_path, subtask=None, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
         self.task = task
+        self.subtask = subtask
         self.fpath = fpath
         self.data_path = data_path
         self.root_dir = root_dir
@@ -196,15 +197,22 @@ class Evaluator:
     def eval_longbench(self, save_evaluation_path, save_gen_res=True):
 
         scores = dict()
-        for subtask in ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
+        if subtask is None:
+            sub_tasks = ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
                         "musique", "gov_report", "qmsum", "multi_news", "trec", \
-                        "triviaqa", "samsum", "passage_count", "passage_retrieval_en"] :
+                        "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
+        else:
+            sub_tasks = [ self.subtask ] 
+
+
+        for subtask in sub_tasks :
         # for subtask in [ "passage_count", "passage_retrieval_en"] :
         #     import pdb;pdb.set_trace()
             total_score = 0
-            self.predictions = auto_read_data(self.fpath+subtask+"_predictions.pkl")
+            self.predictions = auto_read_data(self.fpath)
             if subtask == "trec": 
-                all_class = auto_read_data("/aifs4su/ziliwang/txw/InternLM/zecheng/data/longbench/data/trec.jsonl")[0]['all_classes']
+                trec_path = os.join(self.data_path, "/trec.jsonl")
+                all_class = auto_read_data(trec_path)[0]['all_classes']
             else:
                 all_class = None
             for item in self.predictions:

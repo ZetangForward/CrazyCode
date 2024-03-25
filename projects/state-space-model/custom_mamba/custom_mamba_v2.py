@@ -298,25 +298,41 @@ class MambaMixer(nn.Module):
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
 
-        if selective_scan_fn is not None:
-            discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
-            discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
+
+        if selective_scan_fn is not None and selective_state_update is not None:
+            discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
 
             A = -torch.exp(self.A_log.float())
             time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
-            import pdb; pdb.set_trace()
-            scan_outputs, ssm_state = selective_scan_fn(
-                hidden_states,
-                discrete_time_step,
-                A,
-                B.transpose(1, 2),
-                C.transpose(1, 2),
-                self.D.float(),
-                gate,
-                time_proj_bias,
-                delta_softplus=True,
-                return_last_state=True,
-            )
+            # import pdb; pdb.set_trace()
+            # print(hidden_states.shape)
+            # print(discrete_time_step.shape)
+            if cache_params is not None and cache_params.seqlen_offset > 0:
+                scan_outputs = selective_state_update(
+                    cache_params.ssm_states[self.layer_idx],
+                    hidden_states[..., 0],
+                    discrete_time_step[..., 0],
+                    A,
+                    B[:, 0],
+                    C[:, 0],
+                    self.D,
+                    gate[..., 0],
+                    time_proj_bias,
+                    dt_softplus=True,
+                ).unsqueeze(-1)
+            else:
+                scan_outputs, ssm_state = selective_scan_fn(
+                    hidden_states,
+                    discrete_time_step,
+                    A,
+                    B.transpose(1, 2),
+                    C.transpose(1, 2),
+                    self.D.float(),
+                    gate,
+                    time_proj_bias,
+                    delta_softplus=True,
+                    return_last_state=True,
+                )
             if ssm_state is not None and cache_params is not None:
                 cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
              # 4. Final linear projection
