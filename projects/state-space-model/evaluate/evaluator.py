@@ -10,7 +10,7 @@ import seaborn as sns
 from utils import get_model_tokenizer, get_model_tokenizer_simple
 from argparse import ArgumentParser
 
-from metrics import (
+from evaluate.metrics import (
     qa_f1_score,
     rouge_score,
     classification_score,
@@ -37,8 +37,9 @@ longbench_dataset2metric = {
 
 class Evaluator:
 
-    def __init__(self, root_dir, fpath, data_path, task, tokenizer_name_or_path, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
+    def __init__(self, root_dir, fpath, data_path, task, tokenizer_name_or_path, subtask=None, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
         self.task = task
+        self.subtask = subtask
         self.fpath = fpath
         self.data_path = data_path
         self.root_dir = root_dir
@@ -185,7 +186,10 @@ class Evaluator:
         #     print_c(f"saving at {save_path}", "yellow")
         #     auto_save_data(results, save_path)
         if save_evaluation_path:
-            auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
+            # auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
+            result = str(correct_number/total_number * 100)
+            with open(save_evaluation_path,'a+') as f:
+                f.write(result+"\n")
 
         print(self.task, save_evaluation_path, correct_number/total_number * 100)
 
@@ -193,15 +197,22 @@ class Evaluator:
     def eval_longbench(self, save_evaluation_path, save_gen_res=True):
 
         scores = dict()
-        for subtask in ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
+        if self.subtask is None:
+            sub_tasks = ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
                         "musique", "gov_report", "qmsum", "multi_news", "trec", \
-                        "triviaqa", "samsum", "passage_count", "passage_retrieval_en"] :
+                        "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
+        else:
+            sub_tasks = [ self.subtask ] 
+
+
+        for subtask in sub_tasks :
         # for subtask in [ "passage_count", "passage_retrieval_en"] :
         #     import pdb;pdb.set_trace()
             total_score = 0
-            self.predictions = auto_read_data(self.fpath+subtask+"_predictions.pkl")
+            self.predictions = auto_read_data(self.fpath)
             if subtask == "trec": 
-                all_class = auto_read_data("/public/home/ljt/tzc/data/longbench/data/trec.jsonl")[0]['all_classes']
+                trec_path = os.join(self.data_path, "/trec.jsonl")
+                all_class = auto_read_data(trec_path)[0]['all_classes']
             else:
                 all_class = None
             for item in self.predictions:
@@ -215,7 +226,9 @@ class Evaluator:
                 total_score += score
             scores[subtask] = str(round(100 * total_score / len(self.predictions), 2))
             print(subtask, round(100 * total_score / len(self.predictions), 2), longbench_dataset2metric[subtask])
-        auto_save_data([scores],save_evaluation_path+"eval.jsonl")
+        with open(save_evaluation_path+"eval.jsonl","a+") as f:
+            f.write(str(subtask) + " : " + str(round(100 * total_score / len(self.predictions), 2)) + "\n")
+        # auto_save_data([scores],save_evaluation_path+"eval.jsonl")
 
 if __name__ == "__main__":
 

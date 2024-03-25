@@ -5,3 +5,6 @@ projects/state-space-model/analysis/figures
 projects/state-space-model/analysis/inner_state
 projects/state-space-model/analysis/inner_state2
 projects/state-space-model/analysis/transformers_inner_state
+projects/state-space-model/analysis/inner_state2
+projects/state-space-model/logs
+projects/state-space-model/scripts/log

@@ -98,8 +98,7 @@ class Mamba(nn.Module):
             if not self.linear_free_multi_head:
                 self.up_projector = nn.Linear(self.d_model, self.d_model, bias=False, **factory_kwargs)
 
-
-            # add Linear projection
+        # add Linear projection
         self.conv1d = nn.Conv1d(
             in_channels=self.d_inner,
             out_channels=self.d_inner,
@@ -157,7 +156,7 @@ class Mamba(nn.Module):
         self.out_proj = nn.Linear(self.d_inner, self.d_model, bias=bias, **factory_kwargs)
 
 
-    def transpose_for_scores(self.x):
+    def transpose_for_scores(self, x):
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)

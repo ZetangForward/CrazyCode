@@ -1,0 +1,1 @@
+for i in $(seq -w 16 126); do python dgx.py $i; done
