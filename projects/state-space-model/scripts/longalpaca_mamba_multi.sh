@@ -25,7 +25,7 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6948  src/trai
     experiment.device_num=$device_num \
     task.dataset.cluster_batch=False \
     task.dataset.train_batch_size=1 \
-    task.dataset.max_seq_length=4923 \
+    task.dataset.max_seq_length=4723 \
     task.dataset.nworkers=4 \
     optimizer.num_training_steps=10000 \
     optimizer.warmup_steps=1000 \
