@@ -101,8 +101,6 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
                     is_from_pytorch_lightning=True,
                 )
             
-            import pdb; pdb.set_trace()
-            
         else:
             model = CustomMambaForCausalLM(
                 config, 
