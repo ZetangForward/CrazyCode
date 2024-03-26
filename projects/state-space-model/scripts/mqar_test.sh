@@ -1,7 +1,7 @@
-# export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=$1
 
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
-id=$1
+id=$2
 model_name=mamba_370m_big_kernel_$id
 platform=amax_a100
 task=AR_ywj
@@ -29,7 +29,7 @@ for MODEL_N in "${!model_pairs[@]}"; do
             mark=N${MODEL_N}_D${MODEL_D}-N${DATA_N}_D${DATA_D}
             model_path=/nvme/zecheng/ckpt/h_800/ckpt/AR_ywj/${model_name}_${MODEL_N}_${MODEL_D}/checkpoints/last.ckpt
             python src/test.py \
-                mark=$mark
+                mark=$mark \
                 model=$model_name \
                 model_name=$model_name \
                 model.ckpt_path=$model_path \
@@ -41,12 +41,14 @@ for MODEL_N in "${!model_pairs[@]}"; do
                 task.dataset.input_seq_len=$DATA_N \
                 task.dataset.num_kv_pairs=$DATA_D \
                 experiment.device_num=$num_devices \
-                experiment.results_save_dir=$task/${model_name}/${mark}/results;
+                experiment.results_save_dir=$task/${model_name}/${mark}/results \
+                > /nvme/zecheng/modelzipper/projects/state-space-model/scripts/log/${model_name}_test.log 2>&1 & 
+            wait
         done
     done
 done
 
-
+                # 
 
                 # # wait
                 # if [ -f "$DATA_PATH" ] && [ -f "$PREDICTION_PATH" ] ; then

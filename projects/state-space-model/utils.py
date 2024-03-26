@@ -14,6 +14,7 @@ from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
 import custom_mamba.custom_mamba_v3
+import custom_mamba.custom_mamba_v3
 from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
@@ -73,8 +74,6 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
     
-
-
     if analysis: # load model for analysis
         model = LongContextMambaAna.from_pretrained(
             "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
@@ -83,9 +82,10 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         return model, tokenizer
     
+    
     elif use_custom_module:  # custom model just for mamba now
+        # import pdb;pdb.set_trace()
         config = MambaConfig.from_pretrained(model_path)
-
         if "multi" in model_config.ckpt_path.lower():
             model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
                 config, 

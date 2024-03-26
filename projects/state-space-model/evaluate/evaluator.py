@@ -43,7 +43,7 @@ class Evaluator:
         self.fpath = fpath
         self.data_path = data_path
         self.root_dir = root_dir
-        self.predictions = auto_read_data(fpath) if "bench" not in task else None
+        self.predictions = auto_read_data(fpath) 
         # self.tokenizer, _ = get_model_tokenizer_simple(root_dir, tokenizer_name_or_path)
         self.spe_cfg = kwargs
         self.begin_fn(task, save_evaluation_path, save_gen_res)
@@ -181,15 +181,12 @@ class Evaluator:
        
             correct_number += ( correct_predictions==target_idx.sum() )
 
-        # if save_gen_res:
-        #     save_path = os.path.join(save_evaluation_path, "generation.jsonl")
-        #     print_c(f"saving at {save_path}", "yellow")
-        #     auto_save_data(results, save_path)
         if save_evaluation_path:
-            # auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
-            result = str(correct_number/total_number * 100)
-            with open(save_evaluation_path,'a+') as f:
-                f.write(result+"\n")
+            # os.makedirs(save_evaluation_path, exist_ok=True)
+            save_path = save_evaluation_path +"/eval.jsonl"
+            result = str(int(correct_number/total_number * 100))
+            with open(save_path,'a+') as f:
+                f.write(str(self.subtask)+ " : " + result+"\n")
 
         print(self.task, save_evaluation_path, correct_number/total_number * 100)
 
