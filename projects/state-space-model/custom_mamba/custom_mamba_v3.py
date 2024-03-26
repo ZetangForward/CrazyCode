@@ -665,7 +665,7 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
             max_position_embeddings=None, use_abs_position=False, 
-            custom_conv1d_configs=None,
+            custom_conv1d_configs=None
     ) -> None:
         super().__init__(config)
         self.backbone = CustomMambaModel(
@@ -677,6 +677,29 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # Initialize weights and apply final processing
         self.post_init()
+        
+        
+    def from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
+        if self.dtype != dtype:
+            self.to(dtype)
+        
+        state_dict = torch.load(path, map_location='cpu')
+        
+        if dtype is not None:
+            state_dict = {k: v.type(dtype) for k, v in state_dict.items()}
+            
+        if is_from_pytorch_lightning:
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                new_state_dict[k.replace('model.', '')] = v
+            state_dict = new_state_dict
+
+        self.load_state_dict(state_dict, strict=False)
+        
+        import pdb; pdb.set_trace()
+        
+        
+        
 
     def get_output_embeddings(self):
         return self.lm_head

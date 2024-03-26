@@ -92,9 +92,17 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
                 max_position_embeddings=model_config.max_position_embeddings,
                 use_abs_position=model_config.use_abs_position,
                 custom_conv1d_configs=model_config.conv1d_configs,
-                torch_dtype=torch.bfloat16
             ).cuda()
+            
+            if hasattr(model_config, "ckpt_path"):
+                model.from_pretrained(
+                    model_config.ckpt_path, 
+                    dtype=torch.bfloat16,
+                    is_from_pytorch_lightning=True,
+                )
+            
             import pdb; pdb.set_trace()
+            
         else:
             model = CustomMambaForCausalLM(
                 config, 
