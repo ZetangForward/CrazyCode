@@ -88,7 +88,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
-        if "multi" in model_config.ckpt_path.lower():
+        if model_config.ckpt_path is not None and "multi" in model_config.ckpt_path.lower():
             model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
                 config, 
                 use_relative_position=model_config.use_relative_position,
@@ -105,7 +105,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
                 custom_conv1d_configs=model_config.conv1d_configs,
             ).to(device)
             
-        if hasattr(model_config, "ckpt_path"):
+        if hasattr(model_config, "ckpt_path") and model_config.ckpt_path is not None:
             model.from_pretrained(
                 model_config.ckpt_path, 
                 dtype=torch.bfloat16,
