@@ -1,6 +1,6 @@
 model_name_or_path: "mamba-370m-hf"
 tokenizer_name_or_path: "mamba-370m-hf"
-ckpt_path: "/aifs4su/ziliwang/txw/InternLM/zecheng/ckpt/slimpajama/mamba_370m_big_kernel-k8/checkpoints/last.ckpt/model.bin"
+ckpt_path: "/public/home/ljt/tzc/ckpt/pretrain/slimpajama/mamba_370m_big_kernel-k8/model.bin"
 use_custom_module: True
 load_model_state_dict: True
 use_relative_position: False
