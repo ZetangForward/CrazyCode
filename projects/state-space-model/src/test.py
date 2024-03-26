@@ -115,9 +115,9 @@ def main(config):
         # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         # subtask = [["qasper"]]
-        # subtask = [["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
-        #     "musique", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
-        subtask = [["trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
+        subtask = [["narrativeqa", "qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "gov_report",  "qmsum" ,\
+                    "multi_news", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]]
+        # subtask = [["trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         if config.task.dataset.subtask == "None":
             subtask = subtask[0]    
         elif isinstance(config.task.dataset.subtask, list):
