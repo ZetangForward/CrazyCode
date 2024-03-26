@@ -86,13 +86,14 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
         if "multi" in model_config.ckpt_path.lower():
+            local_rank = int(os.getenv('LOCAL_RANK', 0))
             model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
                 config, 
                 use_relative_position=model_config.use_relative_position,
                 max_position_embeddings=model_config.max_position_embeddings,
                 use_abs_position=model_config.use_abs_position,
                 custom_conv1d_configs=model_config.conv1d_configs,
-            ).cuda()
+            ).to(f'cuda:{local_rank}')
             
             if hasattr(model_config, "ckpt_path"):
                 model.from_pretrained(

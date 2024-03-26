@@ -285,7 +285,7 @@ def main(config):
         )
 
     trainer = pl_trainer if pl_trainer is not None else deepspeed_trainer
-    trainer.fit(experiment, datamodule=data_module, ckpt_path=config.model.ckpt_path)
+    trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':
     main()

@@ -200,8 +200,10 @@ class MambaMixer(nn.Module):
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
         discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
+        raw_dtype = discrete_time_step.dtype
         discrete_time_step = nn.functional.softplus(discrete_time_step).transpose(1, 2) # [batch, intermediate_size, seq_len]
-
+        discrete_time_step = discrete_time_step.to(raw_dtype)
+        
         # 3.b. Discretization: B and C to [batch, seq_len, intermediate_size, ssm_state_size] (SRAM)
         A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
         time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
@@ -233,7 +235,7 @@ class MambaMixer(nn.Module):
                 dt_softplus=True,
             ).unsqueeze(-1)
         else:
-            import pdb;pdb.set_trace()
+            # import pdb; pdb.set_trace()
             scan_outputs, ssm_state = selective_scan_fn(
                 hidden_states,
                 discrete_time_step,
