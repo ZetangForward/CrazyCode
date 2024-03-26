@@ -84,7 +84,6 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     
     
     elif use_custom_module:  # custom model just for mamba now
-        # import pdb;pdb.set_trace()
         config = MambaConfig.from_pretrained(model_path)
         if "multi" in model_config.ckpt_path.lower():
             model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
@@ -93,7 +92,9 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
                 max_position_embeddings=model_config.max_position_embeddings,
                 use_abs_position=model_config.use_abs_position,
                 custom_conv1d_configs=model_config.conv1d_configs,
+                torch_dtype=torch.bfloat16
             ).cuda()
+            import pdb; pdb.set_trace()
         else:
             model = CustomMambaForCausalLM(
                 config, 

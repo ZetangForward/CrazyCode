@@ -33,7 +33,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, 
 from omegaconf import OmegaConf
 
 
-def print_c(s, c='green', *args, **kwargs):
+def print_c(s, c='random', *args, **kwargs):
     """
     灰色：'grey'
     红色：'red'
@@ -53,6 +53,9 @@ def print_c(s, c='green', *args, **kwargs):
     
     e.g., print(colored('Hello, World!', 'green', 'on_red', attrs=['blink']))
     """
+    colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    if c == 'random':
+        c = random.choice(colors)
     attributes = kwargs.pop('attrs', [])
     kwargs.pop('color', None)  
     # Pass 'attrs' as a keyword argument to 'colored'

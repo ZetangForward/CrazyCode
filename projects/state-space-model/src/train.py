@@ -188,10 +188,8 @@ class TokenCountCallback(Callback):
 
 @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
-
-    # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
-    print_c(OmegaConf.to_yaml(config), "yellow")
-    # import pdb;pdb.set_trace()
+    print_c(OmegaConf.to_yaml(config))
+    
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
     data_root_dir = config.platform.dataset_path
@@ -203,12 +201,11 @@ def main(config):
     if hasattr(config.model, "use_custom_module"):
         use_custom_module = config.model.use_custom_module
 
-    if not config.experiment.low_rank_train:
-        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-    else:
+    if config.experiment.low_rank_train:
         model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-    
-    print_c(model, "magenta")
+    else:
+        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
+    print_c(model)
 
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)

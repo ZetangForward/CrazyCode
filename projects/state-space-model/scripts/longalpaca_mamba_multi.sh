@@ -1,5 +1,5 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0
 model_name=mamba_370m_multi
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 platform=$1
@@ -19,9 +19,9 @@ torchrun --nnode=1 --nproc_per_node=$nproc_per_node --master_port 6948  src/trai
     task=$task \
     exp_task=$task \
     platform=$platform \
-    experiment.debug=False \
+    experiment.debug=True \
     experiment.low_rank_train=False \
-    experiment.use_deepspeed=True \
+    experiment.use_deepspeed=False \
     experiment.device_num=$device_num \
     task.dataset.cluster_batch=False \
     task.dataset.train_batch_size=1 \

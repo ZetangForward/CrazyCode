@@ -233,7 +233,7 @@ class MambaMixer(nn.Module):
                 dt_softplus=True,
             ).unsqueeze(-1)
         else:
-            # import pdb;pdb.set_trace()
+            import pdb;pdb.set_trace()
             scan_outputs, ssm_state = selective_scan_fn(
                 hidden_states,
                 discrete_time_step,
