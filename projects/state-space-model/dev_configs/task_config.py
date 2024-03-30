@@ -3,10 +3,10 @@ import re
 
 class TaskConfig:
     def __init__(
-            self, data_name, data_path, processed_data_path,
-            module, class_name, nworkers, max_seq_length, train_batch_size,
-            val_batch_size, inference_mode, pin_memory, cluster_batch,
-            **other_cfgs
+            self, data_name, data_path=None, processed_data_path=None,
+            module=None, class_name=None, nworkers=0, max_seq_length=4096, 
+            train_batch_size=1,val_batch_size=1, inference_mode=False, 
+            pin_memory=False, cluster_batch=False, **other_cfgs
         ) -> None:
         """ 
         default config can only contain:
