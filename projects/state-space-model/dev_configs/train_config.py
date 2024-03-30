@@ -11,8 +11,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Process some hyperparameters.')
 
     # Configs of Model Hyper-parameters
-    parser.add_argument('--model_name_or_path', type=str, default='mamba-370m-k8', 
-                        help='Model name or path')
+    parser.add_argument('--model_name_or_path', '-mn', type=str, default='mamba-370m-k8', 
+                        help='Model name or path', 
+                        choices=[
+                            'mamba-370m-hf', 'mamba-1_4b-hf', 
+                            'mamba-370m-k8', 'mamba-370m-k16', 
+                            'mamba-370m-k32', 'mamba-370m-k64', 
+                            'mamba-370m-km'],
+                        )
     parser.add_argument('--tokenizer_name_or_path', type=str, default=None, 
                         help='Tokenizer path. If not set, will use the model_name_or_path')
     parser.add_argument('--ckpt_path', type=str, default=None, 
@@ -41,7 +47,7 @@ def parse_args():
                         required=True, help='define platform name')
 
     # Configs of Task Hyper-parameters
-    parser.add_argument('--data_name', type=str, default='simplepajama',
+    parser.add_argument('--data_name', '-dn', type=str, default='simplepajama',
                         help='define task name')
 
     # Configs of Training Hyper-parameters
@@ -53,6 +59,12 @@ def parse_args():
                         help='define the state of the experiment')
     parser.add_argument('--accumulate_grad_batches', '-agb', type=int, default=1,
                         help='accumulate_grad_batches')
+    parser.add_argument('--save_top_k', type=int, default=2,
+                        help='save top k model ckpts')
+    parser.add_argument('--every_n_train_steps', type=int, default=2000,
+                        help='save ckpt every n train steps')
+    parser.add_argument('--monitor_metric', type=str, default='loss',
+                        help='monitor metric for save best model')
     parser.add_argument('--use_deepspeed', action='store_true', 
                         help='Enable to use DeepSpeed optimization.')
     parser.add_argument('--debug', action='store_true', 
@@ -95,6 +107,8 @@ def get_final_configs(args):
     ).all_configs
 
     train_configs = DotDict({
+        "save_top_k": args.save_top_k,
+        
         "experiment_name": args.experiment_name,
         "version": args.version,
         "state": args.state,
