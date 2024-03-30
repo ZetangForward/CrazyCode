@@ -158,6 +158,7 @@ class TaskConfig:
             "dataset": {
                 "data_path": "slimpajama-per-source-length-upsample-gpt-hf",
                 "module": 'custom_dataset.simplepajama',
+                "processed_data_path": None,
                 "class_name": 'SimplepajamaDataset',
                 "max_seq_length": 4200,
                 "nworkers": 2,

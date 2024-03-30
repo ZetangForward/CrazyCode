@@ -220,10 +220,9 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if hasattr(self.cfg.dataset, "processed_data_path"):
+            if self.cfg.dataset["processed_data_path"] is not None:
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
-                
                 if os.path.isdir(processed_data_path):
                     for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
