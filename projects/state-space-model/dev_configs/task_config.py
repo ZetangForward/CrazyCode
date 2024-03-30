@@ -148,6 +148,7 @@ class TaskConfig:
         }
         return longalpaca_config
     
+    
     @classmethod
     def slimpajama_config(cls):
         slimpajama_config = {
