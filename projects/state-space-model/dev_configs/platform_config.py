@@ -8,9 +8,22 @@ class Platform:
             if "a100" in platform_name.lower():
                 return Platform.amax_a100()
             
-            if "3090" in platform_name.lower():
+            elif "3090" in platform_name.lower():
                 return Platform.amax_3090()
+            
+        elif "langchao" in platform_name.lower():
+            return
 
+
+    @classmethod
+    def langchao(cls):
+        return {
+            "name":"langchao_suda",
+            "hf_model_path": "/public/home/ljt/hf_models",
+            "dataset_path": "/public/home/ljt/tzc/data",
+            "exp_path": "/public/home/ljt/tzc/ckpt",
+            "result_path": "/public/home/ljt/tzc/data/evaluation",
+        }
 
     @classmethod
     def amax_a100(cls):
@@ -23,7 +36,7 @@ class Platform:
         }
 
     @classmethod
-    def amax_a100(cls):
+    def amax_3090(cls):
         return {
             "name":"amax_3090",
             "hf_model_path": "/opt/data/private/hf_models",
