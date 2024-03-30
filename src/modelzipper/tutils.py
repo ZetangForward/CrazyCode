@@ -33,7 +33,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, 
 from omegaconf import OmegaConf
 
 
-def print_c(s, c='green', *args, **kwargs):
+def print_c(s, c='random', *args, **kwargs):
     """
     灰色：'grey'
     红色：'red'
@@ -53,6 +53,9 @@ def print_c(s, c='green', *args, **kwargs):
     
     e.g., print(colored('Hello, World!', 'green', 'on_red', attrs=['blink']))
     """
+    colors = ['grey', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+    if c == 'random':
+        c = random.choice(colors)
     attributes = kwargs.pop('attrs', [])
     kwargs.pop('color', None)  
     # Pass 'attrs' as a keyword argument to 'colored'
@@ -277,6 +280,47 @@ def count_file_num(directory, file_suffix=".png"):
     print_c(f"Total {len_} {file_suffix} files in {directory}")
     return len_
 
+
+###########################
+###### config utils #######
+###########################
+
+def load_yaml_config(config_path):  
+    """
+    Load YAML configuration file.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+
+    Returns:
+        dict: Loaded configuration as a dictionary.
+
+    """
+    
+    def dict_to_simplenamespace(d):
+        if isinstance(d, dict):
+            for key, value in d.items():
+                d[key] = dict_to_simplenamespace(value)
+            return types.SimpleNamespace(**d)
+        elif isinstance(d, list):
+            return [dict_to_simplenamespace(item) for item in d]
+        else:
+            return d
+    
+    print_c("load config files from {}".format(config_path))
+    with open(config_path, 'r') as config_file:  
+        try:  
+            config = yaml.safe_load(config_file)  
+            config = dict_to_simplenamespace(config)
+        except yaml.YAMLError as exc:  
+            print(exc)  
+            return None  
+        
+    log_c("config loaded successfully!", "magenta")
+    print_c(OmegaConf.to_yaml(config), "magenta")
+    return config
+
+
 ###########################
 ###### model  utils #######
 ###########################
@@ -360,45 +404,6 @@ def top_k_top_p_filtering(logits: torch.FloatTensor, top_k: int = 0, top_p: floa
         logits = logits_warper(None, logits)
         
     return logits
-
-
-def load_yaml_config(config_path):  
-    """
-    Load YAML configuration file.
-
-    Args:
-        config_path (str): Path to the YAML configuration file.
-
-    Returns:
-        dict: Loaded configuration as a dictionary.
-
-    """
-    
-    def dict_to_simplenamespace(d):
-        if isinstance(d, dict):
-            for key, value in d.items():
-                d[key] = dict_to_simplenamespace(value)
-            return types.SimpleNamespace(**d)
-        elif isinstance(d, list):
-            return [dict_to_simplenamespace(item) for item in d]
-        else:
-            return d
-    
-    print_c("load config files from {}".format(config_path))
-    with open(config_path, 'r') as config_file:  
-        try:  
-            config = yaml.safe_load(config_file)  
-            config = dict_to_simplenamespace(config)
-        except yaml.YAMLError as exc:  
-            print(exc)  
-            return None  
-    print_c("config loaded successfully!")
-    print_c("config: {}".format(config), "green", "underline")
-    print()
-    return config
-
-
-
 
 
 def random_sample_from_file(file_path, num_samples=10, output_file=None):

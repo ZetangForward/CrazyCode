@@ -7,7 +7,7 @@ import difflib
 
 from typing import List
 from collections import Counter
-from rouge_score import rouge_scorer
+from rouge import Rouge
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
@@ -65,12 +65,12 @@ def classification_score(prediction, ground_truth, **kwargs):
     return score
     
 def rouge_score(prediction, ground_truth, **kwargs):
-    scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
+    rouge = Rouge()
     try:
-        score = scorer.score(ground_truth,prediction)
+        scores = rouge.get_scores([prediction], [ground_truth], avg=True)
     except:
         return 0.0
-    return score["rouge1"].fmeasure*10
+    return scores["rouge-l"]["f"]
 
 
 def f1_score(prediction, ground_truth, **kwargs):
@@ -85,6 +85,9 @@ def f1_score(prediction, ground_truth, **kwargs):
 
 def qa_f1_score(prediction, ground_truth, **kwargs):
     normalized_prediction = normalize_answer(prediction)
+    # if not isinstance(ground_truth,str):
+    #     normalized_ground_truth = normalize_answer(ground_truth[0])
+    # else:
     normalized_ground_truth = normalize_answer(ground_truth)
 
     prediction_tokens = normalized_prediction.split()

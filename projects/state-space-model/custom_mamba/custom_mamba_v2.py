@@ -21,8 +21,8 @@ except ImportError:
     causal_conv1d_fn, causal_conv1d_update = None, None
 
 try:
-    from .mamba_kernel_fn import mamba_inner_fn  # custom module
-    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    # from .mamba_kernel_fn import mamba_inner_fn  # custom module
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 except ImportError:
     selective_scan_fn, mamba_inner_fn = None, None
 
@@ -73,7 +73,9 @@ class MambaMixer(nn.Module):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
-        self.conv_kernel_size = config.conv_kernel
+        self.conv_kernel_size=4
+        if multi_head_config is not None:
+            self.conv_kernel_size = multi_head_config['kernel_sizes']
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
@@ -95,9 +97,9 @@ class MambaMixer(nn.Module):
                 in_channels=self.intermediate_size,
                 out_channels=self.intermediate_size,
                 bias=config.use_conv_bias,
-                kernel_size=config.conv_kernel,
+                kernel_size=multi_head_config['kernel_sizes'],
                 groups=self.num_heads,  # multi-head (split)
-                padding=config.conv_kernel - 1,
+                padding=multi_head_config['kernel_sizes'] - 1,
                 dilation=multi_head_config['dilation']
             )
         else:
@@ -105,9 +107,9 @@ class MambaMixer(nn.Module):
                 in_channels=self.intermediate_size,
                 out_channels=self.intermediate_size,
                 bias=config.use_conv_bias,
-                kernel_size=config.conv_kernel,
+                kernel_size=self.conv_kernel_size,
                 groups=self.intermediate_size,
-                padding=config.conv_kernel - 1,
+                padding=self.conv_kernel_size - 1,
             )
 
         self.activation = config.hidden_act
@@ -296,22 +298,41 @@ class MambaMixer(nn.Module):
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
 
-        if selective_scan_fn is not None:
+
+        if selective_scan_fn is not None and selective_state_update is not None:
             discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
+
             A = -torch.exp(self.A_log.float())
             time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
-            scan_outputs, ssm_state = selective_scan_fn(
-                hidden_states,
-                discrete_time_step,
-                A,
-                B.transpose(1, 2),
-                C.transpose(1, 2),
-                self.D.float(),
-                gate,
-                time_proj_bias,
-                delta_softplus=True,
-                return_last_state=True,
-            )
+            # import pdb; pdb.set_trace()
+            # print(hidden_states.shape)
+            # print(discrete_time_step.shape)
+            if cache_params is not None and cache_params.seqlen_offset > 0:
+                scan_outputs = selective_state_update(
+                    cache_params.ssm_states[self.layer_idx],
+                    hidden_states[..., 0],
+                    discrete_time_step[..., 0],
+                    A,
+                    B[:, 0],
+                    C[:, 0],
+                    self.D,
+                    gate[..., 0],
+                    time_proj_bias,
+                    dt_softplus=True,
+                ).unsqueeze(-1)
+            else:
+                scan_outputs, ssm_state = selective_scan_fn(
+                    hidden_states,
+                    discrete_time_step,
+                    A,
+                    B.transpose(1, 2),
+                    C.transpose(1, 2),
+                    self.D.float(),
+                    gate,
+                    time_proj_bias,
+                    delta_softplus=True,
+                    return_last_state=True,
+                )
             if ssm_state is not None and cache_params is not None:
                 cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
              # 4. Final linear projection
@@ -384,12 +405,14 @@ class MambaBlock(nn.Module):
 
 
 class MambaCache:
-    def __init__(self, config, batch_size, dtype=torch.float16, device=None):
+    def __init__(self, config, batch_size, dtype=torch.float16, device=None, multi_head_config=None ):
         self.seqlen_offset = 0
         self.dtype = dtype
         intermediate_size = config.intermediate_size
         ssm_state_size = config.state_size
-        conv_kernel_size = config.conv_kernel
+        conv_kernel_size = 4
+        if multi_head_config is not None:
+            conv_kernel_size = multi_head_config['kernel_sizes']
 
         self.conv_states = {
             i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
@@ -425,7 +448,8 @@ class CustomMambaModel(MambaPreTrainedModel):
         self.max_position_embeddings = max_position_embeddings
         self.use_relative_position = use_relative_position
         self.use_abs_position = use_abs_position
-        
+        self.multi_head_config = multi_head_config
+
         if use_abs_position:
             self.wpe = nn.Embedding(max_position_embeddings, config.d_model)
         elif use_relative_position:
@@ -487,7 +511,7 @@ class CustomMambaModel(MambaPreTrainedModel):
 
         if cache_params is None and use_cache:
             cache_params = MambaCache(
-                self.config, inputs_embeds.size(0), device=inputs_embeds.device, dtype=inputs_embeds.dtype
+                self.config, inputs_embeds.size(0), device=inputs_embeds.device, dtype=inputs_embeds.dtype, multi_head_config= self.multi_head_config
             )
 
         position_embeds = None
@@ -544,12 +568,25 @@ class CustomMambaModel(MambaPreTrainedModel):
 class CustomMambaForCausalLM(MambaPreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
 
-    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False):
+    def __init__(self, config, use_relative_position=False, max_position_embeddings=None, use_abs_position=False, custom_conv1d_configs=None):
         super().__init__(config)
-        self.backbone = CustomMambaModel(config, use_relative_position=use_relative_position, max_position_embeddings=max_position_embeddings, use_abs_position=use_abs_position)
+        self.backbone = CustomMambaModel(config, use_relative_position=use_relative_position, max_position_embeddings=max_position_embeddings, use_abs_position=use_abs_position, multi_head_config=custom_conv1d_configs)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         # Initialize weights and apply final processing
         self.post_init()
+    
+    def from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
+        if self.dtype != dtype:
+            self.to(dtype)
+        state_dict = torch.load(path, map_location='cpu')
+        if dtype is not None:
+            state_dict = {k: v.type(dtype) for k, v in state_dict.items()}
+        if is_from_pytorch_lightning:
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                new_state_dict[k.replace('model.', '')] = v
+            state_dict = new_state_dict
+        self.load_state_dict(state_dict, strict=False)
 
     def get_output_embeddings(self):
         return self.lm_head

@@ -1,5 +1,5 @@
 #!/bin/bash
-model_name=mamba_370m_big_kernel
+model_name=mamba_370m_multi
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 platform=$1
 task=slimpajama

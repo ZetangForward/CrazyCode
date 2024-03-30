@@ -17,7 +17,6 @@ from modelzipper.tutils import *
 from utils import *
 from lightning.pytorch import Callback
 
-
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
         super(Experiment, self).__init__()
@@ -57,9 +56,8 @@ class Experiment(pl.LightningModule):
             lm_loss, ppl = self.training_step_hf(batch, batch_idx)
 
         else:
-            input_ids = batch.pop("input_ids")
+            input_ids = batch["input_ids"]
             lm_logits = self.forward(input_ids).logits
-            # import pdb;pdb.set_trace()
             if "mqar" in self.cfg.task.dataset.class_name.lower():
                 labels = batch.pop("label")
                 labels = labels.long()
@@ -190,26 +188,22 @@ class TokenCountCallback(Callback):
 
 @hydra.main(config_path='../configs/', config_name='train_config', version_base='1.1')
 def main(config):
-
-    # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
-    print_c(OmegaConf.to_yaml(config), "yellow")
+    print_c(OmegaConf.to_yaml(config))
+    pl.seed_everything(config.experiment.seed, workers=True)
     
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
     data_root_dir = config.platform.dataset_path
 
-    pl.seed_everything(config.experiment.seed, workers=True)
-    
     # load model and tokenizer
     use_custom_module = False
     if hasattr(config.model, "use_custom_module"):
-        use_custom_module = True
+        use_custom_module = config.model.use_custom_module
 
-    if not config.experiment.low_rank_train:
-        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-    else:
+    if config.experiment.low_rank_train:
         model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-    
+    else:
+        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
     print_c(model, "magenta")
 
     # load data
@@ -224,21 +218,19 @@ def main(config):
         name=f"{config.exp_task}",
         version=config.mark
     )
-
     lr_monitor = LearningRateMonitor(logging_interval='step')
     ckpt_monitor = ModelCheckpoint(
         save_top_k=config.experiment.save_top_k, 
         dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
         monitor=config.experiment.monitor_metric,
-        filename=f"mamba-{config.exp_task}"+"-{epoch:02d}",
+        filename=f"{config.model_name}-{config.exp_task}"+"-{epoch:02d}",
         save_last=True,
         mode='min',
         save_weights_only=True, # only save state dict
         every_n_train_steps=config.experiment.every_n_train_steps,
     )
     token_monitor = TokenCountCallback(max_tokens=10e9)
-    
-    # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
+    # init strategy
     deepspeed_trainer, pl_trainer = None, None
     if config.experiment.use_deepspeed:
         log_c("Using DeepSpeed", "yellow")
@@ -270,6 +262,7 @@ def main(config):
         )
         deepspeed_trainer.strategy.config["zero_force_ds_cpu_optimizer"] = False
     else:
+        log_c("Using pytorch lightning", "yellow")
         pl_trainer = Trainer(
             default_root_dir=os.path.join(tb_logger.log_dir , "checkpoints"),
             logger=tb_logger,
@@ -287,7 +280,6 @@ def main(config):
         )
 
     trainer = pl_trainer if pl_trainer is not None else deepspeed_trainer
-    
     trainer.fit(experiment, datamodule=data_module)
 
 if __name__ == '__main__':

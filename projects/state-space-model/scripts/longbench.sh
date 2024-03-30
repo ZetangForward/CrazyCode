@@ -1,24 +1,34 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=$1
+num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
+id=$2
+# model=mamba-1_4b
+model=mamba_370m_big_kernel_$id
+platform=amax_a100
+task=longbench_ywj
+mark=longaplaca
 
 
-python mamba/test.py \
-    model.ckpt_path=/public/home/ljt/tzc/ckpt/simplepajama/longalpaca_1/checkpoints/last.ckpt/model.bin \
+python src/test.py \
+    mark=${mark} \
+    model=$model \
+    model_name=$model \
+    model.ckpt_path=/nvme/zecheng/ckpt/h_800/ckpt/longalpaca/mamba_370m_big_kernel_$id/checkpoints/last.ckpt \
     model.load_model_state_dict=True \
-    task='longbench_ywj' \
-    exp_task='longbench_ywj' \
-    platform=langchao 
-    
-    
-    
-    \
-    # job_id=$JOB_ID \
-    # task.dataset.processed_data_path=MQAR/test_C8192_N${DATA_N}_D${DATA_D}.pkl \
-    # task.dataset.input_seq_len=$DATA_N \
-    # task.dataset.num_kv_pairs=$DATA_D;
+    task=${task} \
+    exp_task=${task} \
+    platform=${platform} \
+    experiment.device_num=${num_devices} \
+    experiment.results_save_dir=longbench_ywj/$model/results 
 
-# wait
+    # >/nvme/zecheng/modelzipper/projects/state-space-model/scripts/log/${model}_${mark}.log 2>&1 &
+
+# wait 
 
 # python evaluate/evaluator.py \
-#     --task AR_ywj \
-#     --fpath /nvme/zecheng/evaluation/AR_ywj/mamba-1_4b/version_$JOB_ID/results/predictions.pkl \
-#     --save_evaluation_path /nvme/zecheng/evaluation/AR_ywj/mamba-1_4b/version_$JOB_ID/results/eval.txt;
+#     --task longbench_ywj \
+#     --fpath /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/ \
+#     --save_evaluation_path /home/tianxiangwu/zecheng/evaluation/longbench_ywj/$model/results/;
+   
+
+    
+    

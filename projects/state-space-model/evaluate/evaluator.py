@@ -10,13 +10,13 @@ import seaborn as sns
 from utils import get_model_tokenizer, get_model_tokenizer_simple
 from argparse import ArgumentParser
 
-# from metrics import (
-#     qa_f1_score,
-#     rouge_score,
-#     classification_score,
-#     retrieval_score,
-#     count_score,
-# )
+from evaluate.metrics import (
+    qa_f1_score,
+    rouge_score,
+    classification_score,
+    retrieval_score,
+    count_score,
+)
 
 longbench_dataset2metric = {
     "narrativeqa": qa_f1_score,
@@ -37,11 +37,14 @@ longbench_dataset2metric = {
 
 class Evaluator:
 
-    def __init__(self, root_dir, fpath, task, tokenizer_name_or_path, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
+    def __init__(self, root_dir, fpath, data_path, task, tokenizer_name_or_path, subtask=None, save_evaluation_path=None, save_gen_res=True, **kwargs) -> None:
         self.task = task
+        self.subtask = subtask
+        self.fpath = fpath
+        self.data_path = data_path
         self.root_dir = root_dir
-        self.predictions = auto_read_data(fpath)
-        self.tokenizer, _ = get_model_tokenizer_simple(root_dir, tokenizer_name_or_path)
+        self.predictions = auto_read_data(fpath) 
+        # self.tokenizer, _ = get_model_tokenizer_simple(root_dir, tokenizer_name_or_path)
         self.spe_cfg = kwargs
         self.begin_fn(task, save_evaluation_path, save_gen_res)
 
@@ -53,7 +56,7 @@ class Evaluator:
         if "ar" in task.lower():
             self.eval_mqar(save_evaluation_path, save_gen_res)
 
-        if "longbench" in task.lowe():
+        if "longbench" in task.lower():
             self.eval_longbench(save_evaluation_path, save_gen_res)
 
 
@@ -156,49 +159,80 @@ class Evaluator:
         plt.savefig(save_path, dpi=150)
 
     def eval_mqar(self, save_evaluation_path, save_gen_res=True):
-        # import pdb;pdb.set_trace()
+        
+
+        # if not self.predictions[0].get('labels') and self.data_path is not None:
+        #     data = auto_read_data(self.data_path)
 
         total_number = len(self.predictions)
         correct_number = 0
-        for item in self.predictions:
+
+        for i in range(len(self.predictions)):
+            item = self.predictions[i]
             pred = item['predictions'].squeeze(0)
+            # if not item.get('labels'):
+            #     label = data[i]['label']
+            # else:
             label = item['labels'].squeeze(0)
             target_idx = label!=-100
             pred_value = pred[target_idx]
             label_value = label[target_idx]
             correct_predictions = (pred_value == label_value).sum()
        
-            correct_number += correct_predictions==target_idx.sum()
+            correct_number += ( correct_predictions==target_idx.sum() )
 
-        # if save_gen_res:
-        #     save_path = os.path.join(save_evaluation_path, "generation.jsonl")
-        #     print_c(f"saving at {save_path}", "yellow")
-        #     auto_save_data(results, save_path)
         if save_evaluation_path:
-            auto_save_data([str(correct_number/total_number * 100)], save_evaluation_path)
+            # os.makedirs(save_evaluation_path, exist_ok=True)
+            save_path = save_evaluation_path +"/eval.jsonl"
+            result = str(int(correct_number/total_number * 100))
+            with open(save_path,'a+') as f:
+                f.write(str(self.subtask)+ " : " + result+"\n")
 
         print(self.task, save_evaluation_path, correct_number/total_number * 100)
 
     
-    def eval_longbench(self, save_evaluation, subtask, save_gen_res=True):
-        total_score = 0
-        for item in self.predictions:
-            prediction = item[...]
-            ground_truths = item[...]
-            score = 0
-            if subtask in ["trec", "triviaqa", "samsum", "lsht"]:
-                prediction = prediction.lstrip('\n').split('\n')[0]
-            for ground_truth in ground_truths:
-                score = max(score, longbench_dataset2metric[subtask](prediction, ground_truth, all_classes=subtask))
-            total_score += score
-            return round(100 * total_score / len(self.predictions), 2)
+    def eval_longbench(self, save_evaluation_path, save_gen_res=True):
 
+        scores = dict()
+        if self.subtask is None:
+            sub_tasks = ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
+                        "musique", "gov_report", "qmsum", "multi_news", "trec", \
+                        "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
+        else:
+            sub_tasks = [ self.subtask ] 
+
+
+        for subtask in sub_tasks :
+        # for subtask in [ "passage_count", "passage_retrieval_en"] :
+        #     import pdb;pdb.set_trace()
+            total_score = 0
+            self.predictions = auto_read_data(self.fpath)
+            if subtask == "trec": 
+                # trec_path = os.path.join(self.data_path, "/trec.jsonl")
+                all_class = auto_read_data("/nvme/zecheng/data/longbench/data/trec.jsonl")[0]['all_classes']
+            else:
+                all_class = None
+            for item in self.predictions:
+                prediction = item["answers"]
+                ground_truths = item["labels"][0]
+                score = 0
+                if subtask in ["trec", "triviaqa", "samsum", "lsht"]:
+                    prediction = prediction.lstrip('\n').split('\n')[0]
+                for ground_truth in ground_truths:
+                    score = max(score, longbench_dataset2metric[subtask](prediction, ground_truth, all_classes=all_class))
+                total_score += score
+            scores[subtask] = str(round(100 * total_score / len(self.predictions), 2))
+            print(subtask, round(100 * total_score / len(self.predictions), 2), longbench_dataset2metric[subtask])
+        with open(save_evaluation_path+"eval.jsonl","a+") as f:
+            f.write(str(subtask) + " : " + str(round(100 * total_score / len(self.predictions), 2)) + "\n")
+        # auto_save_data([scores],save_evaluation_path+"eval.jsonl")
 
 if __name__ == "__main__":
 
     argparse = ArgumentParser()
     argparse.add_argument("--root_dir", type=str, default="/nvme/hf_models")
     argparse.add_argument("--fpath", type=str, default="/nvme/zecheng/evaluation/passkey_search/mamba-1_4b/version_2/results/predictions.pkl")
+    argparse.add_argument("--data_path", type=str, default=None)   
     argparse.add_argument("--task", type=str, default="passkey_search")
     argparse.add_argument("--tokenizer_name_or_path", type=str, default="EleutherAI/gpt-neox-20b")
     argparse.add_argument("--value", type=str, default="eat a sandwich and sit in Dolores Park on a sunny day.")
@@ -213,7 +247,7 @@ if __name__ == "__main__":
     print_c(f"args: {args}", "yellow")
 
     evaluator = Evaluator(
-        root_dir=args.root_dir, fpath=args.fpath, task=args.task,
+        root_dir=args.root_dir, fpath=args.fpath, data_path=args.data_path, task=args.task,
         tokenizer_name_or_path=args.tokenizer_name_or_path,
         value=args.value, save_evaluation_path=args.save_evaluation_path,
         save_gen_res=args.save_gen_res,
