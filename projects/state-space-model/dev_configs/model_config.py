@@ -21,7 +21,7 @@ class ModelConfig:
         self.max_position_embeddings = max_position_embeddings
         self.conv1d_configs = conv1d_configs
         
-        self.return_config(
+        self.cfg = self.return_config(
             model_name_or_path, tokenizer_name_or_path, ckpt_path, 
             use_relative_position, use_abs_position, max_position_embeddings, 
             conv1d_configs

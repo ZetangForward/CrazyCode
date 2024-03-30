@@ -72,10 +72,10 @@ class WrapConfigs:
         task_config = TaskConfig(self.data_name, **self.task_configs)
 
         default_config = {
-            "model": model_config,
-            "optimizer": optimizer_config,
-            "platform": platform_config,
-            "task": task_config,
+            "model": model_config.cfg,
+            "optimizer": optimizer_config.cfg,
+            "platform": platform_config.cfg,
+            "task": task_config.cfg,
         }
 
         return DotDict(default_config)

@@ -4,7 +4,7 @@ class OptimizerConfig:
         self.train_step = train_step
         self.warmup_step = warmup_step
         
-        self.return_config(opt_name, train_step, warmup_step)
+        self.cfg = self.return_config(opt_name, train_step, warmup_step)
 
     def return_config(self, opt_name, train_step=20000, warmup_step=2000):
         if "adawm" in opt_name.lower():   

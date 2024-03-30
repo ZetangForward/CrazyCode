@@ -1,7 +1,7 @@
 class PlatformConfig:
     def __init__(self, platform_name='amax_a100') -> None:
         self.platform_name = platform_name
-        self.return_config(platform_name)
+        self.cfg = self.return_config(platform_name)
 
     def return_config(self, platform_name):
         if "amax" in platform_name.lower():  

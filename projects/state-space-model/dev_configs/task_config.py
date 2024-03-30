@@ -38,7 +38,7 @@ class TaskConfig:
         self.cluster_batch = cluster_batch
         self.other_cfgs = other_cfgs
         
-        self.return_config(
+        self.cfg = self.return_config(
             data_name, processed_data_path,
             train_batch_size, val_batch_size,
             inference_mode,
