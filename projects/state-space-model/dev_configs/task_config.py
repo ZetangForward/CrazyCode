@@ -134,7 +134,7 @@ class TaskConfig:
     @classmethod
     def longalpaca_config(cls):
         longalpaca_config = {
-            "data_path": {
+            "dataset": {
                 "data_path": "LongAlpaca-12k/LongAlpaca-12k.json",
                 "processed_data_path": None,
                 "max_seq_length": 3000,
@@ -155,7 +155,7 @@ class TaskConfig:
     @classmethod
     def slimpajama_config(cls):
         slimpajama_config = {
-            "data_path": {
+            "dataset": {
                 "data_path": "slimpajama-per-source-length-upsample-gpt-hf",
                 "module": 'custom_dataset.simplepajama',
                 "class_name": 'SimplepajamaDataset',
