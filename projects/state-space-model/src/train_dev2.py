@@ -227,8 +227,8 @@ def main(config):
     # init logger
     tb_logger = TensorBoardLogger(
         save_dir=save_root_dir, 
-        name=f"{config.exp_task}",
-        version=config.mark
+        name=config.experiment.experiment_name,
+        version=config.experiment.version,
     )
 
     lr_monitor = LearningRateMonitor(logging_interval='step')
@@ -236,18 +236,17 @@ def main(config):
         save_top_k=config.experiment.save_top_k, 
         dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
         monitor=config.experiment.monitor_metric,
-        filename=f"{config.model_name}-{config.exp_task}"+"-{epoch:02d}",
+        filename="{epoch}-{step}-{train_lm_loss:.2f}",
         save_last=True,
         mode='min',
         save_weights_only=True, # only save state dict
         every_n_train_steps=config.experiment.every_n_train_steps,
     )
-    token_monitor = TokenCountCallback(max_tokens=10e9)
+    token_monitor = TokenCountCallback(max_tokens=1e11)  # max load 100b tokens
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
-    # print(config.optimizer)
-    # print(config.optimizer.num_training_steps)
+    
     if config.experiment.use_deepspeed:
         log_c("Using DeepSpeed", "yellow")
         deepspeed_trainer = Trainer(

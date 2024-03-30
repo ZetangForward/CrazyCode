@@ -61,7 +61,7 @@ def parse_args():
                         help='accumulate_grad_batches')
     parser.add_argument('--save_top_k', type=int, default=2,
                         help='save top k model ckpts')
-    parser.add_argument('--every_n_train_steps', type=int, default=2000,
+    parser.add_argument('--every_n_train_steps', type=int, default=None,
                         help='save ckpt every n train steps')
     parser.add_argument('--monitor_metric', type=str, default='loss',
                         help='monitor metric for save best model')

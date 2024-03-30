@@ -70,6 +70,8 @@ def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False
 def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysis=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+    
+    # important: load on every GPU, rather on one GPU
     local_rank = int(os.getenv('LOCAL_RANK', 0))
     device = f'cuda:{local_rank}'
     
@@ -80,7 +82,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     if analysis: # analysis
         model = LongContextMambaAna.from_pretrained(
             "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
-            dtype=torch.bfloat16, device="cuda"
+            dtype=torch.bfloat16, device=device
         )
         
     elif use_custom_module:  # custom model just for mamba now
