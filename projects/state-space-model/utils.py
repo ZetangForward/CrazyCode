@@ -220,7 +220,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if hasattr(self.cfg.dataset, "processed_data_path") and self.cfg.dataset.processed_data_path is not None:
+            if hasattr(self.cfg.dataset, "processed_data_path"):
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 
