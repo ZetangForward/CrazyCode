@@ -1,12 +1,14 @@
-class Optimizer:
+class OptimizerConfig:
     def __init__(self, opt_name, train_step, warmup_step) -> None:
         self.opt_name = opt_name
         self.train_step = train_step
         self.warmup_step = warmup_step
+        
+        self.return_config(opt_name, train_step, warmup_step)
 
     def return_config(self, opt_name, train_step=20000, warmup_step=2000):
         if "adawm" in opt_name.lower():   
-            return Optimizer.adamw_config(train_step, warmup_step) 
+            return OptimizerConfig.adamw_config(train_step, warmup_step) 
         else:
             ...
 

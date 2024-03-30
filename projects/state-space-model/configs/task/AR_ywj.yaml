@@ -19,6 +19,3 @@ dataset:
 other_cfgs: 
   max_generation_length: 64
   testing_max_ctx: 5000
-
-
-

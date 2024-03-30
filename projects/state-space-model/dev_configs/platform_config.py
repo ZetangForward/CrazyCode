@@ -1,4 +1,4 @@
-class Platform:
+class PlatformConfig:
     def __init__(self, platform_name='amax_a100') -> None:
         self.platform_name = platform_name
         self.return_config(platform_name)
@@ -6,13 +6,13 @@ class Platform:
     def return_config(self, platform_name):
         if "amax" in platform_name.lower():  
             if "a100" in platform_name.lower():
-                return Platform.amax_a100()
+                return PlatformConfig.amax_a100()
             
             elif "3090" in platform_name.lower():
-                return Platform.amax_3090()
+                return PlatformConfig.amax_3090()
             
         elif "langchao" in platform_name.lower():
-            return
+            return PlatformConfig.langchao()
 
 
     @classmethod
