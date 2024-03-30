@@ -69,6 +69,9 @@ class TaskConfig:
 
         elif "longalpaca" in data_name.lower():
             return TaskConfig.longalpaca_config()
+        
+        elif "slimpajama" in data_name.lower():
+            return TaskConfig.slimpajama_config()
     
 
     @classmethod
@@ -101,22 +104,32 @@ class TaskConfig:
     @classmethod
     def passkey_config(cls):
         passkey_config = {
-            "data_name": "PasskeySearch",
-            "data_path": "needle/PaulGrahamEssays/*.txt",
-            "processed_data_path": "needle/processed_data/128k_500_insert_ids.pkl",
-            "module": 'custom_dataset.passkey_search',
-            "class_name": 'PasskeySearchDataset',
-            "nworkers": 4,
-            "max_seq_length": 128000,
-            "val_batch_size": 1,
-            "inference_mode": True,
-            "pin_memory": False,
-            "cluster_batch": False,
-            "depth": 0.5,
-            "key": "The best thing to do in San Francisco is",
-            "value": "eat a sandwich and sit in Dolores Park on a sunny day.",
+            "dataset": {
+                "data_name": "PasskeySearch",
+                "data_path": "needle/PaulGrahamEssays/*.txt",
+                "processed_data_path": "needle/processed_data/128k_500_insert_ids.pkl",
+                "module": 'custom_dataset.passkey_search',
+                "class_name": 'PasskeySearchDataset',
+                "nworkers": 4,
+                "max_seq_length": 128000,
+                "val_batch_size": 1,
+                "inference_mode": True,
+                "pin_memory": False,
+                "cluster_batch": False,
+                "depth": 0.5,
+                "key": "The best thing to do in San Francisco is",
+                "value": "eat a sandwich and sit in Dolores Park on a sunny day.",
+            },
+            "other_cfgs": {
+                "max_generation_length": 48,
+                "testing_max_ctx": 128000,
+            },
+            "inference_cfg": {
+                "save_keys": ['depth', 'ctx_length', 'real_length']
+            }
         }
         return passkey_config
+    
     
     @classmethod
     def longalpaca_config(cls):
@@ -134,6 +147,24 @@ class TaskConfig:
             "cluster_batch": True  
         }
         return longalpaca_config
+    
+    @classmethod
+    def slimpajama_config(cls):
+        slimpajama_config = {
+            "data_path": "slimpajama-per-source-length-upsample-gpt-hf",
+            "module": 'custom_dataset.simplepajama',
+            "class_name": 'SimplepajamaDataset',
+            "max_seq_length": 4200,
+            "nworkers": 2,
+            "train_batch_size": 1,
+            "val_batch_size": 1,
+            "pin_memory": False,
+            "inference_mode": False,
+            "cluster_batch": True,
+            "require_process": False,
+        }
+        return slimpajama_config
+            
 
 
 

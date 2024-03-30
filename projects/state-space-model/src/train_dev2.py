@@ -215,6 +215,7 @@ def main(config):
             model_root_dir, config.model, 
             use_custom_module=config.model.use_custom_module
         )
+        
     print_c(model, "magenta")
 
     # load data

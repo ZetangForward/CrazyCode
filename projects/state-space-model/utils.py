@@ -118,8 +118,6 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             ).to(device)
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
-    
-    print_c("model and tokenzier already loaded ~", "red")
 
     return model, tokenizer
 
