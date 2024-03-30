@@ -299,27 +299,6 @@ if __name__ == '__main__':
     args = parse_args()
     config = get_final_configs(args)
     print_c(config, 'yellow')
-
-
-
-
-    # with hydra.initialize_config_module(config_module="config"):
-        # parser = argparse.ArgumentParser()
-        # parser.add_argument("--local_rank", type=int, default=None)
-        # parser.add_argument("--other_param", type=str, default=None)
-        # args, unknown_args = parser.parse_known_args()
-        # args = parser.parse_args()
-
-        # torch.distributed.init_process_group(backend='nccl')
-        # torch.cuda.set_device(args.local_rank)
-        # hydra_args = {
-        #     config_path = "../configs/",
-        #     config_name = "train_config",
-        #     version = "1.1"
-        # }
-        # hydra.main(config_path=hydra_args["config_path"], config_name=hydra_args["config_name"])(main)()
-
-
-
+    
 
 
