@@ -1,4 +1,5 @@
-
+from modelzipper.tutils import *
+import re
 
 class TaskConfig:
     def __init__(
@@ -50,8 +51,11 @@ class TaskConfig:
         val_batch_size,
         inference_mode,
     ):
-        if "mqar" in data_name.lower():   
-            config_pool = []
+        if "mqar" in data_name.lower():
+            pattern = r"N(\d+)_D(\d+)"
+            match = re.search(pattern, processed_data_path)
+            input_seq_len = int(match.group(1))  # N
+            num_kv_pairs = int(match.group(2))   # D
 
             return TaskConfig.mqar_config(
                 inference_mode = inference_mode,
@@ -59,8 +63,8 @@ class TaskConfig:
                 processed_data_path = processed_data_path,
                 vocab_size = 8192,
                 num_examples = 3000,
-                input_seq_len = 4096,
-                num_kv_pairs = 64,
+                input_seq_len = input_seq_len,
+                num_kv_pairs = num_kv_pairs,
                 test_power_a = 0.01,
             )
         elif "passkey" in data_name.lower():
@@ -84,15 +88,17 @@ class TaskConfig:
             "nworkers": 4,
             "max_seq_length": 5000,
             "train_batch_size": 1,
-            "val_batch_size": 1
-            "inference_mode": True
-            "pin_memory": False
-            "cluster_batch": False
-
-
+            "val_batch_size": 1,
+            "inference_mode": inference_mode,
+            "pin_memory": False,
+            "cluster_batch": False,
+            "vocab_size": vocab_size,
+            "num_examples": num_examples,
+            "input_seq_len": input_seq_len,
+            "num_kv_pairs": num_kv_pairs,
+            "test_power_a": test_power_a
         }
-
-        return adamw_config
+        return mqar_confg
 
 
     @classmethod
@@ -130,7 +136,6 @@ class TaskConfig:
             "inference_mode": False,
             "cluster_batch": True  
         }
-
         return longalpaca_config
 
 
