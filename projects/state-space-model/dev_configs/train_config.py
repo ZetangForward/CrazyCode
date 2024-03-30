@@ -106,20 +106,25 @@ def get_final_configs(args):
         task_args,
     ).all_configs
 
-    train_configs = DotDict({
-        "save_top_k": args.save_top_k,
-        
-        "experiment_name": args.experiment_name,
-        "version": args.version,
-        "state": args.state,
-        "accumulate_grad_batches": args.accumulate_grad_batches,
-        "use_deepspeed": args.use_deepspeed,
-        "debug": args.debug,
-        "hf_trainer": args.hf_trainer,
-        "low_rank_train": args.low_rank_train,
-        "device_num": args.device_num,
-        "node_num": args.node_num,
-    })
+    train_configs = DotDict(
+        {
+            "experiment": {
+                "save_top_k": args.save_top_k,
+                "every_n_train_steps": args.every_n_train_steps,
+                "experiment_name": args.experiment_name,
+                "version": args.version,
+                "state": args.state,
+                "accumulate_grad_batches": args.accumulate_grad_batches,
+                "use_deepspeed": args.use_deepspeed,
+                "debug": args.debug,
+                "hf_trainer": args.hf_trainer,
+                "low_rank_train": args.low_rank_train,
+                "device_num": args.device_num,
+                "node_num": args.node_num,
+                "seed": 42,
+            }
+        }
+    )
     final_configs = merge_dotdicts(basic_configs, train_configs) # merge all configs
     return final_configs
 

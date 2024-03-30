@@ -43,6 +43,8 @@ class ModelConfig:
         if tokenizer_name_or_path is None:
             tokenizer_name_or_path = model_name_or_path
 
+        use_custom_module = False
+        
         ### mamba config
         if "mamba" in model_name_or_path.lower(): 
             
@@ -51,21 +53,28 @@ class ModelConfig:
                 # config position embeddings
                 if "abs_pos" in model_name_or_path.lower():
                     use_relative_position = True
+                    use_custom_module = True
                 elif "rel_pos" in model_name_or_path.lower():
                     use_abs_position = True
                     max_position_embeddings = 16384
+                    use_custom_module = True
 
                 # config kernel sizes
                 if "k8" in model_name_or_path.lower():
                     conv1d_configs = {"kernel_sizes": 8}
+                    use_custom_module = True
                 elif "k16" in model_name_or_path.lower():
                     conv1d_configs = {"kernel_sizes": 16}
+                    use_custom_module = True
                 elif "k32" in model_name_or_path.lower():
                     conv1d_configs = {"kernel_sizes": 32}
+                    use_custom_module = True
                 elif "k64" in model_name_or_path.lower():
                     conv1d_configs = {"kernel_sizes": 64}
+                    use_custom_module = True
                 elif "km" in model_name_or_path.lower():
                     conv1d_configs = {"kernel_sizes": [[2, 4, 8, 16, 32, 64]]}
+                    use_custom_module = True
 
                 # return mamba config
                 return ModelConfig.mamba_config(
@@ -77,6 +86,7 @@ class ModelConfig:
                     use_abs_position = use_abs_position,
                     max_position_embeddings = max_position_embeddings, 
                     conv1d_configs = conv1d_configs,
+                    use_custom_module = use_custom_module
                 ) 
 
             elif "1_4b" in model_name_or_path.lower():
@@ -107,7 +117,8 @@ class ModelConfig:
         use_relative_position = False,
         use_abs_position = False,
         max_position_embeddings = None, 
-        conv1d_configs = None
+        conv1d_configs = None,
+        use_custom_module = False,
     ):
         mamba_config = {
             "model_name_or_path": model_name_or_path,
@@ -118,6 +129,7 @@ class ModelConfig:
             "use_abs_position": use_abs_position,
             "max_position_embeddings": max_position_embeddings,
             "conv1d_configs": conv1d_configs,
+            "use_custom_module": use_custom_module,
         }
 
         return mamba_config
