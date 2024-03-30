@@ -134,17 +134,20 @@ class TaskConfig:
     @classmethod
     def longalpaca_config(cls):
         longalpaca_config = {
-            "data_path": "LongAlpaca-12k/LongAlpaca-12k.json",
-            "processed_data_path": None,
-            "max_seq_length": 3000,
-            "module": 'custom_dataset.longlora',
-            "class_name": 'LongLoRA',  
-            "nworkers": 4,
-            "train_batch_size": 1,
-            "val_batch_size": 1,
-            "pin_memory": False,
-            "inference_mode": False,
-            "cluster_batch": True  
+            "data_path": {
+                "data_path": "LongAlpaca-12k/LongAlpaca-12k.json",
+                "processed_data_path": None,
+                "max_seq_length": 3000,
+                "module": 'custom_dataset.longlora',
+                "class_name": 'LongLoRA',  
+                "nworkers": 4,
+                "train_batch_size": 1,
+                "val_batch_size": 1,
+                "pin_memory": False,
+                "inference_mode": False,
+                "cluster_batch": True  
+            },
+            "other_cfgs": None,
         }
         return longalpaca_config
     
@@ -152,17 +155,20 @@ class TaskConfig:
     @classmethod
     def slimpajama_config(cls):
         slimpajama_config = {
-            "data_path": "slimpajama-per-source-length-upsample-gpt-hf",
-            "module": 'custom_dataset.simplepajama',
-            "class_name": 'SimplepajamaDataset',
-            "max_seq_length": 4200,
-            "nworkers": 2,
-            "train_batch_size": 1,
-            "val_batch_size": 1,
-            "pin_memory": False,
-            "inference_mode": False,
-            "cluster_batch": True,
-            "require_process": False,
+            "data_path": {
+                "data_path": "slimpajama-per-source-length-upsample-gpt-hf",
+                "module": 'custom_dataset.simplepajama',
+                "class_name": 'SimplepajamaDataset',
+                "max_seq_length": 4200,
+                "nworkers": 2,
+                "train_batch_size": 1,
+                "val_batch_size": 1,
+                "pin_memory": False,
+                "inference_mode": False,
+                "cluster_batch": True,
+                "require_process": False,
+            },
+            "other_cfgs": None,
         }
         return slimpajama_config
             
