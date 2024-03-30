@@ -1,21 +1,18 @@
 import torch
 import os
-# import pytorch_lightning as pl
 import lightning.pytorch as pl
 import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
-
 from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM
-from transformers import MambaConfig, MambaForCausalLM
+from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
-import custom_mamba.custom_mamba_v2
-import custom_mamba.custom_mamba_v3
-from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+from custom_mamba.custom_mamba_v3 import CustomMambaForCausalLM
+
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
     tokenizer, model = None, None
@@ -88,30 +85,21 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
-        if model_config.ckpt_path is not None and "multi" in model_config.ckpt_path.lower():
-            model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(   # FIXME: Difference between v2 and v3 mamba models
-                config, 
-                use_relative_position=model_config.use_relative_position,
-                max_position_embeddings=model_config.max_position_embeddings,
-                use_abs_position=model_config.use_abs_position,
-                custom_conv1d_configs=model_config.conv1d_configs,
-            ).to(device)
-        else:
-            model = custom_mamba.custom_mamba_v2.CustomMambaForCausalLM(
-                config, 
-                use_relative_position=model_config.use_relative_position,
-                max_position_embeddings=model_config.max_position_embeddings,
-                use_abs_position=model_config.use_abs_position,
-                custom_conv1d_configs=model_config.conv1d_configs,
-            ).to(device)
+        model = CustomMambaForCausalLM(
+            config, 
+            use_relative_position=model_config.use_relative_position,
+            max_position_embeddings=model_config.max_position_embeddings,
+            use_abs_position=model_config.use_abs_position,
+            custom_conv1d_configs=model_config.conv1d_configs,
+        ).to(device)
             
-        if hasattr(model_config, "ckpt_path") and model_config.ckpt_path is not None:
+        if model_config.ckpt_path is not None:
             model.from_pretrained(
                 model_config.ckpt_path, 
                 dtype=torch.bfloat16,
                 is_from_pytorch_lightning=True,
             )
-    
+
     else:  # load hf model
         if "gpt" in model_path.lower():
             model = GPTNeoForCausalLM.from_pretrained(
@@ -120,12 +108,13 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
         elif "mamba" in model_path.lower():
-            model = CustomMambaForCausalLM.from_pretrained(
+            model = transformers.MambaForCausalLM.from_pretrained(
                 model_path, torch_dtype=torch.bfloat16
             ).to(device)
         elif "llama" or "deepseek" in model_path.lower():
             model = LlamaForCausalLM.from_pretrained(
-                model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+                model_path, attn_implementation="flash_attention_2", 
+                torch_dtype=torch.bfloat16
             ).to(device)
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id

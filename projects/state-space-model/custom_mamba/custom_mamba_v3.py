@@ -492,7 +492,7 @@ class MambaMixer(nn.Module):
             contextualized_states = self.out_proj(scan_output.transpose(1, 2)) # [batch, seq_len, hidden_size]
             
         return contextualized_states
-    # fmt: on
+
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if self.use_custom_conv1d:
@@ -728,7 +728,6 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
     def from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
         if self.dtype != dtype:
             self.to(dtype)
-        
         state_dict = torch.load(path, map_location='cpu')
         if dtype is not None:
             state_dict = {k: v.type(dtype) for k, v in state_dict.items()}
