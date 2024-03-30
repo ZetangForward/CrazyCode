@@ -298,9 +298,7 @@ def main(config):
 if __name__ == '__main__':
     args = parse_args()
     config = get_final_configs(args)
-
-    import pdb; pdb.set_trace()
-    print_c(OmegaConf.to_yaml(config))
+    print_c(config, 'yellow')
 
 
 

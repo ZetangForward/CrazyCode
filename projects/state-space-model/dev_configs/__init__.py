@@ -43,6 +43,21 @@ class DotDict(dict):
                 value = DotDict(value)
             self[key] = value
 
+    def __repr__(self):
+        def recursive_repr(dct, level=0):
+            indent = '  ' * level
+            lines = []
+            for key, value in dct.items():
+                if isinstance(value, DotDict):
+                    lines.append(f"{indent}{key}:")
+                    lines.extend(recursive_repr(value, level + 1))
+                else:
+                    lines.append(f"{indent}{key}: {value}")
+            return lines
+        
+        str_lines = recursive_repr(self)
+        return '\n'.join(str_lines)
+
 
 class WrapConfigs:
 
