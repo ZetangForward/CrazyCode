@@ -122,6 +122,7 @@ def get_final_configs(args):
                 "device_num": args.device_num,
                 "node_num": args.node_num,
                 "seed": 42,
+                "monitor_metric": args.monitor_metric,
             }
         }
     )
