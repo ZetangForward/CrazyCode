@@ -171,6 +171,7 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
+        
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
@@ -197,30 +198,11 @@ class CustomDatamodule(pl.LightningDataModule):
                         power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
-                    # data_path = "/opt/data/private/zecheng/data/MQAR/" + "test_C8192_N"+str(self.cfg.dataset.input_seq_len) + "_D"+str(self.cfg.dataset.num_kv_pairs)+".pkl"
-                    # auto_save_data(test_data,data_path)
-                # import pdb;pdb.set_trace()
-                # for input_seq_len in [1024, 2048]:
-                #     for number_kv_pairs in [256]:
-                #         test_data = CustomDataset.build_dataset(
-                #             vocab_size=self.cfg.dataset.vocab_size, 
-                #             input_seq_len=input_seq_len,
-                #             num_kv_pairs=number_kv_pairs,
-                #             num_examples=3000,
-                #             power_a=self.cfg.dataset.test_power_a,
-                #             tokenizer=self.tokenizer,
-                #         )
-                #         data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
-                #         auto_save_data(test_data,data_path)
-
 
             if "longbench" in self.cfg.dataset.module.lower():
                 data_path = self.cfg.dataset.data_path
                 if self.cfg.dataset.subtask is not None:
                     data_path = data_path + self.cfg.dataset.subtask
-                # if self.cfg.dataset.e:
-                #     data_path = data_path + "_e.jsonl"
-                # else:
                 data_path = data_path + ".jsonl"
                 test_data = self.load_data_with_root_dir(data_path)
             
@@ -230,16 +212,6 @@ class CustomDatamodule(pl.LightningDataModule):
                 except:
                     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
                 
-           
-                    # auto_save_data(test_data,"/opt/data/private/zecheng/data/MQAR/MQAR.pkl")
-                    # auto save processed data fn
-                    # raise NotImplementedError
-            
-            # if self.cfg.dataset.processed_data_path is not None:
-            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
-            # else:
-            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
-            # import pdb;pdb.set_trace()
             self.test_dataset = CustomDataset(
                 content=test_data, 
                 tokenizer=self.tokenizer, 
@@ -248,7 +220,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if self.cfg.dataset.processed_data_path is not None and self.cfg.dataset.processed_data_path != "":
+            if hasattr(self.cfg.dataset, "processed_data_path") and self.cfg.dataset.processed_data_path is not None:
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 
@@ -266,12 +238,9 @@ class CustomDatamodule(pl.LightningDataModule):
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
 
-                    # train_data = self.load_data_with_root_dir(processed_data_path)
             else:
-                # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
                 if hasattr(self.cfg.dataset, "type"):
-                    # import pdb;pdb.set_trace()
                     if "hf" in self.cfg.dataset.type.lower() or "huggingface" in self.cfg.dataset.type.lower():  # huggingface dataset
                         train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
                     else:
@@ -286,7 +255,6 @@ class CustomDatamodule(pl.LightningDataModule):
 
         # further process data with stage
         if stage == "fit":  # training mode
-            # check data & initialization
             assert train_data is not None, f"train data should not be None during {stage} stage"
             try:
                 assert valid_data is not None, f"valid data is None during {stage} stage"
@@ -315,7 +283,6 @@ class CustomDatamodule(pl.LightningDataModule):
 
         else: # prediction mode
             assert test_data is not None, f"test data should not be None during {stage} stage"
-
             # init dataset
             self.test_dataset = CustomDataset(
                 content=test_data, 

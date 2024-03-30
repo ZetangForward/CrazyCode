@@ -161,6 +161,7 @@ class TaskConfig:
                 "class_name": 'SimplepajamaDataset',
                 "max_seq_length": 4200,
                 "nworkers": 2,
+                "type": "hf",
                 "train_batch_size": 1,
                 "val_batch_size": 1,
                 "pin_memory": False,
