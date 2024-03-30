@@ -78,8 +78,6 @@ class ModelConfig:
 
                 # return mamba config
                 return ModelConfig.mamba_config(
-                    model_name_or_path = "mamba-370m-hf", 
-                    tokenizer_name_or_path = tokenizer_name_or_path, 
                     ckpt_path = ckpt_path, 
                     load_model_state_dict = ckpt_path is not None,
                     use_relative_position = use_relative_position, 
@@ -110,8 +108,6 @@ class ModelConfig:
     @classmethod
     def mamba_config(
         cls, 
-        model_name_or_path, 
-        tokenizer_name_or_path, 
         ckpt_path=None,
         load_model_state_dict = False,
         use_relative_position = False,
@@ -121,8 +117,8 @@ class ModelConfig:
         use_custom_module = False,
     ):
         mamba_config = {
-            "model_name_or_path": model_name_or_path,
-            "tokenizer_name_or_path": tokenizer_name_or_path,
+            "model_name_or_path": "mamba-370m-hf",
+            "tokenizer_name_or_path": "mamba-370m-hf",
             "ckpt_path": ckpt_path,
             "load_model_state_dict": load_model_state_dict,
             "use_relative_position": use_relative_position,

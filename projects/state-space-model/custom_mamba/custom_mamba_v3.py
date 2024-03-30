@@ -116,26 +116,32 @@ class MambaMixer(nn.Module):
                 kernel_sizes = conv1d_configs['kernel_sizes']
             else:
                 kernel_sizes = conv1d_configs.kernel_sizes
-            # print(conv1d_configs)
-            # print(conv1d_configs.kernel_sizes)
-            # print(type(conv1d_configs.kernel_sizes))
-            if isinstance(kernel_sizes, int) or len(kernel_sizes) == 1:
-                self.conv1d = causal_conv1d_fn(**conv1d_configs)
-            else:
+            
+            if isinstance(kernel_sizes, int) and kernel_sizes > 4:
+                self.conv1d = nn.Conv1d(
+                    in_channels=self.intermediate_size,
+                    out_channels=self.intermediate_size,
+                    bias=config.use_conv_bias,
+                    kernel_size=kernel_sizes,
+                    groups=self.intermediate_size,
+                    padding=kernel_sizes - 1,
+                )
+            
+            elif isinstance(kernel_sizes, list):  
                 self.convs = GatedMultiScaleConv1d(
                     config.intermediate_size, 
                     config.intermediate_size, 
                     kernel_sizes
                 )
-        else:
-            self.conv1d = nn.Conv1d(
-                in_channels=self.intermediate_size,
-                out_channels=self.intermediate_size,
-                bias=config.use_conv_bias,
-                kernel_size=config.conv_kernel,
-                groups=self.intermediate_size,
-                padding=config.conv_kernel - 1,
-            )
+            else:  # default setting of quick casual conv1d module
+                self.conv1d = causal_conv1d_fn(
+                    in_channels=self.intermediate_size,
+                    out_channels=self.intermediate_size,
+                    bias=config.use_conv_bias,
+                    kernel_size=config.conv_kernel,
+                    groups=self.intermediate_size,
+                    padding=config.conv_kernel - 1,
+                )
 
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]

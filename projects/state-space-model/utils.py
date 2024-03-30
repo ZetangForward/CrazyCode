@@ -89,7 +89,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
         if model_config.ckpt_path is not None and "multi" in model_config.ckpt_path.lower():
-            model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
+            model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(   # FIXME: Difference between v2 and v3 mamba models
                 config, 
                 use_relative_position=model_config.use_relative_position,
                 max_position_embeddings=model_config.max_position_embeddings,
