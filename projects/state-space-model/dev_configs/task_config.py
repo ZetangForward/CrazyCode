@@ -45,11 +45,8 @@ class TaskConfig:
         )
 
     def return_config(
-        data_name,
-        processed_data_path,
-        train_batch_size,
-        val_batch_size,
-        inference_mode,
+        self, data_name, processed_data_path, 
+        train_batch_size, val_batch_size, inference_mode,
     ):
         if "mqar" in data_name.lower():
             pattern = r"N(\d+)_D(\d+)"

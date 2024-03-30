@@ -72,7 +72,28 @@ def parse_args():
 
 
 def get_final_configs(args):
-    basic_configs = WrapConfigs(args.model_name_or_path, args.opt_name, args.platform_name, args.data_name).all_configs
+    model_args = {
+        "tokenizer_name_or_path": args.tokenizer_name_or_path,
+        "ckpt_path": args.ckpt_path,
+        "use_relative_position": args.use_relative_position,
+        "use_abs_position": args.use_abs_position,
+        "max_position_embeddings": args.max_position_embeddings,
+    }
+    opt_args = {
+        "train_step": args.train_step,
+        "warmup_step": args.warmup_step,
+    }
+    task_args = {}
+    basic_configs = WrapConfigs(
+        args.model_name_or_path,
+        model_args, 
+        args.opt_name, 
+        opt_args,
+        args.platform_name, 
+        args.data_name,
+        task_args,
+    ).all_configs
+
     train_configs = DotDict({
         "experiment_name": args.experiment_name,
         "version": args.version,
