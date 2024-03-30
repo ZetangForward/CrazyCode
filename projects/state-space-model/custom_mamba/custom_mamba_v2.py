@@ -298,7 +298,6 @@ class MambaMixer(nn.Module):
             ssm_parameters, [self.time_step_rank, self.ssm_state_size, self.ssm_state_size], dim=-1
         )
 
-
         if selective_scan_fn is not None and selective_state_update is not None:
             discrete_time_step = self.dt_proj.weight @ time_step.transpose(1, 2)
 
