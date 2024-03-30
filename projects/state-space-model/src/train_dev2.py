@@ -202,14 +202,20 @@ def main(config):
     pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
-    use_custom_module = False
     if hasattr(config.model, "use_custom_module"):
         use_custom_module = config.model.use_custom_module
 
-    if not config.experiment.low_rank_train:
-        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
+    if config.experiment.low_rank_train:
+        model, tokenizer = get_low_rank_model_tokenizer(
+            model_root_dir, config.model, 
+            use_custom_module=config.model.use_custom_module
+        )
     else:
-        model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
+        model, tokenizer = get_model_tokenizer(
+            model_root_dir, config.model, 
+            use_custom_module=config.model.use_custom_module
+        )
+       
     
     print_c(model, "magenta")
 
@@ -296,9 +302,13 @@ def main(config):
 
 
 if __name__ == '__main__':
+
     args = parse_args()
     config = get_final_configs(args)
     print_c(config, 'yellow')
-    
+
+    main(config)
+
+
 
 
