@@ -123,9 +123,6 @@ def main(config):
     import pdb;pdb.set_trace()
 
     for task in subtask:
-        OmegaConf.set_struct(config, False)
-        config.task.dataset.subtask = task 
-        OmegaConf.set_struct(config, True)
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
 
