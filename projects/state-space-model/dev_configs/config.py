@@ -51,6 +51,18 @@ def parse_args():
                         help='define task name')
     parser.add_argument('--processed_data_path', '-pdp', type=str, default=None,
                         help='define preprocess data path')
+    parser.add_argument('--num_examples', type=int, default=3000,
+                        help='define the number of dataset (for building dataset)')
+    parser.add_argument('--input_seq_len', type=int, default=512,
+                        help='len of input sequence')  
+    parser.add_argument('--num_kv_pairs', type=int, default=32, 
+                        help='number of insert key-value pairs')
+    parser.add_argument('--test_power_a', type=float, default=0.01,
+                        help='power_a of MQAR dataset, for building datset')
+    parser.add_argument('--train_batch_size', type=int, default=1,
+                        help='training batch size')
+    parser.add_argument('--inference_mode', type=bool, default=True)
+        
 
     # Configs of Training Hyper-parameters
     parser.add_argument('--experiment_name', '-en', type=str, default=None,

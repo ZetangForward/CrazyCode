@@ -7,7 +7,7 @@ import lightning.pytorch as pl
 from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
 from evaluate.evaluator import Evaluator
-from dev_configs.train_config import parse_args, get_final_configs
+from dev_configs.config import parse_args, get_final_configs
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -105,24 +105,22 @@ def main(config):
         model_root_dir, 
         config.model, 
         use_custom_module=use_custom_module,
-        load_state_dict=config.model.load_model_state_dict
     )
 
     # load testing data
-    if "longbench"  in config.exp_task:
+    if "longbench"  in config.task.data_name.lower():
         # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         # subtask = [["qasper"]]
         subtask = [["narrativeqa", "qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "gov_report",  "qmsum" ,\
                     "multi_news", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]]
-        # subtask = [["trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
-        if config.task.dataset.subtask == "None":
+        if config.task.subtask == "None":
             subtask = subtask[0]    
-        elif isinstance(config.task.dataset.subtask, list):
-            subtask = config.task.dataset.subtask
+        elif isinstance(config.task.subtask, list):
+            subtask = config.task.subtask
     else:
-        subtask =  [config.exp_task]
-
+        subtask =  [config.task.data_name.lower()]
+    import pdb;pdb.set_trace()
 
     for task in subtask:
         OmegaConf.set_struct(config, False)

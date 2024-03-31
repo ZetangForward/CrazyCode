@@ -97,9 +97,8 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             use_abs_position=model_config.use_abs_position,
             custom_conv1d_configs=model_config.conv1d_configs,
         ).to(device)
-            
         if model_config.ckpt_path is not None:
-            model.from_pretrained(
+            model.custom_from_pretrained(                         #  custom_from_pretrained
                 model_config.ckpt_path, 
                 dtype=torch.bfloat16,
                 is_from_pytorch_lightning=True,
