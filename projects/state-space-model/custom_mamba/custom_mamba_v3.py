@@ -42,6 +42,39 @@ is_fast_path_available = all(
 
 
 
+@dataclass
+class MambaOutput(ModelOutput):
+    last_hidden_state: torch.FloatTensor = None
+    cache_params: Optional[List[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+
+
+@dataclass
+class MambaCausalLMOutput(ModelOutput):
+    loss: Optional[torch.FloatTensor] = None
+    logits: torch.FloatTensor = None
+    cache_params: Optional[List[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+
+
+class MambaCache:
+    def __init__(self, config, batch_size, dtype=torch.float16, device=None):
+        self.seqlen_offset = 0
+        self.dtype = dtype
+        intermediate_size = config.intermediate_size
+        ssm_state_size = config.state_size
+        conv_kernel_size = config.conv_kernel
+
+        self.conv_states = {
+            i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
+            for i in range(config.num_hidden_layers)
+        }
+        self.ssm_states = {
+            i: torch.zeros(batch_size, intermediate_size, ssm_state_size, device=device, dtype=dtype)
+            for i in range(config.num_hidden_layers)
+        }
+
+
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -57,7 +90,6 @@ class MambaRMSNorm(nn.Module):
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
         return self.weight * hidden_states.to(input_dtype)
-
 
 
 class GatedMultiScaleConv1d(nn.Module):
@@ -125,15 +157,18 @@ class MambaMixer(nn.Module):
                     config.intermediate_size, 
                     kernel_sizes
                 )
-            else:  # default setting of quick casual conv1d module
-                self.conv1d = causal_conv1d_fn(
-                    in_channels=self.intermediate_size,
-                    out_channels=self.intermediate_size,
-                    bias=config.use_conv_bias,
-                    kernel_size=config.conv_kernel,
-                    groups=self.intermediate_size,
-                    padding=config.conv_kernel - 1,
-                )
+            else:
+                raise ValueError("Invalid kernel_sizes (<=4) for GatedMultiScaleConv1d or utilize custom module")
+            
+        else:  # default setting of quick casual conv1d module
+            self.conv1d = causal_conv1d_fn(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.intermediate_size,
+                padding=config.conv_kernel - 1,
+            )
 
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
@@ -537,39 +572,6 @@ class MambaBlock(nn.Module):
         return hidden_states
 
 
-class MambaCache:
-    def __init__(self, config, batch_size, dtype=torch.float16, device=None):
-        self.seqlen_offset = 0
-        self.dtype = dtype
-        intermediate_size = config.intermediate_size
-        ssm_state_size = config.state_size
-        conv_kernel_size = config.conv_kernel
-
-        self.conv_states = {
-            i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
-            for i in range(config.num_hidden_layers)
-        }
-        self.ssm_states = {
-            i: torch.zeros(batch_size, intermediate_size, ssm_state_size, device=device, dtype=dtype)
-            for i in range(config.num_hidden_layers)
-        }
-
-
-@dataclass
-class MambaOutput(ModelOutput):
-    last_hidden_state: torch.FloatTensor = None
-    cache_params: Optional[List[torch.FloatTensor]] = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-
-
-@dataclass
-class MambaCausalLMOutput(ModelOutput):
-    loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
-    cache_params: Optional[List[torch.FloatTensor]] = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-
-
 class CustomMambaModel(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
@@ -579,7 +581,6 @@ class CustomMambaModel(MambaPreTrainedModel):
         super().__init__(config)
         
         self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
-
         self.max_position_embeddings = max_position_embeddings
         self.use_relative_position = use_relative_position
         self.use_abs_position = use_abs_position
@@ -589,6 +590,7 @@ class CustomMambaModel(MambaPreTrainedModel):
         elif use_relative_position:
             freqs = torch.exp(-np.log(10000.0) / config.d_model * torch.arange(0, config.d_model, 2).float())
             self.register_buffer('freqs', freqs)
+        
         self.layers = nn.ModuleList(
             [
                 MambaBlock(
