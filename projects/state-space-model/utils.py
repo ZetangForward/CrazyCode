@@ -85,10 +85,14 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
             dtype=torch.bfloat16, device="cuda"
         )
-        
+    
+
     elif use_custom_module:  # custom model just for mamba now
+        # import pdb;pdb.set_trace()
+        log_c("use_custom_module")
         config = MambaConfig.from_pretrained(model_path)
         if model_config.ckpt_path is not None and "multi" in model_config.ckpt_path.lower():
+            log_c("use_v3")
             model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
                 config, 
                 use_relative_position=model_config.use_relative_position,
@@ -97,6 +101,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
                 custom_conv1d_configs=model_config.conv1d_configs,
             ).to(device)
         else:
+            log_c("use_v2")
             model = custom_mamba.custom_mamba_v2.CustomMambaForCausalLM(
                 config, 
                 use_relative_position=model_config.use_relative_position,
@@ -106,23 +111,32 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             ).to(device)
             
         if hasattr(model_config, "ckpt_path") and model_config.ckpt_path is not None:
-            model.from_pretrained(
+            log_c("load_mamba_ckpt")
+            model.custom_from_pretrained(
                 model_config.ckpt_path, 
                 dtype=torch.bfloat16,
                 is_from_pytorch_lightning=True,
             )
+        else:
+            log_c("don't_load_mamba_ckpt")
     
     else:  # load hf model
+        # import pdb;pdb.set_trace()
         if "gpt" in model_path.lower():
             model = GPTNeoForCausalLM.from_pretrained(
                 model_path, use_cache=False, torch_dtype=torch.bfloat16
             ).to(device)
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
+ 
         elif "mamba" in model_path.lower():
-            model = CustomMambaForCausalLM.from_pretrained(
-                model_path, torch_dtype=torch.bfloat16
-            ).to(device)
+            raw_config = MambaConfig.from_pretrained(model_path)
+            model = CustomMambaForCausalLM(raw_config).to(device)
+
+            # model = CustomMambaForCausalLM.from_pretrained(
+            #     model_path, torch_dtype=torch.bfloat16
+            # ).to(device)
+
         elif "llama" or "deepseek" in model_path.lower():
             model = LlamaForCausalLM.from_pretrained(
                 model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16

@@ -681,11 +681,13 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
         self.post_init()
         
         
-    def from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
+    def custom_from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
         if self.dtype != dtype:
             self.to(dtype)
         
         state_dict = torch.load(path, map_location='cpu')
+        if state_dict.get('state_dict'):
+            state_dict = state_dict['state_dict']
         if dtype is not None:
             state_dict = {k: v.type(dtype) for k, v in state_dict.items()}
         if is_from_pytorch_lightning:

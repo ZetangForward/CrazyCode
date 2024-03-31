@@ -134,20 +134,20 @@ def main(config):
         data_module.setup(stage='predict')
 
         # import pdb;pdb.set_trace()
-        if config.model.load_model_state_dict :
-            state_dict = torch.load(
-                os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-                map_location='cuda'
-            )
-            # import pdb;pdb.set_trace()
-            if state_dict.get('state_dict'):
-                state_dict = state_dict['state_dict']
+        # if config.model.load_model_state_dict :
+        #     state_dict = torch.load(
+        #         os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
+        #         map_location='cuda'
+        #     )
+        #     # import pdb;pdb.set_trace()
+        #     if state_dict.get('state_dict'):
+        #         state_dict = state_dict['state_dict']
 
-            try:
-                custom_model.load_state_dict(state_dict, strict=True)
-                model = custom_model.model
-            except:
-                model.load_state_dict(state_dict, strict=True)
+        #     try:
+        #         custom_model.load_state_dict(state_dict, strict=True)
+        #         model = custom_model.model
+        #     except:
+        #         model.load_state_dict(state_dict, strict=True)
 
         # load experiment (and model checkpoint)
         experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
