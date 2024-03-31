@@ -41,7 +41,6 @@ is_fast_path_available = all(
 )
 
 
-
 @dataclass
 class MambaOutput(ModelOutput):
     last_hidden_state: torch.FloatTensor = None
@@ -411,7 +410,7 @@ class MambaMixer(nn.Module):
             contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
         return contextualized_states
 
-    # fmt: off
+
     def slow_forward(self, input_states, cache_params=None, extra_kwargs=None):
         
         batch_size, seq_len, _ = input_states.shape
@@ -442,7 +441,7 @@ class MambaMixer(nn.Module):
                 hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len]) # [batch, intermediate_size, seq_len]
         else:
             ssm_state = torch.zeros(
-                (batch_size, self.intermediate_size, self.ssm_state_size),
+                (batch_size, self.intermediate_size, self.ssm_state_size),  # intermediate_size: 4096, ssm_state_size: 16
                 device=hidden_states.device, dtype=dtype
             )
             hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len]) # [batch, intermediate_size, seq_len]
@@ -522,19 +521,19 @@ class MambaMixer(nn.Module):
 
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
-        if self.use_custom_conv1d:
+        if self.use_custom_conv1d:  # multiple kernels
             return self.custom_multi_conv_forward(
                 hidden_states, 
                 cache_params, 
                 extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
             )
-        elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
+        elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:  # kernel_size <= 4
             return self.cuda_kernels_forward(
                 hidden_states, 
                 cache_params, 
                 extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
             )
-        return self.slow_forward(
+        return self.slow_forward(  # kernel_size > 4
             hidden_states, 
             cache_params, 
             extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
