@@ -18,7 +18,7 @@ from utils import *
 from lightning.pytorch import Callback
 import argparse
 from collections import namedtuple
-from dev_configs.train_config import parse_args, get_final_configs
+from dev_configs.config import parse_args, get_final_configs
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:

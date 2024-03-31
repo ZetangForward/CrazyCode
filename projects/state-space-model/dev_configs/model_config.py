@@ -95,7 +95,6 @@ class ModelConfig:
                     load_model_state_dict = ckpt_path is not None,
                 )
 
-
         ### deepseek config
         elif "deepseek" in model_name_or_path.lower():
             return ModelConfig.deepseek_config(

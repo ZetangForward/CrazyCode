@@ -49,6 +49,8 @@ def parse_args():
     # Configs of Task Hyper-parameters
     parser.add_argument('--data_name', '-dn', type=str, default='passkey_search',
                         help='define task name')
+    parser.add_argument('--processed_data_path', '-pdp', type=str, default=None,
+                        help='define preprocess data path')
 
     # Configs of Training Hyper-parameters
     parser.add_argument('--experiment_name', '-en', type=str, default=None,
@@ -95,7 +97,9 @@ def get_final_configs(args):
         "train_step": args.train_step,
         "warmup_step": args.warmup_step,
     }
-    task_args = {}
+    task_args = {
+        "processed_data_path": args.processed_data_path,
+    }
     basic_configs = WrapConfigs(
         args.model_name_or_path,
         model_args, 

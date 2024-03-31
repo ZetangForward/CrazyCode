@@ -32,6 +32,7 @@ def merge_dotdicts(d1, d2):
             merged[k] = v
     return DotDict(merged)
 
+
 class DotDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__

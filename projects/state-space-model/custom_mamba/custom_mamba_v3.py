@@ -100,14 +100,6 @@ class MambaMixer(nn.Module):
         # judge whether use multi-conv1d module
         
         self.use_custom_conv1d = conv1d_configs is not None
-        # if self.use_multi_head:
-        #     self.num_heads = multi_head_config['num_head']
-        #     self.linear_free_multi_head = multi_head_config['linear_free_multi_head']
-        #     assert self.intermediate_size % self.num_heads == 0, "d_model must be divisible by num_heads"
-        #     self.per_head_size = int(self.intermediate_size / self.num_heads)
-            
-        #     if not self.linear_free_multi_head:  # use linear to transform the dimension and concatentate them together
-        #         self.up_projector = nn.Linear(self.per_head_size, self.intermediate_size, bias=False)
 
         self.use_conv_bias = config.use_conv_bias
 
@@ -128,7 +120,7 @@ class MambaMixer(nn.Module):
                 )
             
             elif isinstance(kernel_sizes, list):  
-                self.convs = GatedMultiScaleConv1d(
+                self.conv1d = GatedMultiScaleConv1d(
                     config.intermediate_size, 
                     config.intermediate_size, 
                     kernel_sizes
