@@ -1,0 +1,4 @@
+  File "/nvme/zecheng/modelzipper/projects/state-space-model/src/test.py", line 119
+    , "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en",,]]
+    ^
+SyntaxError: invalid syntax

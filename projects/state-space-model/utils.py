@@ -1,21 +1,18 @@
 import torch
 import os
-# import pytorch_lightning as pl
 import lightning.pytorch as pl
 import importlib
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
 from torch.utils.data import DataLoader
-
 from transformers import AutoTokenizer, GPTNeoForCausalLM, LlamaForCausalLM
-from transformers import MambaConfig, MambaForCausalLM
+from transformers import MambaConfig
 from modelzipper.tutils import *
 from datasets import load_from_disk
 from peft import LoraConfig, get_peft_model
 from torch.utils.data import Dataset
 from custom_mamba.custom_mamba_analysis import LongContextMambaAna
-import custom_mamba.custom_mamba_v2
-import custom_mamba.custom_mamba_v3
-from custom_mamba.custom_mamba_v2 import CustomMambaForCausalLM
+from custom_mamba.custom_mamba_v3 import CustomMambaForCausalLM
+
 
 def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name_or_path=None):
     tokenizer, model = None, None
@@ -73,6 +70,8 @@ def get_low_rank_model_tokenizer(root_dir, model_config, use_custom_module=False
 def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysis=False):
     model_path = os.path.join(root_dir, model_config.model_name_or_path)
     tokenizer_path = os.path.join(root_dir, model_config.tokenizer_name_or_path)
+    
+    # important: load on every GPU, rather on one GPU
     local_rank = int(os.getenv('LOCAL_RANK', 0))
     device = f'cuda:{local_rank}'
     
@@ -83,7 +82,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     if analysis: # analysis
         model = LongContextMambaAna.from_pretrained(
             "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
-            dtype=torch.bfloat16, device="cuda"
+            dtype=torch.bfloat16, device=device
         )
     
 
@@ -91,35 +90,21 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         # import pdb;pdb.set_trace()
         log_c("use_custom_module")
         config = MambaConfig.from_pretrained(model_path)
-        if model_config.ckpt_path is not None and "multi" in model_config.ckpt_path.lower():
-            log_c("use_v3")
-            model = custom_mamba.custom_mamba_v3.CustomMambaForCausalLM(
-                config, 
-                use_relative_position=model_config.use_relative_position,
-                max_position_embeddings=model_config.max_position_embeddings,
-                use_abs_position=model_config.use_abs_position,
-                custom_conv1d_configs=model_config.conv1d_configs,
-            ).to(device)
-        else:
-            log_c("use_v2")
-            model = custom_mamba.custom_mamba_v2.CustomMambaForCausalLM(
-                config, 
-                use_relative_position=model_config.use_relative_position,
-                max_position_embeddings=model_config.max_position_embeddings,
-                use_abs_position=model_config.use_abs_position,
-                custom_conv1d_configs=model_config.conv1d_configs,
-            ).to(device)
+        model = CustomMambaForCausalLM(
+            config, 
+            use_relative_position=model_config.use_relative_position,
+            max_position_embeddings=model_config.max_position_embeddings,
+            use_abs_position=model_config.use_abs_position,
+            custom_conv1d_configs=model_config.conv1d_configs,
+        ).to(device)
             
-        if hasattr(model_config, "ckpt_path") and model_config.ckpt_path is not None:
-            log_c("load_mamba_ckpt")
-            model.custom_from_pretrained(
+        if model_config.ckpt_path is not None:
+            model.from_pretrained(
                 model_config.ckpt_path, 
                 dtype=torch.bfloat16,
                 is_from_pytorch_lightning=True,
             )
-        else:
-            log_c("don't_load_mamba_ckpt")
-    
+
     else:  # load hf model
         # import pdb;pdb.set_trace()
         if "gpt" in model_path.lower():
@@ -130,21 +115,16 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             tokenizer.pad_token_id = tokenizer.eos_token_id
  
         elif "mamba" in model_path.lower():
-            raw_config = MambaConfig.from_pretrained(model_path)
-            model = CustomMambaForCausalLM(raw_config).to(device)
-
-            # model = CustomMambaForCausalLM.from_pretrained(
-            #     model_path, torch_dtype=torch.bfloat16
-            # ).to(device)
-
+            model = transformers.MambaForCausalLM.from_pretrained(
+                model_path, torch_dtype=torch.bfloat16
+            ).to(device)
         elif "llama" or "deepseek" in model_path.lower():
             model = LlamaForCausalLM.from_pretrained(
-                model_path, attn_implementation="flash_attention_2", torch_dtype=torch.bfloat16
+                model_path, attn_implementation="flash_attention_2", 
+                torch_dtype=torch.bfloat16
             ).to(device)
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
-    
-    print_c("model and tokenzier already loaded ~", "red")
 
     return model, tokenizer
 
@@ -196,6 +176,7 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
+        
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
@@ -222,30 +203,11 @@ class CustomDatamodule(pl.LightningDataModule):
                         power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
-                    # data_path = "/opt/data/private/zecheng/data/MQAR/" + "test_C8192_N"+str(self.cfg.dataset.input_seq_len) + "_D"+str(self.cfg.dataset.num_kv_pairs)+".pkl"
-                    # auto_save_data(test_data,data_path)
-                # import pdb;pdb.set_trace()
-                # for input_seq_len in [1024, 2048]:
-                #     for number_kv_pairs in [256]:
-                #         test_data = CustomDataset.build_dataset(
-                #             vocab_size=self.cfg.dataset.vocab_size, 
-                #             input_seq_len=input_seq_len,
-                #             num_kv_pairs=number_kv_pairs,
-                #             num_examples=3000,
-                #             power_a=self.cfg.dataset.test_power_a,
-                #             tokenizer=self.tokenizer,
-                #         )
-                #         data_path = "/nvme/zecheng/data/MQAR/" + "test_C8192_N"+str(input_seq_len) + "_D"+str(number_kv_pairs)+".pkl"
-                #         auto_save_data(test_data,data_path)
-
 
             if "longbench" in self.cfg.dataset.module.lower():
                 data_path = self.cfg.dataset.data_path
                 if self.cfg.dataset.subtask is not None:
                     data_path = data_path + self.cfg.dataset.subtask
-                # if self.cfg.dataset.e:
-                #     data_path = data_path + "_e.jsonl"
-                # else:
                 data_path = data_path + ".jsonl"
                 test_data = self.load_data_with_root_dir(data_path)
             
@@ -255,16 +217,6 @@ class CustomDatamodule(pl.LightningDataModule):
                 except:
                     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
                 
-           
-                    # auto_save_data(test_data,"/opt/data/private/zecheng/data/MQAR/MQAR.pkl")
-                    # auto save processed data fn
-                    # raise NotImplementedError
-            
-            # if self.cfg.dataset.processed_data_path is not None:
-            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
-            # else:
-            #     test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
-            # import pdb;pdb.set_trace()
             self.test_dataset = CustomDataset(
                 content=test_data, 
                 tokenizer=self.tokenizer, 
@@ -273,10 +225,9 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if self.cfg.dataset.processed_data_path is not None and self.cfg.dataset.processed_data_path != "":
+            if self.cfg.dataset["processed_data_path"] is not None:
                 # check if is a directory
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
-                
                 if os.path.isdir(processed_data_path):
                     for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
@@ -291,12 +242,9 @@ class CustomDatamodule(pl.LightningDataModule):
                     valid_data = content[:min_valid_num]
                     train_data = content[min_valid_num:]
 
-                    # train_data = self.load_data_with_root_dir(processed_data_path)
             else:
-                # check if is a directory
                 data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
                 if hasattr(self.cfg.dataset, "type"):
-                    # import pdb;pdb.set_trace()
                     if "hf" in self.cfg.dataset.type.lower() or "huggingface" in self.cfg.dataset.type.lower():  # huggingface dataset
                         train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
                     else:
@@ -311,7 +259,6 @@ class CustomDatamodule(pl.LightningDataModule):
 
         # further process data with stage
         if stage == "fit":  # training mode
-            # check data & initialization
             assert train_data is not None, f"train data should not be None during {stage} stage"
             try:
                 assert valid_data is not None, f"valid data is None during {stage} stage"
@@ -340,7 +287,6 @@ class CustomDatamodule(pl.LightningDataModule):
 
         else: # prediction mode
             assert test_data is not None, f"test data should not be None during {stage} stage"
-
             # init dataset
             self.test_dataset = CustomDataset(
                 content=test_data, 

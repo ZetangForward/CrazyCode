@@ -18,6 +18,7 @@ from utils import *
 from lightning.pytorch import Callback
 import argparse
 from collections import namedtuple
+from dev_configs.config import parse_args, get_final_configs
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="train") -> None:
@@ -201,15 +202,20 @@ def main(config):
     pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
-    use_custom_module = False
     if hasattr(config.model, "use_custom_module"):
         use_custom_module = config.model.use_custom_module
 
-    if not config.experiment.low_rank_train:
-        model, tokenizer = get_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
+    if config.experiment.low_rank_train:
+        model, tokenizer = get_low_rank_model_tokenizer(
+            model_root_dir, config.model, 
+            use_custom_module=config.model.use_custom_module
+        )
     else:
-        model, tokenizer = get_low_rank_model_tokenizer(model_root_dir, config.model, use_custom_module=use_custom_module)
-    
+        model, tokenizer = get_model_tokenizer(
+            model_root_dir, config.model, 
+            use_custom_module=config.model.use_custom_module
+        )
+        
     print_c(model, "magenta")
 
     # load data
@@ -221,8 +227,8 @@ def main(config):
     # init logger
     tb_logger = TensorBoardLogger(
         save_dir=save_root_dir, 
-        name=f"{config.exp_task}",
-        version=config.mark
+        name=config.experiment.experiment_name,
+        version=config.experiment.version,
     )
 
     lr_monitor = LearningRateMonitor(logging_interval='step')
@@ -230,18 +236,17 @@ def main(config):
         save_top_k=config.experiment.save_top_k, 
         dirpath =os.path.join(tb_logger.log_dir, "checkpoints"), 
         monitor=config.experiment.monitor_metric,
-        filename=f"{config.model_name}-{config.exp_task}"+"-{epoch:02d}",
+        filename="{epoch}-{step}-{train_lm_loss:.2f}",
         save_last=True,
         mode='min',
         save_weights_only=True, # only save state dict
         every_n_train_steps=config.experiment.every_n_train_steps,
     )
-    token_monitor = TokenCountCallback(max_tokens=10e9)
+    token_monitor = TokenCountCallback(max_tokens=1e11)  # max load 100b tokens
     
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
-    # print(config.optimizer)
-    # print(config.optimizer.num_training_steps)
+    
     if config.experiment.use_deepspeed:
         log_c("Using DeepSpeed", "yellow")
         deepspeed_trainer = Trainer(
@@ -295,26 +300,12 @@ def main(config):
 
 
 if __name__ == '__main__':
-    config = Configs()
-    # import pdb;pdb.set_trace()
+
+    args = parse_args()
+    config = get_final_configs(args)
+    print_c(config, 'yellow')
+
     main(config)
-
-    # with hydra.initialize_config_module(config_module="config"):
-        # parser = argparse.ArgumentParser()
-        # parser.add_argument("--local_rank", type=int, default=None)
-        # parser.add_argument("--other_param", type=str, default=None)
-        # args, unknown_args = parser.parse_known_args()
-        # args = parser.parse_args()
-
-        # torch.distributed.init_process_group(backend='nccl')
-        # torch.cuda.set_device(args.local_rank)
-        # hydra_args = {
-        #     config_path = "../configs/",
-        #     config_name = "train_config",
-        #     version = "1.1"
-        # }
-        # hydra.main(config_path=hydra_args["config_path"], config_name=hydra_args["config_name"])(main)()
-
 
 
 

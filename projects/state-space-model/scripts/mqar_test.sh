@@ -48,34 +48,20 @@
 #     done
 # done
 
-                # 
+    
 
-                # # wait
-                # if [ -f "$DATA_PATH" ] && [ -f "$PREDICTION_PATH" ] ; then
-                #     echo $JOB_ID >> /home/tianxiangwu/zecheng/evaluation/AR_ywj/${model_name}/eval.txt
-                #     python evaluate/evaluator.py \
-                #     --task AR_ywj \
-                #     --fpath /home/tianxiangwu/zecheng/evaluation/AR_ywj/${model_name}/version_$JOB_ID/results/predictions.pkl \
-                #     --save_evaluation_path /home/tianxiangwu/zecheng/evaluation/AR_ywj/${model_name}/eval.txt;
-        
-                # else
-                #     echo NOT_FOUND $DATA_PATH
-                # fi
-
-export CUDA_VISIBLE_DEVICES=0
-
+export CUDA_VISIBLE_DEVICES=$1
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
-model_name=mamba_370m_big_kernel_4
-platform=langchao
+
+model_name=mamba-1_4b
+platform=amax_a100
 task=AR_ywj
 DATA_N=512
 DATA_D=32
-
-mark=${input_seq_len}_${num_kv_pairs}
-# model_path=/public/home/ljt/tzc/ckpt/AR_ywj/version_51232/checkpoints/last.ckpt
-model_path='/public/home/ljt/tzc/ckpt/AR_ywj/512_32_hf/checkpoints/mamba_370m_big_kernel_4-AR_ywj-epoch03.ckpt'
+model_path=/nvme/zecheng/ckpt/h_800/ckpt/AR_ywj/mamba_370m_big_kernel_8_512_32/checkpoints/last.ckpt
+# model_path=/nvme/zecheng/ckpt/AR_ywj-mamba-1_4b/version_MQAR_C8192_N1024_D64/AR_ywj/MQAR_C8192_N1024_D64/checkpoints/last.ckpt
 python src/test.py \
-    mark=$mark \
+    mark=test \
     model=$model_name \
     model_name=$model_name \
     model.ckpt_path=$model_path \
@@ -87,4 +73,8 @@ python src/test.py \
     task.dataset.input_seq_len=$DATA_N \
     task.dataset.num_kv_pairs=$DATA_D \
     experiment.device_num=$num_devices \
-    experiment.results_save_dir=$task/${model_name}/${mark}/results \
+    experiment.results_save_dir=$task/${model_name}/${mark}/results 
+    # \
+    # > /nvme/zecheng/modelzipper/projects/state-space-model/scripts/log/${model_name}_test.log 2>&1 & 
+
+    

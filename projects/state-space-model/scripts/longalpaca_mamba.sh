@@ -2,7 +2,7 @@
 id=$1
 model_name=mamba_370m_big_kernel_$id
 num_devices=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
-platform=$1
+platform=h_800
 task=longalpaca
 
 nproc_per_node=$num_devices
