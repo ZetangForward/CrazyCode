@@ -47,7 +47,7 @@ def parse_args():
                         required=True, help='define platform name')
 
     # Configs of Task Hyper-parameters
-    parser.add_argument('--data_name', '-dn', type=str, default='slimpajama',
+    parser.add_argument('--data_name', '-dn', type=str, default='passkey_search',
                         help='define task name')
 
     # Configs of Training Hyper-parameters
