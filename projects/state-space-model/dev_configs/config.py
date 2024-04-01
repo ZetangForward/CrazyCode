@@ -181,7 +181,7 @@ def parse_args():
                         help='save top k model ckpts')
     parser.add_argument('--every_n_train_steps', type=int, default=None,
                         help='save ckpt every n train steps')
-    parser.add_argument('--monitor_metric', type=str, default='loss',
+    parser.add_argument('--monitor_metric', type=str, default='train_lm_loss',
                         help='monitor metric for save best model')
     parser.add_argument('--use_deepspeed', action='store_true', 
                         help='Enable to use DeepSpeed optimization.')
