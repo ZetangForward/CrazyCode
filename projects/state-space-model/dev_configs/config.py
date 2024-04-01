@@ -108,7 +108,7 @@ def parse_args():
                             'mamba-370m-hf', 'mamba-1_4b-hf', 
                             'mamba-370m-k8', 'mamba-370m-k16', 
                             'mamba-370m-k32', 'mamba-370m-k64', 
-                            'mamba-370m-km'],
+                            'mamba-370m-km', 'tiny_mamba'],
                         )
     parser.add_argument('--tokenizer_name_or_path', type=str, default=None, 
                         help='Tokenizer path. If not set, will use the model_name_or_path')

@@ -10,7 +10,8 @@ class ModelConfig:
         use_relative_position = False,
         use_abs_position = False,
         max_position_embeddings = None, 
-        conv1d_configs = None  # FIXME: how to handle this?
+        conv1d_configs = None,  # FIXME: how to handle this?
+        tiny_mamba_configs = None,
     ) -> None:
 
         self.model_name_or_path = model_name_or_path
@@ -24,7 +25,7 @@ class ModelConfig:
         self.cfg = self.return_config(
             model_name_or_path, tokenizer_name_or_path, ckpt_path, 
             use_relative_position, use_abs_position, max_position_embeddings, 
-            conv1d_configs
+            conv1d_configs, tiny_mamba_configs
         )
 
     def return_config(
@@ -35,7 +36,8 @@ class ModelConfig:
         use_relative_position = False,
         use_abs_position = False,
         max_position_embeddings = None, 
-        conv1d_configs = None
+        conv1d_configs = None,
+        tiny_mamba_configs = None
     ):
         """
         just a dummy function to return the config
@@ -48,6 +50,23 @@ class ModelConfig:
         ### mamba config
         if "mamba" in model_name_or_path.lower(): 
             
+            # config kernel sizes
+            if "k8" in model_name_or_path.lower():
+                conv1d_configs = {"kernel_sizes": 8}
+                use_custom_module = True
+            elif "k16" in model_name_or_path.lower():
+                conv1d_configs = {"kernel_sizes": 16}
+                use_custom_module = True
+            elif "k32" in model_name_or_path.lower():
+                conv1d_configs = {"kernel_sizes": 32}
+                use_custom_module = True
+            elif "k64" in model_name_or_path.lower():
+                conv1d_configs = {"kernel_sizes": 64}
+                use_custom_module = True
+            elif "km" in model_name_or_path.lower():
+                conv1d_configs = {"kernel_sizes": [[2, 4, 8, 16, 32, 64]]}
+                use_custom_module = True
+
             # 370M model
             if "370" in model_name_or_path.lower():
                 # config position embeddings
@@ -57,23 +76,6 @@ class ModelConfig:
                 elif "rel_pos" in model_name_or_path.lower():
                     use_abs_position = True
                     max_position_embeddings = 16384
-                    use_custom_module = True
-
-                # config kernel sizes
-                if "k8" in model_name_or_path.lower():
-                    conv1d_configs = {"kernel_sizes": 8}
-                    use_custom_module = True
-                elif "k16" in model_name_or_path.lower():
-                    conv1d_configs = {"kernel_sizes": 16}
-                    use_custom_module = True
-                elif "k32" in model_name_or_path.lower():
-                    conv1d_configs = {"kernel_sizes": 32}
-                    use_custom_module = True
-                elif "k64" in model_name_or_path.lower():
-                    conv1d_configs = {"kernel_sizes": 64}
-                    use_custom_module = True
-                elif "km" in model_name_or_path.lower():
-                    conv1d_configs = {"kernel_sizes": [[2, 4, 8, 16, 32, 64]]}
                     use_custom_module = True
 
                 # return mamba config
@@ -92,8 +94,23 @@ class ModelConfig:
                     model_name_or_path = "mamba-1.4b", 
                     tokenizer_name_or_path = tokenizer_name_or_path, 
                     ckpt_path = ckpt_path, 
+                    conv1d_configs = conv1d_configs,
                     load_model_state_dict = ckpt_path is not None,
                 )
+
+            elif "tiny" in model_name_or_path.lower():
+                use_custom_module = True
+                return self.tiny_mamba_config(
+                    model_name_or_path = "mamba-370m-hf", 
+                    tokenizer_name_or_path = "mamba-370m-hf", 
+                    ckpt_path = ckpt_path, 
+                    load_model_state_dict = ckpt_path is not None,
+                    use_custom_module = use_custom_module,
+                    tiny_mamba_configs = tiny_mamba_configs,
+                    conv1d_configs = conv1d_configs,
+                )
+                
+
 
         ### deepseek config
         elif "deepseek" in model_name_or_path.lower():
@@ -102,6 +119,42 @@ class ModelConfig:
                 ckpt_path = ckpt_path, 
                 load_model_state_dict = ckpt_path is not None,
             )
+
+    def tiny_mamba_config(
+        self,
+        model_name_or_path=None,
+        tokenizer_name_or_path=None,
+        ckpt_path=None,
+        load_model_state_dict = False,
+        use_relative_position = False,
+        use_abs_position = False,
+        max_position_embeddings = None, 
+        conv1d_configs = None,
+        use_custom_module = False,
+        tiny_mamba_configs = None,
+    ):  
+        ## for testing
+        tiny_mamba_configs = {
+            "num_hidden_layers": 2,
+            "hidden_size": 256,
+            "intermediate_size": 512,
+            "time_step_rank": 32,
+            "vocab_size": 20480,
+        }
+        
+        mamba_config = {
+            "model_name_or_path": model_name_or_path,
+            "tokenizer_name_or_path": tokenizer_name_or_path,
+            "ckpt_path": ckpt_path,
+            "load_model_state_dict": load_model_state_dict,
+            "use_relative_position": use_relative_position,
+            "use_abs_position": use_abs_position,
+            "max_position_embeddings": max_position_embeddings,
+            "conv1d_configs": conv1d_configs,
+            "use_custom_module": use_custom_module,
+            "tiny_mamba_config": tiny_mamba_configs,
+        }
+        return mamba_config
 
 
     @classmethod
@@ -126,7 +179,6 @@ class ModelConfig:
             "conv1d_configs": conv1d_configs,
             "use_custom_module": use_custom_module,
         }
-
         return mamba_config
     
 

@@ -24,7 +24,7 @@ def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name
     return tokenizer, model
 
 
-def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add more args
+def tiny_mamba(model_path, use_relative_position=False):
     raw_config = MambaConfig.from_pretrained(model_path)
     raw_config.expand = 4
     raw_config.use_relative_position = use_relative_position
@@ -32,7 +32,6 @@ def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add
     raw_config.max_position_embeddings = 9012
     model = CustomMambaForCausalLM(raw_config, dtype=torch.bfloat16, device="cuda")
     state_dict = torch.load("/nvme/hf_models/mamba-1.4b/pytorch_model.bin", map_location="cuda")
-    import pdb; pdb.set_trace()
     model._load_from_state_dict(state_dict, dtype=torch.bfloat16)
 
     return model
@@ -81,12 +80,22 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
     # load model
     if analysis: # analysis
         model = LongContextMambaAna.from_pretrained(
-            "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
+            "/nvme/hf_models/mamba-1.4b", 
+            use_relative_position=model_config.use_relative_position,
             dtype=torch.bfloat16, device=device
         )
         
     elif use_custom_module:  # custom model just for mamba now
         config = MambaConfig.from_pretrained(model_path)
+
+        # whether to use tiny_mamba
+        if "tiny_mamba_config" in model_config:
+            config.num_hidden_layers = model_config.tiny_mamba_config.num_hidden_layers
+            config.time_step_rank = model_config.tiny_mamba_config.time_step_rank
+            config.hidden_size = model_config.tiny_mamba_config.hidden_size
+            config.intermediate_size = model_config.tiny_mamba_config.intermediate_size
+            config.vocab_size = model_config.vocab_size
+            
         model = CustomMambaForCausalLM(
             config, 
             use_relative_position=model_config.use_relative_position,

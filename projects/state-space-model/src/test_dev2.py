@@ -103,6 +103,8 @@ def main(config):
         model_root_dir, config.model, use_custom_module=use_custom_module,
     )
 
+    import pdb; pdb.set_trace()
+
     # load data module
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     data_module.setup(stage='predict')
