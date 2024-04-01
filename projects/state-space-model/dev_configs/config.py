@@ -111,6 +111,7 @@ def get_final_configs(args):
     }
     task_args = {
         "processed_data_path": args.processed_data_path,
+        "inference_mode": args.inference_mode,
     }
     basic_configs = WrapConfigs(
         args.model_name_or_path,

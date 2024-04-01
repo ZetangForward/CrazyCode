@@ -22,7 +22,7 @@ class PlatformConfig:
             "hf_model_path": "/public/home/ljt/hf_models",
             "dataset_path": "/public/home/ljt/tzc/data",
             "exp_path": "/public/home/ljt/tzc/ckpt",
-            "result_path": "/public/home/ljt/tzc/data/evaluation",
+            "result_path": "/public/home/ljt/tzc/evaluation",
         }
 
     @classmethod

@@ -132,7 +132,7 @@ if __name__ == '__main__':
     #     auto_save_data(test_data,data_path)
         
     for input_seq_len in [512, 1024, 2048, 4096, 8192, 16384]:
-        for number_kv_pairs in [32, 48, 96, 128, 192, 256, 384, 512, 768]:
+        for number_kv_pairs in [64]:
             try:
                 test_data = MQARDataset.build_dataset(
                     vocab_size=8192, 

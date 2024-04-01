@@ -97,6 +97,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             use_abs_position=model_config.use_abs_position,
             custom_conv1d_configs=model_config.conv1d_configs,
         ).to(device)
+
         if model_config.ckpt_path is not None:
             model.custom_from_pretrained(                         #  custom_from_pretrained
                 model_config.ckpt_path, 
@@ -145,20 +146,20 @@ class CustomDatamodule(pl.LightningDataModule):
         self.root_dir = root_dir
         self.tokenizer = tokenizer
         self.prepare_data_per_node = True
-        import pdb;pdb.set_trace()
-        print(self.cfg)
+        # import pdb;pdb.set_trace()
+        print(self.cfg.dataset)
         self.dataset_kwargs = {
-            "max_seq_length": self.cfg.max_seq_length,
-            "cluster_batch": self.cfg.cluster_batch,           
+            "max_seq_length": self.cfg.dataset.max_seq_length,
+            "cluster_batch": self.cfg.dataset.cluster_batch,           
         }
         
-        # if "longbench" in self.cfg.data_name.lower() and \            # TODO
-        #       self.cfg.dataset.subtask is not None:
-        #     self.dataset_kwargs.update({"subtask": self.cfg.dataset.subtask})
-        #     self.dataset_kwargs.update({"config_path": os.path.join(self.root_dir, self.cfg.dataset.data_path)})
+        if "longbench" in self.cfg.dataset.module.lower() and \
+              self.cfg.dataset.subtask is not None:
+            self.dataset_kwargs.update({"subtask": self.cfg.dataset.subtask})
+            self.dataset_kwargs.update({"config_path": os.path.join(self.root_dir, self.cfg.dataset.data_path)})
         
-        # if self.cfg.other_cfgs is not None:
-        #     self.dataset_kwargs.update(self.cfg.other_cfgs)           # TDDO
+        if self.cfg.other_cfgs is not None:
+            self.dataset_kwargs.update(self.cfg.other_cfgs)
     
     def load_data_with_root_dir(self, fpath, type='custom'):
         '''
@@ -173,19 +174,19 @@ class CustomDatamodule(pl.LightningDataModule):
     def setup(self, stage: str = 'fit') -> None:
         train_data, valid_data, test_data = None, None, None
          # import Dataset Class
-        dataset_module = importlib.import_module(self.cfg.module)
-        CustomDataset = getattr(dataset_module, self.cfg.class_name)
+        dataset_module = importlib.import_module(self.cfg.dataset.module)
+        CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
         
         # prepare dataset
-        if self.cfg.inference_mode:  # whether in inference mode
-            if "needle" in self.cfg.data_path.lower():  # sanity check passkey search data
-                processed_data_path = os.path.join(self.root_dir, self.cfg.processed_data_path)
-                if self.cfg.processed_data_path is None or not os.path.exists(processed_data_path):  # preporcess the passkey_search data on-the-fly
+        if self.cfg.dataset.inference_mode:  # whether in inference mode
+            if self.cfg.dataset.data_path is not None and "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
+                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
+                if self.cfg.dataset.processed_data_path is None or not os.path.exists(processed_data_path):  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(
-                        fpath=os.path.join(self.root_dir, self.cfg.data_path), 
-                        key=self.cfg.key,
-                        value=self.cfg.value,
-                        ctx_len=self.cfg.max_seq_length,
+                        fpath=os.path.join(self.root_dir, self.cfg.dataset.data_path), 
+                        key=self.cfg.dataset.key,
+                        value=self.cfg.dataset.value,
+                        ctx_len=self.cfg.dataset.max_seq_length,
                         tokenizer=self.tokenizer,
                     )
                     auto_save_data(processed_data, processed_data_path)  # auto save processed data fn
@@ -193,28 +194,28 @@ class CustomDatamodule(pl.LightningDataModule):
                     exit()
             
             if "ar" in self.cfg.dataset.module.lower():
-                if self.cfg.processed_data_path is None:
+                if self.cfg.dataset.processed_data_path is None:
                     processed_data = CustomDataset.build_dataset(
-                        vocab_size=self.cfg.vocab_size, 
-                        input_seq_len=self.cfg.input_seq_len,
-                        num_kv_pairs=self.cfg.num_kv_pairs,
-                        num_examples=self.cfg.num_examples,
-                        power_a=self.cfg.test_power_a,
+                        vocab_size=self.cfg.dataset.vocab_size, 
+                        input_seq_len=self.cfg.dataset.input_seq_len,
+                        num_kv_pairs=self.cfg.dataset.num_kv_pairs,
+                        num_examples=self.cfg.dataset.num_examples,
+                        power_a=self.cfg.dataset.test_power_a,
                         tokenizer=self.tokenizer,
                     )
 
-            if "longbench" in self.cfg.module.lower():
-                data_path = self.cfg.data_path
-                if self.cfg.subtask is not None:
-                    data_path = data_path + self.cfg.subtask
+            if "longbench" in self.cfg.dataset.module.lower():
+                data_path = self.cfg.dataset.data_path
+                if self.cfg.dataset.subtask is not None:
+                    data_path = data_path + self.cfg.dataset.subtask
                 data_path = data_path + ".jsonl"
                 test_data = self.load_data_with_root_dir(data_path)
             
             else:
                 try:
-                    test_data = self.load_data_with_root_dir(self.cfg.processed_data_path)
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.processed_data_path)
                 except:
-                    test_data = self.load_data_with_root_dir(self.cfg.test_data_path)
+                    test_data = self.load_data_with_root_dir(self.cfg.dataset.test_data_path)
                 
             self.test_dataset = CustomDataset(
                 content=test_data, 
@@ -224,11 +225,11 @@ class CustomDatamodule(pl.LightningDataModule):
             )
 
         else:
-            if self.cfg["processed_data_path"] is not None:
+            if self.cfg.dataset["processed_data_path"] is not None:
                 # check if is a directory
-                processed_data_path = os.path.join(self.root_dir, self.cfg.processed_data_path)
+                processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 if os.path.isdir(processed_data_path):
-                    for split in self.cfg.split:  # TODO: support multiple splits
+                    for split in self.cfg.dataset.split:  # TODO: support multiple splits
                         if "train" in split:
                             train_data = self.load_data_with_root_dir(os.path.join(processed_data_path, split))
                         elif "valid" in split:
@@ -242,19 +243,19 @@ class CustomDatamodule(pl.LightningDataModule):
                     train_data = content[min_valid_num:]
 
             else:
-                data_path = os.path.join(self.root_dir, self.cfg.data_path)
-                if hasattr(self.cfg, "type"):
-                    if "hf" in self.cfg.type.lower() or "huggingface" in self.cfg.type.lower():  # huggingface dataset
-                        train_data = self.load_data_with_root_dir(self.cfg.data_path, type='hf')
+                data_path = os.path.join(self.root_dir, self.cfg.dataset.data_path)
+                if hasattr(self.cfg.dataset, "type"):
+                    if "hf" in self.cfg.dataset.type.lower() or "huggingface" in self.cfg.dataset.type.lower():  # huggingface dataset
+                        train_data = self.load_data_with_root_dir(self.cfg.dataset.data_path, type='hf')
                     else:
                         try:
                             train_data = auto_read_data(data_path)
                         except:
-                            raise NotImplementedError(f"{self.cfg.type} is not support")
+                            raise NotImplementedError(f"{self.cfg.dataset.type} is not support")
                 elif not os.path.isdir(data_path):  # custom dataset
                     train_data = auto_read_data(data_path)
                 else:
-                    raise NotImplementedError(f"split {self.cfg.data_path} is not supported")
+                    raise NotImplementedError(f"split {self.cfg.dataset.data_path} is not supported")
 
         # further process data with stage
         if stage == "fit":  # training mode
@@ -300,11 +301,11 @@ class CustomDatamodule(pl.LightningDataModule):
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(
             self.train_dataset, 
-            batch_size=self.cfg.train_batch_size, 
-            num_workers=self.cfg.nworkers, 
-            pin_memory=self.cfg.pin_memory, 
+            batch_size=self.cfg.dataset.train_batch_size, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
             drop_last=True, 
-            shuffle=False if self.cfg.cluster_batch else True, 
+            shuffle=False if self.cfg.dataset.cluster_batch else True, 
         )
         
 
@@ -314,9 +315,9 @@ class CustomDatamodule(pl.LightningDataModule):
             
         return DataLoader(
             self.valid_dataset, 
-            batch_size=self.cfg.val_batch_size, 
-            num_workers=self.cfg.nworkers, 
-            pin_memory=self.cfg.pin_memory, 
+            batch_size=self.cfg.dataset.val_batch_size, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
             drop_last=False, 
             shuffle=False,
         )
@@ -327,8 +328,8 @@ class CustomDatamodule(pl.LightningDataModule):
         predict_loader = DataLoader(
             self.test_dataset, 
             batch_size=1, 
-            num_workers=self.cfg.nworkers, 
-            pin_memory=self.cfg.pin_memory, 
+            num_workers=self.cfg.dataset.nworkers, 
+            pin_memory=self.cfg.dataset.pin_memory, 
             drop_last=False, 
             shuffle=False,
         )

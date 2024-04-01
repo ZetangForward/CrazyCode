@@ -80,23 +80,29 @@ class TaskConfig:
         train_batch_size
     ):
         mqar_confg = {
-            "data_name": "MQAR",
-            "data_path": None, 
-            "processed_data_path": processed_data_path,
-            "module": 'custom_dataset.AR_ywj', 
-            "class_name": 'MQARDataset',
-            "nworkers": 4,
-            "max_seq_length": 5000,
-            "train_batch_size": train_batch_size,
-            "val_batch_size": 1,
-            "inference_mode": inference_mode,
-            "pin_memory": False,
-            "cluster_batch": False,
-            "vocab_size": 8192,
-            "num_examples": num_examples,
-            "input_seq_len": input_seq_len,
-            "num_kv_pairs": num_kv_pairs,
-            "test_power_a": test_power_a
+            'dataset': {
+                "data_name": "MQAR",
+                "data_path": None, 
+                "processed_data_path": processed_data_path,
+                "module": 'custom_dataset.AR_ywj', 
+                "class_name": 'MQARDataset',
+                "nworkers": 4,
+                "max_seq_length": 5000,
+                "train_batch_size": train_batch_size,
+                "val_batch_size": 1,
+                "inference_mode": inference_mode,
+                "pin_memory": False,
+                "cluster_batch": False,
+                "vocab_size": 8192,
+                "num_examples": num_examples,
+                "input_seq_len": input_seq_len,
+                "num_kv_pairs": num_kv_pairs,
+                "test_power_a": test_power_a
+            },
+            "other_cfgs": {
+                "max_generation_length": 48,
+                "testing_max_ctx": 128000,
+            },
         }
         return mqar_confg
 

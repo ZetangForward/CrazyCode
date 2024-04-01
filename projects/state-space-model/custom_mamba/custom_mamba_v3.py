@@ -176,7 +176,8 @@ class MambaMixer(nn.Module):
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
-                hidden_states = self.convs(conv_state)
+                # hidden_states = self.convs(conv_state)      #TODO WARNING
+                hidden_states = self.conv1d(conv_state) 
                 hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
             else:
                 conv_state = nn.functional.pad(  # only save last conv_kernel_size states
@@ -184,13 +185,15 @@ class MambaMixer(nn.Module):
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
-                hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
+                # hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len] #TODO WARNING
+                hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])
         else:
             ssm_state = torch.zeros(
                 (batch_size, self.intermediate_size, self.ssm_state_size),
                 device=hidden_states.device, dtype=dtype
             )
-            hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])
+            # hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])
+            hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])  #TODO WARNING
 
         # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
         ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
