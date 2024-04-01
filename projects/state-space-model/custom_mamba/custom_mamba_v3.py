@@ -124,7 +124,7 @@ class MambaMixer(nn.Module):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
-        self.conv_kernel_size = config.conv_kernel              # ?
+        self.conv_kernel_size = config.conv_kernel              # TODO
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
