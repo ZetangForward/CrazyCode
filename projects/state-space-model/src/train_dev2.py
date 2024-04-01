@@ -221,8 +221,17 @@ def main(config):
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
     
+    # calculate the training steps, epoches
+    assert config.experiment.max_epochs is not None, "max_epoches must be defined !"
+    global_batch_size = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches * config.task.train_batch_size
+    one_epoch_training_steps = len(data_module.train_dataloader()) // global_batch_size
+    total_training_steps = config.experiment.max_epochs * one_epoch_training_steps
+
     # load experiment
-    experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
+    experiment = Experiment(
+        model, config, tokenizer=tokenizer, 
+        state="train", max_training_steps=total_training_steps
+    )
 
     # init logger
     tb_logger = TensorBoardLogger(
@@ -247,11 +256,6 @@ def main(config):
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
     
-    # calculate the training steps, epoches
-    global_batch_size = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches * config.task.train_batch_size
-    one_epoch_training_steps = len(data_module.train_dataloader()) // global_batch_size
-    total_training_steps = config.experiment.max_epochs * one_epoch_training_steps
-
     if config.experiment.use_deepspeed:
         log_c("Using DeepSpeed", "yellow")
         deepspeed_trainer = Trainer(
@@ -270,10 +274,10 @@ def main(config):
                 logging_level=logging.INFO,
                 precision_plugin="bf16",
             ),
+            max_epochs=config.experiment.max_epochs,
             precision="bf16",
             accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             enable_checkpointing=True,
-            max_steps=config.optimizer.num_training_steps,
             devices=config.experiment.device_num,
             gradient_clip_val=1.0,
             enable_model_summary=True,
@@ -288,8 +292,8 @@ def main(config):
             callbacks=[lr_monitor, ckpt_monitor, token_monitor],
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DDPStrategy(find_unused_parameters=True),
+            max_epochs=config.experiment.max_epochs,
             precision="bf16",
-            max_steps=config.optimizer.num_training_steps,
             devices=config.experiment.device_num,
             gradient_clip_val=1,
             enable_model_summary=True,

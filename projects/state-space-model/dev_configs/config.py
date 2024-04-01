@@ -133,9 +133,9 @@ def parse_args():
     # Configs of Optimizer Hyper-parameters
     parser.add_argument('--opt_name', type=str, default='adawm', 
                         help='optimizer name')
-    parser.add_argument('--train_step', type=int, default=20000,
+    parser.add_argument('--max_training_step', type=int, default=None,
                         help='set training steps')
-    parser.add_argument('--warmup_step', type=int, default=2000,
+    parser.add_argument('--warmup_step', type=int, default=None,
                         help='set warmup steps')
 
     # Configs of Lr_Scheduler Hyper-parameters
@@ -210,11 +210,11 @@ def get_final_configs(args):
         "max_position_embeddings": args.max_position_embeddings,
     }
     opt_args = {
-        "train_step": args.train_step,
+        "train_step": args.max_training_steps,
         "warmup_step": args.warmup_step,
     }
     lr_scheduler_args = {
-        "train_step": args.train_step,
+        "train_step": args.max_training_steps,
         "warmup_step": args.warmup_step,
     }
     task_args = {
