@@ -20,14 +20,16 @@ import argparse
 from collections import namedtuple
 from dev_configs.config import parse_args, get_final_configs
 
+
 class Experiment(pl.LightningModule):
-    def __init__(self, model, config, tokenizer=None, state="train") -> None:
+    def __init__(self, model, config, tokenizer=None, state="train", max_training_steps=None) -> None:
         super(Experiment, self).__init__()
         self.model = model
         self.model.train()
         self.tokenizer = tokenizer
         self.cfg = config
         self.platform_cfg = config.platform
+        self.max_training_steps = max_training_steps
 
         if state == "train":
             self.loss_fct = torch.nn.CrossEntropyLoss()
@@ -114,6 +116,11 @@ class Experiment(pl.LightningModule):
 
 
     def configure_optimizers(self):
+        num_warmup_steps = self.cfg.lr_scheduler.warmup_steps if self.cfg.lr_scheduler.warmup_steps is not None \
+            else self.max_training_steps * 0.1
+        num_training_steps = self.cfg.optimizer.num_training_steps if self.cfg.optimizer.num_training_steps is not None \
+            else self.max_training_steps
+
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
             optimizer = transformers.AdamW(
@@ -136,8 +143,8 @@ class Experiment(pl.LightningModule):
         if self.cfg.lr_scheduler.scheduler_type == "get_cosine_schedule_with_warmup":
             scheduler = transformers.get_cosine_schedule_with_warmup(
                 optimizer=optimizer,
-                num_warmup_steps=self.cfg.lr_scheduler.warmup_steps,
-                num_training_steps=self.cfg.optimizer.num_training_steps,
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps,
             )
         else:
             def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
@@ -240,6 +247,11 @@ def main(config):
     # strategy = DeepSpeedStrategy(accelerator='gpu', config=deepspeed_config)
     deepspeed_trainer, pl_trainer = None, None
     
+    # calculate the training steps, epoches
+    global_batch_size = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches * config.task.train_batch_size
+    one_epoch_training_steps = len(data_module.train_dataloader()) // global_batch_size
+    total_training_steps = config.experiment.max_epochs * one_epoch_training_steps
+
     if config.experiment.use_deepspeed:
         log_c("Using DeepSpeed", "yellow")
         deepspeed_trainer = Trainer(

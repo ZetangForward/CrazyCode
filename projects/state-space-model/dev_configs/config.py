@@ -155,6 +155,8 @@ def parse_args():
                         help='define the number of dataset (for building dataset)')
     parser.add_argument('--input_seq_len', type=int, default=512,
                         help='len of input sequence')  
+    parser.add_argument('--max_epochs', type=int, default=50,
+                        help='max training epoches')
     parser.add_argument('--num_kv_pairs', type=int, default=32, 
                         help='number of insert key-value pairs')
     parser.add_argument('--test_power_a', type=float, default=0.01,
@@ -249,6 +251,7 @@ def get_final_configs(args):
                 "device_num": args.device_num,
                 "node_num": args.node_num,
                 "seed": 42,
+                "max_epochs": args.max_epochs,
                 "monitor_metric": args.monitor_metric,
             }
         }
