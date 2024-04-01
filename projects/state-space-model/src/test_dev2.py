@@ -120,27 +120,26 @@ def main(config):
             subtask = config.task.subtask
     else:
         subtask =  [config.task.data_name.lower()]
-    import pdb;pdb.set_trace()
-
+        
     for task in subtask:
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
 
-        # import pdb;pdb.set_trace()
-        if config.model.load_model_state_dict :
-            state_dict = torch.load(
-                os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-                map_location='cuda'
-            )
-            # import pdb;pdb.set_trace()
-            if state_dict.get('state_dict'):
-                state_dict = state_dict['state_dict']
+        import pdb;pdb.set_trace()
+        # if config.model.load_model_state_dict :
+        #     state_dict = torch.load(
+        #         os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
+        #         map_location='cuda'
+        #     )
+        #     # import pdb;pdb.set_trace()
+        #     if state_dict.get('state_dict'):
+        #         state_dict = state_dict['state_dict']
 
-            try:
-                custom_model.load_state_dict(state_dict, strict=True)
-                model = custom_model.model
-            except:
-                model.load_state_dict(state_dict, strict=True)
+        #     try:
+        #         custom_model.load_state_dict(state_dict, strict=True)
+        #         model = custom_model.model
+        #     except:
+        #         model.load_state_dict(state_dict, strict=True)
 
         # load experiment (and model checkpoint)
         experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
