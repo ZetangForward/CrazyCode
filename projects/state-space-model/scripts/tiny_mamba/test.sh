@@ -1,10 +1,12 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0,1
 
-python src/train_dev2.py \
+torchrun --nnode=1 --nproc_per_node=2 src/train_dev2.py \
     -mn tiny_mamba-k8 \
     -pn amax_a100 \
     -en test \
     -dn MQAR_ywj \
+    --node_num 1 \
+    --device_num 2 \
     --state train \
     --train_batch_size 32 \
     --val_batch_size 32 \

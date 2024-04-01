@@ -309,7 +309,6 @@ class CustomDatamodule(pl.LightningDataModule):
 
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        log_c(self.cfg.dataset.train_batch_size)
         return DataLoader(
             self.train_dataset, 
             batch_size=self.cfg.dataset.train_batch_size, 

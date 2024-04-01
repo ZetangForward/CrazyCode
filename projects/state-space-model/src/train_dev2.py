@@ -193,10 +193,25 @@ class TokenCountCallback(Callback):
             trainer.should_stop = True
 
 
+def saint_check(config):  # TODO
+    world_size = os.environ.get('WORLD_SIZE', None)
+    if world_size is not None:
+        world_size = int(world_size)
+        log_c(f"Total number of processes (world size): {world_size}")
+    else:
+        log_c("WORLD_SIZE environment variable is not set.")
+
+    if world_size is not None:
+        if world_size != config.experiment.device_num:
+            log_c(f"warning: num_device dose not match world size, change it to {world_size}")
+            config.experiment.device_num = world_size
+
+    return config
+
+
 def main(config):
 
-    # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
-    # print_c(OmegaConf.to_yaml(config), "yellow")
+    config = saint_check(config)
     
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
@@ -224,11 +239,13 @@ def main(config):
     
     # calculate the training steps, epoches
     assert config.experiment.max_epochs is not None, "max_epoches must be defined !"
-    global_batch_size = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches * config.task.dataset.train_batch_size
-    one_epoch_training_steps = len(data_module.train_dataloader()) // global_batch_size
+    global_processes = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches 
+    one_epoch_training_steps = len(data_module.train_dataloader()) // global_processes
     total_training_steps = config.experiment.max_epochs * one_epoch_training_steps
-
-    log_c(f"max training epochs are {config.experiment.max_epochs} | total_training_steps are {total_training_steps}")
+    log_c(f"global_batch_size(include grad accmulate): {global_processes}")
+    log_c(f"training steps per epoch: {one_epoch_training_steps}")
+    log_c(f"max training epochs: {config.experiment.max_epochs}")
+    log_c(f"total_training_steps: {total_training_steps}")
 
     # load experiment
     experiment = Experiment(
@@ -309,8 +326,8 @@ def main(config):
     
     trainer.fit(
         experiment, 
-        train_dataloaders=data_module.train_dataloader, 
-        val_dataloaders=data_module.val_dataloader
+        train_dataloaders=data_module.train_dataloader(), 
+        val_dataloaders=data_module.val_dataloader(),
     )
 
 
