@@ -220,6 +220,7 @@ def main(config):
 
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+    data_module.setup(stage='fit')
     
     # calculate the training steps, epoches
     assert config.experiment.max_epochs is not None, "max_epoches must be defined !"
@@ -306,7 +307,11 @@ def main(config):
 
     trainer = pl_trainer if pl_trainer is not None else deepspeed_trainer
     
-    trainer.fit(experiment, datamodule=data_module)
+    trainer.fit(
+        experiment, 
+        train_dataloaders=data_module.train_dataloader, 
+        val_dataloaders=data_module.val_dataloader
+    )
 
 
 

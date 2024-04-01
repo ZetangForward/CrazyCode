@@ -306,7 +306,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
             
             print_c(f"num of testing samples: {len(self.test_dataset)}", color='magenta')
-            
+
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         log_c(self.cfg.dataset.train_batch_size)
