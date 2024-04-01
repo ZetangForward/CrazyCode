@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=6
 
-python src/train_dev2.py \
+python src/test_dev2.py \
 -mn mamba-370m-k8 \
 -pn amax_a100 \
 -en test \

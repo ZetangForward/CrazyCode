@@ -7,7 +7,7 @@ import lightning.pytorch as pl
 from modelzipper.tutils import *
 from utils import get_model_tokenizer, CustomDatamodule
 from evaluate.evaluator import Evaluator
-from dev_configs.train_config import parse_args, get_final_configs
+from dev_configs.config import parse_args, get_final_configs
 
 class Experiment(pl.LightningModule):
     def __init__(self, model, config, tokenizer=None, state="eval") -> None:
@@ -70,6 +70,7 @@ class Experiment(pl.LightningModule):
             final_res['labels'] = batch.pop('answers')
 
         else:
+            import pdb; pdb.set_trace()
             output = self.model.generate(
                     input_ids, 
                     max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
@@ -102,10 +103,7 @@ def main(config):
         use_custom_module = config.model.use_custom_module
 
     model, tokenizer = get_model_tokenizer(
-        model_root_dir, 
-        config.model, 
-        use_custom_module=use_custom_module,
-        load_state_dict=config.model.load_model_state_dict
+        model_root_dir, config.model, use_custom_module=use_custom_module,
     )
 
     # load testing data
