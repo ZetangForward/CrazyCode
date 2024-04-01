@@ -94,8 +94,8 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             config.time_step_rank = model_config.tiny_mamba_config.time_step_rank
             config.hidden_size = model_config.tiny_mamba_config.hidden_size
             config.intermediate_size = model_config.tiny_mamba_config.intermediate_size
-            config.vocab_size = model_config.vocab_size
-            
+            config.vocab_size = model_config.tiny_mamba_config.vocab_size
+
         model = CustomMambaForCausalLM(
             config, 
             use_relative_position=model_config.use_relative_position,
