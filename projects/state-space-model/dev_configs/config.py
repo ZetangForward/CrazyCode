@@ -161,8 +161,8 @@ def parse_args():
                         help='power_a of MQAR dataset, for building datset')
     parser.add_argument('--train_batch_size', type=int, default=1,
                         help='training batch size')
-    parser.add_argument('--eval_batch_size', type=int, default=1,
-                        help='training batch size')
+    parser.add_argument('--val_batch_size', type=int, default=1,
+                        help='validation batch size')
     parser.add_argument('--inference_mode', action='store_true')
         
 
@@ -218,6 +218,8 @@ def get_final_configs(args):
     task_args = {
         "processed_data_path": args.processed_data_path,
         "inference_mode": args.inference_mode,
+        "train_batch_size": args.train_batch_size,
+        "val_batch_size": args.val_batch_size,
     }
     basic_configs = WrapConfigs(
         args.model_name_or_path,

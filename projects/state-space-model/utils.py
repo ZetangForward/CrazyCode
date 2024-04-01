@@ -186,7 +186,7 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
-        
+
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if self.cfg.dataset.data_path is not None and "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
@@ -309,6 +309,7 @@ class CustomDatamodule(pl.LightningDataModule):
             
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
+        log_c(self.cfg.dataset.train_batch_size)
         return DataLoader(
             self.train_dataset, 
             batch_size=self.cfg.dataset.train_batch_size, 
