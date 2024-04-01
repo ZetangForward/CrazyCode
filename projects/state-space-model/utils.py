@@ -127,6 +127,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             model = transformers.MambaForCausalLM.from_pretrained(
                 model_path, torch_dtype=torch.bfloat16
             ).to(device)
+
         elif "llama" or "deepseek" in model_path.lower():
             model = LlamaForCausalLM.from_pretrained(
                 model_path, attn_implementation="flash_attention_2", 

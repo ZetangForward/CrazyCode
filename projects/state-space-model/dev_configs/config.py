@@ -152,7 +152,7 @@ def parse_args():
                         help='power_a of MQAR dataset, for building datset')
     parser.add_argument('--train_batch_size', type=int, default=1,
                         help='training batch size')
-    parser.add_argument('--inference_mode', type=bool, default=True)
+    parser.add_argument('--inference_mode', action='store_true')
         
 
     # Configs of Training Hyper-parameters
