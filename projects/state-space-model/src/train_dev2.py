@@ -223,9 +223,11 @@ def main(config):
     
     # calculate the training steps, epoches
     assert config.experiment.max_epochs is not None, "max_epoches must be defined !"
-    global_batch_size = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches * config.task.train_batch_size
+    global_batch_size = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches * config.task.dataset.train_batch_size
     one_epoch_training_steps = len(data_module.train_dataloader()) // global_batch_size
     total_training_steps = config.experiment.max_epochs * one_epoch_training_steps
+
+    log_c(f"max training epochs are {config.experiment.max_epochs} | total_training_steps are {total_training_steps}")
 
     # load experiment
     experiment = Experiment(
