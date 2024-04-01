@@ -106,8 +106,27 @@ def main(config):
         model_root_dir, config.model, use_custom_module=use_custom_module,
     )
 
+    # load data module
+    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+    data_module.setup(stage='predict')
+
+    # load experiment (and model checkpoint)
+    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
+
+    # init tester
+    tester = pl.Trainer(devices=config.experiment.device_num)
+
+    # predict the results
+    predictions = tester.predict(
+        model=experiment,
+        dataloaders=data_module.predict_dataloader(),
+        return_predictions=True,
+    )
+
+
+
     # load testing data
-    if "longbench"  in config.exp_task:
+    if "longbench"  in config.task.task_name:
         # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         # subtask = [["qasper"]]
@@ -119,7 +138,7 @@ def main(config):
         elif isinstance(config.task.dataset.subtask, list):
             subtask = config.task.dataset.subtask
     else:
-        subtask =  [config.exp_task]
+        subtask =  [config.task.task_name]
 
 
     for task in subtask:
