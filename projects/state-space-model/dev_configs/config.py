@@ -114,7 +114,10 @@ def parse_args():
                             'mamba-370m-hf', 'mamba-1_4b-hf', 
                             'mamba-370m-k8', 'mamba-370m-k16', 
                             'mamba-370m-k32', 'mamba-370m-k64', 
-                            'mamba-370m-km', 'tiny_mamba'],
+                            'mamba-370m-km', 'tiny_mamba', 
+                            'tiny_mamba-k8', 'tiny_mamba-k16',
+                            'tiny_mamba-k32', 'tiny_mamba-k64'
+                            ],
                         )
     parser.add_argument('--tokenizer_name_or_path', type=str, default=None, 
                         help='Tokenizer path. If not set, will use the model_name_or_path')
@@ -157,6 +160,8 @@ def parse_args():
     parser.add_argument('--test_power_a', type=float, default=0.01,
                         help='power_a of MQAR dataset, for building datset')
     parser.add_argument('--train_batch_size', type=int, default=1,
+                        help='training batch size')
+    parser.add_argument('--eval_batch_size', type=int, default=1,
                         help='training batch size')
     parser.add_argument('--inference_mode', action='store_true')
         

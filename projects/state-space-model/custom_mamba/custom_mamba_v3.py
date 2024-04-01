@@ -464,7 +464,7 @@ class MambaMixer(nn.Module):
             time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
 
             if cache_params is not None and cache_params.seqlen_offset > 0:
-                scan_outputs = selective_state_update(
+                scan_output = selective_state_update(
                     cache_params.ssm_states[self.layer_idx],
                     hidden_states[..., 0],
                     discrete_time_step[..., 0],
@@ -477,7 +477,7 @@ class MambaMixer(nn.Module):
                     dt_softplus=True,
                 ).unsqueeze(-1)
             else:
-                scan_outputs, ssm_state = selective_scan_fn(
+                scan_output, ssm_state = selective_scan_fn(
                     hidden_states,
                     discrete_time_step,
                     A,

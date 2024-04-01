@@ -198,9 +198,6 @@ def main(config):
     pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
-    if hasattr(config.model, "use_custom_module"):
-        use_custom_module = config.model.use_custom_module
-
     if config.experiment.low_rank_train:
         model, tokenizer = get_low_rank_model_tokenizer(
             model_root_dir, config.model, 
