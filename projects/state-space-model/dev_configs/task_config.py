@@ -63,6 +63,10 @@ class TaskConfig:
                 num_kv_pairs = num_kv_pairs,
                 test_power_a = 0.01,
             )
+        
+        elif "longbench" in data_name.lower():
+            pass
+            
         elif "passkey" in data_name.lower():
             return TaskConfig.passkey_config()
 
@@ -179,6 +183,8 @@ class TaskConfig:
             "other_cfgs": None,
         }
         return slimpajama_config
+    
+    
             
 
 
