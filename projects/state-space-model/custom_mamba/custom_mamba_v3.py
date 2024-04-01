@@ -161,7 +161,15 @@ class MambaMixer(nn.Module):
                 self.multi_conv1d = True  # use multi_conv1d_forward
             else:
                 raise ValueError("Invalid kernel_sizes (<=4) for GatedMultiScaleConv1d or utilize custom module")
-            
+        else:
+            self.conv1d = nn.Conv1d(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.intermediate_size,
+                padding=config.conv_kernel - 1,
+            )
 
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
