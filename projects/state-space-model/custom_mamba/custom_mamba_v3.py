@@ -124,6 +124,7 @@ class MambaMixer(nn.Module):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
+        import pdb;pdb.set_trace()
         self.conv_kernel_size = config.conv_kernel              # ?
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
@@ -137,6 +138,7 @@ class MambaMixer(nn.Module):
         self.multi_conv1d = False
 
         if self.use_custom_conv1d:
+            self.conv_kernel_size = conv1d_configs.kern
             if isinstance(conv1d_configs,dict):
                 kernel_sizes = conv1d_configs['kernel_sizes']
             else:
@@ -414,10 +416,12 @@ class MambaMixer(nn.Module):
         if cache_params is not None:
             ssm_state = cache_params.ssm_states[self.layer_idx]
             if cache_params.seqlen_offset > 0:
+
                 conv_state = cache_params.conv_states[self.layer_idx] # [batch, intermediate_size, conv_kernel_size]
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
+                import pdb;pdb.set_trace()
                 hidden_states = torch.sum(conv_state * self.conv1d.weight[:, 0, :], dim=-1)
 
                 if self.use_conv_bias:

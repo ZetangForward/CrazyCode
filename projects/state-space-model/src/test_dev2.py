@@ -32,12 +32,12 @@ class Experiment(pl.LightningModule):
 
         input_ids = batch.pop("input_ids")
         # import pdb;pdb.set_trace()
-        if "ar" in self.cfg.task.dataset.data_name.lower():
+        if "ar" in self.cfg.task.task_name.lower():
             output = self.model(input_ids).logits.max(-1)[1]
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
-        elif "longbench" in self.cfg.task.dataset.data_name.lower():
+        elif "longbench" in self.cfg.task.task_name.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
             if self.cfg.task.dataset.subtask == "samsum": 
@@ -98,40 +98,14 @@ def main(config):
         use_custom_module=use_custom_module,
     )
 
-    # load data module
-    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
-    data_module.setup(stage='predict')
+    if "subtask" in config.task.dataset and config.task.dataset.subtask is not None:
+        subtasks = config.task.dataset.subtask
+    else: 
+        subtasks = [config.task.task_name]
 
-    # load experiment (and model checkpoint)
-    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
-
-    # init tester
-    tester = pl.Trainer(devices=config.experiment.device_num)
-
-    # predict the results
-    predictions = tester.predict(
-        model=experiment,
-        dataloaders=data_module.predict_dataloader(),
-        return_predictions=True,
-    )
-
-
-
-    # load testing data
-    if "longbench"  in config.task.dataset.data_name.lower():
-        # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
-        #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
-        # subtask = [["qasper"]]
-        subtask = [["narrativeqa", "qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "gov_report",  "qmsum" ,\
-                    "multi_news", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]]
-        if config.task.subtask == "None":
-            subtask = subtask[0]    
-        elif isinstance(config.task.dataset.subtask, list):
-            subtask = config.task.dataset.subtask
-    else:
-        subtask =  [config.task.dataset.data_name.lower()]
         
-    for task in subtask:
+    for task in subtasks:
+        config.task.dataset.subtask = task 
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
 

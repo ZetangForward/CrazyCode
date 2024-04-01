@@ -8,7 +8,8 @@ dataset:
   pin_memory: False
   inference_mode: True
   cluster_batch: False
-  subtask: None
+  subtask: ["narrativeqa", "qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "gov_report",  "qmsum" ,\
+                    "multi_news", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
 
 other_cfgs: 
   testing_max_ctx: 32000

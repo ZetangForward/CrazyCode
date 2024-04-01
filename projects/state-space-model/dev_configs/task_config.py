@@ -65,6 +65,9 @@ class TaskConfig:
                 test_power_a = 0.01,
             )
         
+        elif "longbench" in data_name.lower():
+            return TaskConfig.longbench_config()
+        
         elif "passkey" in data_name.lower():
             return TaskConfig.passkey_config()
 
@@ -185,6 +188,27 @@ class TaskConfig:
             "other_cfgs": None,
         }
         return slimpajama_config
+    
+    @classmethod
+    def longbench_config(cls):
+        longbench_config = {
+            "task_name": "longbench", 
+            "dataset": {
+                "data_path": "longbench/data/",
+                "module": 'custom_dataset.longbench_ywj',
+                "processed_data_path": None,
+                "class_name": 'LongbenchDataset',
+                "max_seq_length": 4200,
+                "nworkers": 4,
+                "pin_memory": False,
+                "inference_mode": True,
+                "cluster_batch": False,
+                "subtask": ["narrativeqa", "qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "gov_report",  "qmsum" ,\
+                    "multi_news", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en"],
+            },
+            "other_cfgs": None,
+        }
+        return longbench_config
     
     
             

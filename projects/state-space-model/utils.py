@@ -91,6 +91,7 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
         log_c("use_custom_module")
         config = MambaConfig.from_pretrained(model_path)
 
+        # import pdb;pdb.set_trace()
         # whether to use tiny_mamba
         if "tiny_mamba_config" in model_config:
             config.num_hidden_layers = model_config.tiny_mamba_config.num_hidden_layers
@@ -106,7 +107,6 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             use_abs_position=model_config.use_abs_position,
             custom_conv1d_configs=model_config.conv1d_configs,
         ).to(device)
-
         if model_config.ckpt_path is not None:
             model.custom_from_pretrained(                         #  custom_from_pretrained
                 model_config.ckpt_path, 

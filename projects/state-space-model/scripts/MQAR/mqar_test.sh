@@ -34,7 +34,7 @@ for MODEL_N in "${!model_pairs[@]}"; do
                 -pn $platform \
                 -dn MQAR_ywj \
                 --state eval \
-                --inference_mode True \
+                --inference_mode \
                 --ckpt_path $model_path \
                 --input_seq_len $DATA_N \
                 --num_kv_pairs $DATA_D\
