@@ -21,7 +21,7 @@ except ImportError:
 
 try:
     # from .mamba_kernel_fn import mamba_inner_fn  # custom module
-    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 except ImportError:
     selective_scan_fn, mamba_inner_fn = None, None
 
@@ -41,6 +41,38 @@ is_fast_path_available = all(
 )
 
 
+@dataclass
+class MambaOutput(ModelOutput):
+    last_hidden_state: torch.FloatTensor = None
+    cache_params: Optional[List[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+
+
+@dataclass
+class MambaCausalLMOutput(ModelOutput):
+    loss: Optional[torch.FloatTensor] = None
+    logits: torch.FloatTensor = None
+    cache_params: Optional[List[torch.FloatTensor]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
+
+
+class MambaCache:
+    def __init__(self, config, batch_size, dtype=torch.float16, device=None):
+        self.seqlen_offset = 0
+        self.dtype = dtype
+        intermediate_size = config.intermediate_size
+        ssm_state_size = config.state_size
+        conv_kernel_size = config.conv_kernel
+
+        self.conv_states = {
+            i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
+            for i in range(config.num_hidden_layers)
+        }
+        self.ssm_states = {
+            i: torch.zeros(batch_size, intermediate_size, ssm_state_size, device=device, dtype=dtype)
+            for i in range(config.num_hidden_layers)
+        }
+
 
 class MambaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
@@ -59,14 +91,13 @@ class MambaRMSNorm(nn.Module):
         return self.weight * hidden_states.to(input_dtype)
 
 
-
 class GatedMultiScaleConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes):
         super(GatedMultiScaleConv1d, self).__init__()
         self.convs = nn.ModuleList([
             nn.Sequential(
                 nn.ConstantPad1d((kernel_size - 1, 0), 0),
-                nn.Conv1d(in_channels, out_channels * 2, kernel_size, groups=in_channels),  # Double the output channels
+                nn.Conv1d(in_channels, out_channels // len(kernel_sizes) * 2, kernel_size, groups=in_channels),  # Double the output channels
             ) for kernel_size in kernel_sizes
         ])
         
@@ -76,8 +107,9 @@ class GatedMultiScaleConv1d(nn.Module):
             conv_output = conv(x)
             gate, output = torch.split(conv_output, conv_output.size(1) // 2, dim=1)  # Split the output into two equal parts
             gate = torch.sigmoid(gate)
-            outputs.append(output * gate)
-        return sum(outputs)
+            outputs.append(output * gate)  # [B, L, D // n]
+        outputs = torch.cat(outputs, dim=-1)
+        return outputs
 
 
 class MambaMixer(nn.Module):
@@ -102,6 +134,7 @@ class MambaMixer(nn.Module):
         self.use_custom_conv1d = conv1d_configs is not None
 
         self.use_conv_bias = config.use_conv_bias
+        self.multi_conv1d = False
 
         if self.use_custom_conv1d:
             if isinstance(conv1d_configs,dict):
@@ -125,15 +158,18 @@ class MambaMixer(nn.Module):
                     config.intermediate_size, 
                     kernel_sizes
                 )
-            else:  # default setting of quick casual conv1d module
-                self.conv1d = causal_conv1d_fn(
-                    in_channels=self.intermediate_size,
-                    out_channels=self.intermediate_size,
-                    bias=config.use_conv_bias,
-                    kernel_size=config.conv_kernel,
-                    groups=self.intermediate_size,
-                    padding=config.conv_kernel - 1,
-                )
+                self.multi_conv1d = True  # use multi_conv1d_forward
+            else:
+                raise ValueError("Invalid kernel_sizes (<=4) for GatedMultiScaleConv1d or utilize custom module")
+        else:
+            self.conv1d = nn.Conv1d(
+                in_channels=self.intermediate_size,
+                out_channels=self.intermediate_size,
+                bias=config.use_conv_bias,
+                kernel_size=config.conv_kernel,
+                groups=self.intermediate_size,
+                padding=config.conv_kernel - 1,
+            )
 
         self.activation = config.hidden_act
         self.act = ACT2FN[config.hidden_act]
@@ -209,19 +245,6 @@ class MambaMixer(nn.Module):
         A = -torch.exp(self.A_log.float())                                             # [intermediate_size, ssm_state_size]
         time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
         
-
-        # scan_outputs, ssm_state = selective_scan_fn(
-        #     hidden_states,
-        #     discrete_time_step,
-        #     A,
-        #     B.transpose(1, 2),
-        #     C.transpose(1, 2),
-        #     self.D.float(),
-        #     gate,
-        #     time_proj_bias,
-        #     delta_softplus=True,
-        #     return_last_state=True,
-        # )
         if cache_params is not None and cache_params.seqlen_offset > 0:
             scan_outputs = selective_state_update(
                 cache_params.ssm_states[self.layer_idx],
@@ -236,7 +259,6 @@ class MambaMixer(nn.Module):
                 dt_softplus=True,
             ).unsqueeze(-1)
         else:
-            # import pdb; pdb.set_trace()
             scan_outputs, ssm_state = selective_scan_fn(
                 hidden_states,
                 discrete_time_step,
@@ -379,7 +401,7 @@ class MambaMixer(nn.Module):
             contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
         return contextualized_states
 
-    # fmt: off
+
     def slow_forward(self, input_states, cache_params=None, extra_kwargs=None):
         
         batch_size, seq_len, _ = input_states.shape
@@ -407,10 +429,23 @@ class MambaMixer(nn.Module):
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
+
+                if extra_kwargs is not None and extra_kwargs['depth'] == 0.0 and self.layer_idx % 8 == 0:
+                    auto_save_data(
+                        hidden_states, 
+                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/analysis_version2/ctx-{extra_kwargs['ctx_length']}/layer_{self.layer_idx}-contextstate.pkl"
+                    )
+
                 hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len]) # [batch, intermediate_size, seq_len]
+
+                if extra_kwargs is not None and extra_kwargs['depth'] == 0.0 and self.layer_idx % 8 == 0:
+                    auto_save_data(
+                        hidden_states, 
+                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/analysis_version2/ctx-{extra_kwargs['ctx_length']}/layer_{self.layer_idx}-conv1dstates.pkl"
+                    )
         else:
             ssm_state = torch.zeros(
-                (batch_size, self.intermediate_size, self.ssm_state_size),
+                (batch_size, self.intermediate_size, self.ssm_state_size),  # intermediate_size: 4096, ssm_state_size: 16
                 device=hidden_states.device, dtype=dtype
             )
             hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len]) # [batch, intermediate_size, seq_len]
@@ -429,7 +464,7 @@ class MambaMixer(nn.Module):
             time_proj_bias = self.dt_proj.bias.float() if hasattr(self.dt_proj, "bias") else None
 
             if cache_params is not None and cache_params.seqlen_offset > 0:
-                scan_outputs = selective_state_update(
+                scan_output = selective_state_update(
                     cache_params.ssm_states[self.layer_idx],
                     hidden_states[..., 0],
                     discrete_time_step[..., 0],
@@ -442,7 +477,7 @@ class MambaMixer(nn.Module):
                     dt_softplus=True,
                 ).unsqueeze(-1)
             else:
-                scan_outputs, ssm_state = selective_scan_fn(
+                scan_output, ssm_state = selective_scan_fn(
                     hidden_states,
                     discrete_time_step,
                     A,
@@ -456,8 +491,6 @@ class MambaMixer(nn.Module):
                 )
                 if ssm_state is not None and cache_params is not None:
                     cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
-                # 4. Final linear projection
-                contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
         
         else:
             discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
@@ -483,31 +516,37 @@ class MambaMixer(nn.Module):
             if cache_params is not None:
                 cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
 
-            # 4. Final linear projection
-            contextualized_states = self.out_proj(scan_output.transpose(1, 2)) # [batch, seq_len, hidden_size]
+        # 4. Final linear projection
+        contextualized_states = self.out_proj(scan_output.transpose(1, 2)) # [batch, seq_len, hidden_size]
             
         return contextualized_states
 
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
         if self.use_custom_conv1d:
-            return self.custom_multi_conv_forward(
-                hidden_states, 
-                cache_params, 
-                extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
-            )
-        elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:
+            if self.multi_conv1d:  # multiple kernels
+                return self.custom_multi_conv_forward(
+                    hidden_states, 
+                    cache_params, 
+                    extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+                )
+            else:
+                 return self.slow_forward(  # kernel_size > 4
+                    hidden_states, 
+                    cache_params, 
+                    extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+                )
+
+        elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:  # kernel_size <= 4
             return self.cuda_kernels_forward(
                 hidden_states, 
                 cache_params, 
                 extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
             )
-        return self.slow_forward(
-            hidden_states, 
-            cache_params, 
-            extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
-        )
 
+        else:
+            ...
+       
 
 class MambaBlock(nn.Module):
     def __init__(
@@ -540,39 +579,6 @@ class MambaBlock(nn.Module):
         return hidden_states
 
 
-class MambaCache:
-    def __init__(self, config, batch_size, dtype=torch.float16, device=None):
-        self.seqlen_offset = 0
-        self.dtype = dtype
-        intermediate_size = config.intermediate_size
-        ssm_state_size = config.state_size
-        conv_kernel_size = config.conv_kernel
-
-        self.conv_states = {
-            i: torch.zeros(batch_size, intermediate_size, conv_kernel_size, device=device, dtype=dtype)
-            for i in range(config.num_hidden_layers)
-        }
-        self.ssm_states = {
-            i: torch.zeros(batch_size, intermediate_size, ssm_state_size, device=device, dtype=dtype)
-            for i in range(config.num_hidden_layers)
-        }
-
-
-@dataclass
-class MambaOutput(ModelOutput):
-    last_hidden_state: torch.FloatTensor = None
-    cache_params: Optional[List[torch.FloatTensor]] = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-
-
-@dataclass
-class MambaCausalLMOutput(ModelOutput):
-    loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
-    cache_params: Optional[List[torch.FloatTensor]] = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-
-
 class CustomMambaModel(MambaPreTrainedModel):
     def __init__(
             self, config, use_relative_position=False, 
@@ -582,7 +588,6 @@ class CustomMambaModel(MambaPreTrainedModel):
         super().__init__(config)
         
         self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
-
         self.max_position_embeddings = max_position_embeddings
         self.use_relative_position = use_relative_position
         self.use_abs_position = use_abs_position
@@ -592,6 +597,7 @@ class CustomMambaModel(MambaPreTrainedModel):
         elif use_relative_position:
             freqs = torch.exp(-np.log(10000.0) / config.d_model * torch.arange(0, config.d_model, 2).float())
             self.register_buffer('freqs', freqs)
+        
         self.layers = nn.ModuleList(
             [
                 MambaBlock(

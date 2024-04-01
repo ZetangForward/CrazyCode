@@ -24,7 +24,7 @@ def get_model_tokenizer_simple(root_dir, tokenizer_name_or_path=None, model_name
     return tokenizer, model
 
 
-def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add more args
+def tiny_mamba(model_path, use_relative_position=False):
     raw_config = MambaConfig.from_pretrained(model_path)
     raw_config.expand = 4
     raw_config.use_relative_position = use_relative_position
@@ -32,7 +32,6 @@ def load_big_kernel_mamba(model_path, use_relative_position=False):  # TODO: add
     raw_config.max_position_embeddings = 9012
     model = CustomMambaForCausalLM(raw_config, dtype=torch.bfloat16, device="cuda")
     state_dict = torch.load("/nvme/hf_models/mamba-1.4b/pytorch_model.bin", map_location="cuda")
-    import pdb; pdb.set_trace()
     model._load_from_state_dict(state_dict, dtype=torch.bfloat16)
 
     return model
@@ -81,7 +80,8 @@ def xget_model_tokenizer(root_dir, model_config, use_custom_module=False, analys
     # load model
     if analysis: # analysis
         model = LongContextMambaAna.from_pretrained(
-            "/nvme/hf_models/mamba-1.4b", use_relative_position=model_config.use_relative_position,
+            "/nvme/hf_models/mamba-1.4b", 
+            use_relative_position=model_config.use_relative_position,
             dtype=torch.bfloat16, device=device
         )
     
@@ -90,6 +90,15 @@ def xget_model_tokenizer(root_dir, model_config, use_custom_module=False, analys
 
         log_c("use_custom_module")
         config = MambaConfig.from_pretrained(model_path)
+
+        # whether to use tiny_mamba
+        if "tiny_mamba_config" in model_config:
+            config.num_hidden_layers = model_config.tiny_mamba_config.num_hidden_layers
+            config.time_step_rank = model_config.tiny_mamba_config.time_step_rank
+            config.hidden_size = model_config.tiny_mamba_config.hidden_size
+            config.intermediate_size = model_config.tiny_mamba_config.intermediate_size
+            config.vocab_size = model_config.tiny_mamba_config.vocab_size
+
         model = CustomMambaForCausalLM(
             config, 
             use_relative_position=model_config.use_relative_position,
@@ -118,6 +127,7 @@ def xget_model_tokenizer(root_dir, model_config, use_custom_module=False, analys
             model = transformers.MambaForCausalLM.from_pretrained(
                 model_path, torch_dtype=torch.bfloat16
             ).to(device)
+
         elif "llama" or "deepseek" in model_path.lower():
             model = LlamaForCausalLM.from_pretrained(
                 model_path, attn_implementation="flash_attention_2", 
@@ -176,7 +186,7 @@ class CustomDatamodule(pl.LightningDataModule):
          # import Dataset Class
         dataset_module = importlib.import_module(self.cfg.dataset.module)
         CustomDataset = getattr(dataset_module, self.cfg.dataset.class_name)
-        
+
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
             if self.cfg.dataset.data_path is not None and "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
@@ -296,7 +306,7 @@ class CustomDatamodule(pl.LightningDataModule):
             )
             
             print_c(f"num of testing samples: {len(self.test_dataset)}", color='magenta')
-            
+
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         return DataLoader(

@@ -22,7 +22,6 @@ class Experiment(pl.LightningModule):
                 if isinstance(key, int):
                     key = str(key)
                 setattr(self, key, config.task.inference_cfg[key])
-
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -35,7 +34,6 @@ class Experiment(pl.LightningModule):
         # import pdb;pdb.set_trace()
         if "ar" in self.cfg.task.dataset.data_name.lower():
             output = self.model(input_ids).logits.max(-1)[1]
-            # import pdb; pdb.set_trace()
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
@@ -70,12 +68,13 @@ class Experiment(pl.LightningModule):
             final_res['labels'] = batch.pop('answers')
 
         else:
+            
             output = self.model.generate(
-                    input_ids, 
-                    max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
-                    min_length=input_ids.size(-1) + 10, 
-                    eos_token_id=self.tokenizer.eos_token_id, 
-                )
+                input_ids, 
+                max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+                min_length=input_ids.size(-1) + 10, 
+                eos_token_id=self.tokenizer.eos_token_id, 
+            )
             final_res = {}
             final_res['predictions'] = output[0]
 
@@ -98,6 +97,25 @@ def main(config):
         config.model, 
         use_custom_module=use_custom_module,
     )
+
+    # load data module
+    data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+    data_module.setup(stage='predict')
+
+    # load experiment (and model checkpoint)
+    experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
+
+    # init tester
+    tester = pl.Trainer(devices=config.experiment.device_num)
+
+    # predict the results
+    predictions = tester.predict(
+        model=experiment,
+        dataloaders=data_module.predict_dataloader(),
+        return_predictions=True,
+    )
+
+
 
     # load testing data
     if "longbench"  in config.task.dataset.data_name.lower():

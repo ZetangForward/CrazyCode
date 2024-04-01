@@ -20,14 +20,16 @@ import argparse
 from collections import namedtuple
 from dev_configs.config import parse_args, get_final_configs
 
+
 class Experiment(pl.LightningModule):
-    def __init__(self, model, config, tokenizer=None, state="train") -> None:
+    def __init__(self, model, config, tokenizer=None, state="train", max_training_steps=None) -> None:
         super(Experiment, self).__init__()
         self.model = model
         self.model.train()
         self.tokenizer = tokenizer
         self.cfg = config
         self.platform_cfg = config.platform
+        self.max_training_steps = max_training_steps
 
         if state == "train":
             self.loss_fct = torch.nn.CrossEntropyLoss()
@@ -47,7 +49,6 @@ class Experiment(pl.LightningModule):
         return lm_loss, ppl
 
     def validation_step_hf(self, batch, batch_idx):
-        
         outputs = self.model(**batch)
         lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
@@ -57,19 +58,16 @@ class Experiment(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         if self.cfg.experiment.hf_trainer:
             lm_loss, ppl = self.training_step_hf(batch, batch_idx)
-
         else:
-            input_ids = batch.pop("input_ids")
+            input_ids = batch.get("input_ids")
             lm_logits = self.forward(input_ids).logits
-            # import pdb;pdb.set_trace()
             if "mqar" in self.cfg.task.dataset.class_name.lower():
-                labels = batch.pop("label")
+                labels = batch.get("label")
                 labels = labels.long()
                 shift_logits = lm_logits.contiguous()
                 labels = labels.contiguous()
-
             else:
-                labels = batch.pop("labels")
+                labels = batch.get("labels")
                 shift_logits = lm_logits[:, :-1, :].contiguous()
                 labels = labels[:, 1:].contiguous()
 
@@ -118,6 +116,11 @@ class Experiment(pl.LightningModule):
 
 
     def configure_optimizers(self):
+        num_warmup_steps = self.cfg.lr_scheduler.warmup_steps if self.cfg.lr_scheduler.warmup_steps is not None \
+            else self.max_training_steps * 0.1
+        num_training_steps = self.cfg.optimizer.num_training_steps if self.cfg.optimizer.num_training_steps is not None \
+            else self.max_training_steps
+
         # init optimizer
         if self.cfg.optimizer.optimizer_type.lower() == "adamw":
             optimizer = transformers.AdamW(
@@ -140,8 +143,8 @@ class Experiment(pl.LightningModule):
         if self.cfg.lr_scheduler.scheduler_type == "get_cosine_schedule_with_warmup":
             scheduler = transformers.get_cosine_schedule_with_warmup(
                 optimizer=optimizer,
-                num_warmup_steps=self.cfg.lr_scheduler.warmup_steps,
-                num_training_steps=self.cfg.optimizer.num_training_steps,
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps,
             )
         else:
             def get_scheduler(optimizer, num_training_steps, warmup_steps, peak_lr, last_lr):
@@ -190,10 +193,25 @@ class TokenCountCallback(Callback):
             trainer.should_stop = True
 
 
+def saint_check(config):  # TODO
+    world_size = os.environ.get('WORLD_SIZE', None)
+    if world_size is not None:
+        world_size = int(world_size)
+        log_c(f"Total number of processes (world size): {world_size}")
+    else:
+        log_c("WORLD_SIZE environment variable is not set.")
+
+    if world_size is not None:
+        if world_size != config.experiment.device_num:
+            log_c(f"warning: num_device dose not match world size, change it to {world_size}")
+            config.experiment.device_num = world_size
+
+    return config
+
+
 def main(config):
 
-    # print_c(f"Conduct Experiment: {config.exp_task} | Model: {config.model} | State: {config.state} | Platform: {config.platform}", "magenta")
-    # print_c(OmegaConf.to_yaml(config), "yellow")
+    config = saint_check(config)
     
     model_root_dir = config.platform.hf_model_path
     save_root_dir = config.platform.exp_path
@@ -202,9 +220,6 @@ def main(config):
     pl.seed_everything(config.experiment.seed, workers=True)
     
     # load model and tokenizer
-    if hasattr(config.model, "use_custom_module"):
-        use_custom_module = config.model.use_custom_module
-
     if config.experiment.low_rank_train:
         model, tokenizer = get_low_rank_model_tokenizer(
             model_root_dir, config.model, 
@@ -220,9 +235,23 @@ def main(config):
 
     # load data
     data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
+    data_module.setup(stage='fit')
     
+    # calculate the training steps, epoches
+    assert config.experiment.max_epochs is not None, "max_epoches must be defined !"
+    global_processes = config.experiment.device_num * config.experiment.node_num * config.experiment.accumulate_grad_batches 
+    one_epoch_training_steps = len(data_module.train_dataloader()) // global_processes
+    total_training_steps = config.experiment.max_epochs * one_epoch_training_steps
+    log_c(f"global_batch_size(include grad accmulate): {global_processes}")
+    log_c(f"training steps per epoch: {one_epoch_training_steps}")
+    log_c(f"max training epochs: {config.experiment.max_epochs}")
+    log_c(f"total_training_steps: {total_training_steps}")
+
     # load experiment
-    experiment = Experiment(model, config, tokenizer=tokenizer, state="train")
+    experiment = Experiment(
+        model, config, tokenizer=tokenizer, 
+        state="train", max_training_steps=total_training_steps
+    )
 
     # init logger
     tb_logger = TensorBoardLogger(
@@ -265,10 +294,10 @@ def main(config):
                 logging_level=logging.INFO,
                 precision_plugin="bf16",
             ),
+            max_epochs=config.experiment.max_epochs,
             precision="bf16",
             accumulate_grad_batches=config.experiment.accumulate_grad_batches,
             enable_checkpointing=True,
-            max_steps=config.optimizer.num_training_steps,
             devices=config.experiment.device_num,
             gradient_clip_val=1.0,
             enable_model_summary=True,
@@ -283,8 +312,8 @@ def main(config):
             callbacks=[lr_monitor, ckpt_monitor, token_monitor],
             check_val_every_n_epoch=1 if data_module.val_dataloader is not None else 1000000,  # set a large number if no validation set
             strategy=DDPStrategy(find_unused_parameters=True),
+            max_epochs=config.experiment.max_epochs,
             precision="bf16",
-            max_steps=config.optimizer.num_training_steps,
             devices=config.experiment.device_num,
             gradient_clip_val=1,
             enable_model_summary=True,
@@ -295,7 +324,11 @@ def main(config):
 
     trainer = pl_trainer if pl_trainer is not None else deepspeed_trainer
     
-    trainer.fit(experiment, datamodule=data_module)
+    trainer.fit(
+        experiment, 
+        train_dataloaders=data_module.train_dataloader(), 
+        val_dataloaders=data_module.val_dataloader(),
+    )
 
 
 

@@ -57,6 +57,7 @@ class TaskConfig:
             return TaskConfig.mqar_config(
                 inference_mode = inference_mode,
                 train_batch_size = train_batch_size if not inference_mode else val_batch_size,
+                val_batch_size = val_batch_size,
                 processed_data_path = processed_data_path,
                 num_examples = 3000 if inference_mode else 100000,
                 input_seq_len = input_seq_len,
@@ -64,9 +65,6 @@ class TaskConfig:
                 test_power_a = 0.01,
             )
         
-        elif "longbench" in data_name.lower():
-            pass
-            
         elif "passkey" in data_name.lower():
             return TaskConfig.passkey_config()
 
@@ -81,9 +79,10 @@ class TaskConfig:
     def mqar_config(
         cls, processed_data_path, inference_mode, 
         num_examples, input_seq_len, num_kv_pairs, test_power_a,
-        train_batch_size
+        train_batch_size, val_batch_size
     ):
         mqar_confg = {
+            "task_name": "mqar",
             'dataset': {
                 "data_name": "MQAR",
                 "data_path": None, 
@@ -93,7 +92,7 @@ class TaskConfig:
                 "nworkers": 4,
                 "max_seq_length": 5000,
                 "train_batch_size": train_batch_size,
-                "val_batch_size": 1,
+                "val_batch_size": val_batch_size,
                 "inference_mode": inference_mode,
                 "pin_memory": False,
                 "cluster_batch": False,
@@ -114,6 +113,7 @@ class TaskConfig:
     @classmethod
     def passkey_config(cls):
         passkey_config = {
+            "task_name": "passkey_search", 
             "dataset": {
                 "data_name": "PasskeySearch",
                 "data_path": "needle/PaulGrahamEssays/*.txt",
@@ -144,6 +144,7 @@ class TaskConfig:
     @classmethod
     def longalpaca_config(cls):
         longalpaca_config = {
+            "task_name": "longalpaca", 
             "dataset": {
                 "data_path": "LongAlpaca-12k/LongAlpaca-12k.json",
                 "processed_data_path": None,
@@ -165,6 +166,7 @@ class TaskConfig:
     @classmethod
     def slimpajama_config(cls):
         slimpajama_config = {
+            "task_name": "slimpajama", 
             "dataset": {
                 "data_path": "slimpajama-per-source-length-upsample-gpt-hf",
                 "module": 'custom_dataset.simplepajama',

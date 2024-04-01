@@ -28,3 +28,26 @@ class OptimizerConfig:
 
         return adamw_config
 
+
+class LR_Scheduler_Config:
+    def __init__(self, lr_scheduler_name, train_step, warmup_step) -> None:
+        self.lr_scheduler_config = lr_scheduler_name
+        self.train_step = train_step
+        self.warmup_step = warmup_step
+        
+        self.cfg = self.return_config(lr_scheduler_name, train_step, warmup_step)
+
+    def return_config(self, lr_scheduler_name, train_step=20000, warmup_step=2000):
+        if "cosine" in lr_scheduler_name.lower():   
+            return self.consine_schedule_config(train_step, warmup_step) 
+        else:
+            ...
+
+    def consine_schedule_config(self, num_training_steps, warmup_steps):
+        adamw_config = {
+            "scheduler_type": "get_cosine_schedule_with_warmup",
+            "num_training_steps": num_training_steps,
+            "warmup_steps": warmup_steps,
+        }
+
+        return adamw_config
