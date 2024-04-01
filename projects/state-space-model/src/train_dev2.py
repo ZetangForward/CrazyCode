@@ -47,7 +47,6 @@ class Experiment(pl.LightningModule):
         return lm_loss, ppl
 
     def validation_step_hf(self, batch, batch_idx):
-        
         outputs = self.model(**batch)
         lm_loss = outputs.loss
         ppl = torch.exp(lm_loss)
@@ -57,19 +56,16 @@ class Experiment(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         if self.cfg.experiment.hf_trainer:
             lm_loss, ppl = self.training_step_hf(batch, batch_idx)
-
         else:
-            input_ids = batch.pop("input_ids")
+            input_ids = batch.get("input_ids")
             lm_logits = self.forward(input_ids).logits
-            # import pdb;pdb.set_trace()
             if "mqar" in self.cfg.task.dataset.class_name.lower():
-                labels = batch.pop("label")
+                labels = batch.get("label")
                 labels = labels.long()
                 shift_logits = lm_logits.contiguous()
                 labels = labels.contiguous()
-
             else:
-                labels = batch.pop("labels")
+                labels = batch.get("labels")
                 shift_logits = lm_logits[:, :-1, :].contiguous()
                 labels = labels[:, 1:].contiguous()
 
