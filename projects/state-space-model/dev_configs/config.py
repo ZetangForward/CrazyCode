@@ -6,7 +6,7 @@ sys.path.append(current_file_dir)
 import argparse
 from modelzipper.tutils import *
 from model_config import ModelConfig
-from optimizer_config import OptimizerConfig
+from lr_optimizer_config import OptimizerConfig, LR_Scheduler_Config
 from platform_config import PlatformConfig
 from task_config import TaskConfig
 
@@ -69,6 +69,8 @@ class WrapConfigs:
             model_configs,
             opt_name,
             opt_configs, 
+            lr_scheduler_name, 
+            lr_scheduler_configs, 
             platform_name, 
             data_name,
             task_configs,
@@ -77,6 +79,8 @@ class WrapConfigs:
         self.model_configs = model_configs
         self.opt_name = opt_name
         self.opt_configs = opt_configs
+        self.lr_scheduler_name = lr_scheduler_name
+        self.lr_scheduler_configs = lr_scheduler_configs
         self.platform_name = platform_name
         self.data_name = data_name
         self.task_configs = task_configs
@@ -85,12 +89,14 @@ class WrapConfigs:
     def set_all_configs(self):
         model_config = ModelConfig(self.model_name_or_path, **self.model_configs)
         optimizer_config = OptimizerConfig(self.opt_name, **self.opt_configs)
+        lr_scheduler_config = LR_Scheduler_Config(self.lr_scheduler_name, **self.lr_scheduler_configs)
         platform_config = PlatformConfig(self.platform_name)
         task_config = TaskConfig(self.data_name, **self.task_configs)
 
         default_config = {
             "model": model_config.cfg,
             "optimizer": optimizer_config.cfg,
+            "lr_scheduler": lr_scheduler_config.cfg,
             "platform": platform_config.cfg,
             "task": task_config.cfg,
         }
@@ -130,8 +136,8 @@ def parse_args():
                         help='set warmup steps')
 
     # Configs of Lr_Scheduler Hyper-parameters
-    parser.add_argument('--scheduler_type', type=str, default='get_cosine_schedule_with_warmup', 
-                        help='optimizer name')
+    parser.add_argument('--lr_scheduler_type', type=str, default='get_cosine_schedule_with_warmup', 
+                        help='lr scheduler name')
 
     # Configs of Platform Hyper-parameters
     parser.add_argument('--platform_name', '-pn', type=str, default='amax_a100',
@@ -200,6 +206,10 @@ def get_final_configs(args):
         "train_step": args.train_step,
         "warmup_step": args.warmup_step,
     }
+    lr_scheduler_args = {
+        "train_step": args.train_step,
+        "warmup_step": args.warmup_step,
+    }
     task_args = {
         "processed_data_path": args.processed_data_path,
         "inference_mode": args.inference_mode,
@@ -209,6 +219,8 @@ def get_final_configs(args):
         model_args, 
         args.opt_name, 
         opt_args,
+        args.lr_scheduler_type,
+        lr_scheduler_args,
         args.platform_name, 
         args.data_name,
         task_args,

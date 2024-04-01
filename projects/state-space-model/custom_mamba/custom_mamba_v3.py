@@ -21,7 +21,7 @@ except ImportError:
 
 try:
     # from .mamba_kernel_fn import mamba_inner_fn  # custom module
-    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
 except ImportError:
     selective_scan_fn, mamba_inner_fn = None, None
 
