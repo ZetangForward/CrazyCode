@@ -21,7 +21,6 @@ class Experiment(pl.LightningModule):
                 if isinstance(key, int):
                     key = str(key)
                 setattr(self, key, config.task.inference_cfg[key])
-
         try:
             self.hold_graph = self.params['retain_first_backpass']
         except:
@@ -32,14 +31,14 @@ class Experiment(pl.LightningModule):
 
         input_ids = batch.pop("input_ids")
         # import pdb;pdb.set_trace()
-        if "ar" in self.cfg.exp_task.lower():
+        if "mqar" in self.cfg.task.task_name.lower():
             output = self.model(input_ids).logits.max(-1)[1]
             # import pdb; pdb.set_trace()
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
             # import pdb; pdb.set_trace()
-        elif "longbench" in self.cfg.exp_task.lower():
+        elif "longbench" in self.cfg.task.task_name.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
             if self.cfg.task.dataset.subtask == "samsum": 
@@ -79,6 +78,8 @@ class Experiment(pl.LightningModule):
                 )
             final_res = {}
             final_res['predictions'] = output[0]
+
+            import pdb; pdb.set_trace()
         
         # if self.save_keys is not None:
         #     for key in self.save_keys:

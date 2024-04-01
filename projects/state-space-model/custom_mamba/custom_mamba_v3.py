@@ -133,6 +133,7 @@ class MambaMixer(nn.Module):
         self.use_custom_conv1d = conv1d_configs is not None
 
         self.use_conv_bias = config.use_conv_bias
+        self.multi_conv1d = False
 
         if self.use_custom_conv1d:
             if isinstance(conv1d_configs,dict):
@@ -156,6 +157,7 @@ class MambaMixer(nn.Module):
                     config.intermediate_size, 
                     kernel_sizes
                 )
+                self.multi_conv1d = True  # use multi_conv1d_forward
             else:
                 raise ValueError("Invalid kernel_sizes (<=4) for GatedMultiScaleConv1d or utilize custom module")
             
@@ -521,24 +523,30 @@ class MambaMixer(nn.Module):
 
 
     def forward(self, hidden_states, cache_params=None, extra_kwargs=None):
-        if self.use_custom_conv1d:  # multiple kernels
-            return self.custom_multi_conv_forward(
-                hidden_states, 
-                cache_params, 
-                extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
-            )
+        if self.use_custom_conv1d:
+            if self.multi_conv1d:  # multiple kernels
+                return self.custom_multi_conv_forward(
+                    hidden_states, 
+                    cache_params, 
+                    extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+                )
+            else:
+                 return self.slow_forward(  # kernel_size > 4
+                    hidden_states, 
+                    cache_params, 
+                    extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
+                )
+
         elif is_fast_path_available and "cuda" in self.x_proj.weight.device.type:  # kernel_size <= 4
             return self.cuda_kernels_forward(
                 hidden_states, 
                 cache_params, 
                 extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
             )
-        return self.slow_forward(  # kernel_size > 4
-            hidden_states, 
-            cache_params, 
-            extra_kwargs=extra_kwargs['extra_kwargs'] if 'extra_kwargs' in extra_kwargs else None
-        )
 
+        else:
+            ...
+       
 
 class MambaBlock(nn.Module):
     def __init__(

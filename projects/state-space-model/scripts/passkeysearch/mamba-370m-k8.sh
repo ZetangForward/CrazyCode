@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=6
+export CUDA_VISIBLE_DEVICES=1
 
 python src/test_dev2.py \
 -mn mamba-370m-k8 \
