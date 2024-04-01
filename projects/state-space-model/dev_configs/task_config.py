@@ -58,12 +58,12 @@ class TaskConfig:
                 inference_mode = inference_mode,
                 train_batch_size = train_batch_size if not inference_mode else val_batch_size,
                 processed_data_path = processed_data_path,
-                vocab_size = 8192,
-                num_examples = 3000,
+                num_examples = 3000 if inference_mode else 100000,
                 input_seq_len = input_seq_len,
                 num_kv_pairs = num_kv_pairs,
                 test_power_a = 0.01,
             )
+        
         elif "passkey" in data_name.lower():
             return TaskConfig.passkey_config()
 
@@ -76,12 +76,13 @@ class TaskConfig:
 
     @classmethod
     def mqar_config(
-        cls, processed_data_path, inference_mode, vocab_size, 
-        num_examples, input_seq_len, num_kv_pairs, test_power_a
+        cls, processed_data_path, inference_mode, 
+        num_examples, input_seq_len, num_kv_pairs, test_power_a,
+        train_batch_size
     ):
         mqar_confg = {
             "task_name": "mqar",
-            "dataset":{
+            'dataset': {
                 "data_name": "MQAR",
                 "data_path": None, 
                 "processed_data_path": processed_data_path,
@@ -89,17 +90,21 @@ class TaskConfig:
                 "class_name": 'MQARDataset',
                 "nworkers": 4,
                 "max_seq_length": 5000,
-                "train_batch_size": 1,
+                "train_batch_size": train_batch_size,
                 "val_batch_size": 1,
                 "inference_mode": inference_mode,
                 "pin_memory": False,
                 "cluster_batch": False,
-                "vocab_size": vocab_size,
+                "vocab_size": 8192,
                 "num_examples": num_examples,
                 "input_seq_len": input_seq_len,
                 "num_kv_pairs": num_kv_pairs,
                 "test_power_a": test_power_a
-            }
+            },
+            "other_cfgs": {
+                "max_generation_length": 48,
+                "testing_max_ctx": 128000,
+            },
         }
         return mqar_confg
 
