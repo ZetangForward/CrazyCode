@@ -30,14 +30,12 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
-        # import pdb;pdb.set_trace()
+
         if "mqar" in self.cfg.task.task_name.lower():
             output = self.model(input_ids).logits.max(-1)[1]
-            # import pdb; pdb.set_trace()
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
-            # import pdb; pdb.set_trace()
         elif "longbench" in self.cfg.task.task_name.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
@@ -69,17 +67,15 @@ class Experiment(pl.LightningModule):
             final_res['labels'] = batch.pop('answers')
 
         else:
-            import pdb; pdb.set_trace()
+            
             output = self.model.generate(
-                    input_ids, 
-                    max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
-                    min_length=input_ids.size(-1) + 10, 
-                    eos_token_id=self.tokenizer.eos_token_id, 
-                )
+                input_ids, 
+                max_length=input_ids.size(-1) + self.cfg.task.other_cfgs.max_generation_length,
+                min_length=input_ids.size(-1) + 10, 
+                eos_token_id=self.tokenizer.eos_token_id, 
+            )
             final_res = {}
             final_res['predictions'] = output[0]
-
-            import pdb; pdb.set_trace()
         
         # if self.save_keys is not None:
         #     for key in self.save_keys:

@@ -97,7 +97,7 @@ class GatedMultiScaleConv1d(nn.Module):
         self.convs = nn.ModuleList([
             nn.Sequential(
                 nn.ConstantPad1d((kernel_size - 1, 0), 0),
-                nn.Conv1d(in_channels, out_channels * 2, kernel_size, groups=in_channels),  # Double the output channels
+                nn.Conv1d(in_channels, out_channels // len(kernel_sizes) * 2, kernel_size, groups=in_channels),  # Double the output channels
             ) for kernel_size in kernel_sizes
         ])
         
@@ -107,8 +107,9 @@ class GatedMultiScaleConv1d(nn.Module):
             conv_output = conv(x)
             gate, output = torch.split(conv_output, conv_output.size(1) // 2, dim=1)  # Split the output into two equal parts
             gate = torch.sigmoid(gate)
-            outputs.append(output * gate)
-        return sum(outputs)
+            outputs.append(output * gate)  # [B, L, D // n]
+        outputs = torch.cat(outputs, dim=-1)
+        return outputs
 
 
 class MambaMixer(nn.Module):
@@ -440,7 +441,20 @@ class MambaMixer(nn.Module):
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
+
+                if extra_kwargs is not None and extra_kwargs['depth'] == 0.0 and self.layer_idx % 8 == 0:
+                    auto_save_data(
+                        hidden_states, 
+                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/analysis_version2/ctx-{extra_kwargs['ctx_length']}/layer_{self.layer_idx}-contextstate.pkl"
+                    )
+
                 hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len]) # [batch, intermediate_size, seq_len]
+
+                if extra_kwargs is not None and extra_kwargs['depth'] == 0.0 and self.layer_idx % 8 == 0:
+                    auto_save_data(
+                        hidden_states, 
+                        f"/nvme/zecheng/modelzipper/projects/state-space-model/analysis/analysis_version2/ctx-{extra_kwargs['ctx_length']}/layer_{self.layer_idx}-conv1dstates.pkl"
+                    )
         else:
             ssm_state = torch.zeros(
                 (batch_size, self.intermediate_size, self.ssm_state_size),  # intermediate_size: 4096, ssm_state_size: 16
@@ -489,8 +503,6 @@ class MambaMixer(nn.Module):
                 )
                 if ssm_state is not None and cache_params is not None:
                     cache_params.ssm_states[self.layer_idx].copy_(ssm_state)
-                # 4. Final linear projection
-                contextualized_states = self.out_proj(scan_outputs.transpose(1, 2))
         
         else:
             discrete_time_step = self.dt_proj(time_step)                                    # [batch, seq_len, intermediate_size]
@@ -516,8 +528,8 @@ class MambaMixer(nn.Module):
             if cache_params is not None:
                 cache_params.ssm_states[self.layer_idx] = ssm_state.clone()
 
-            # 4. Final linear projection
-            contextualized_states = self.out_proj(scan_output.transpose(1, 2)) # [batch, seq_len, hidden_size]
+        # 4. Final linear projection
+        contextualized_states = self.out_proj(scan_output.transpose(1, 2)) # [batch, seq_len, hidden_size]
             
         return contextualized_states
 

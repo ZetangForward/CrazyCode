@@ -41,10 +41,6 @@ class Experiment(pl.LightningModule):
         ctx_length = batch.get('before_insert_context_length').item()
         bos_pos, eos_pos = batch.get('bos_pos'), batch.get('eos_pos')
 
-        
-        if ctx_length % 1000 != 0:
-            pass
-
         extra_kwargs = {
             "ctx_length": ctx_length,
             "depth": depth,
