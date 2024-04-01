@@ -13,12 +13,12 @@ from lightning.pytorch import Trainer
 from lightning.pytorch.strategies import DDPStrategy, DeepSpeedStrategy
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from modelzipper.tutils import *
-from utils import *
 from lightning.pytorch import Callback
 import argparse
 from collections import namedtuple
 from dev_configs.config import parse_args, get_final_configs
+from modelzipper.tutils import *
+from utils import *
 
 
 class Experiment(pl.LightningModule):
