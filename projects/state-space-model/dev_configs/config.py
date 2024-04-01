@@ -153,6 +153,7 @@ def parse_args():
     parser.add_argument('--train_batch_size', type=int, default=1,
                         help='training batch size')
     parser.add_argument('--inference_mode', type=bool, default=True)
+        
 
     # Configs of Training Hyper-parameters
     parser.add_argument('--experiment_name', '-en', type=str, default=None,
@@ -201,6 +202,7 @@ def get_final_configs(args):
     }
     task_args = {
         "processed_data_path": args.processed_data_path,
+        "inference_mode": args.inference_mode,
     }
     basic_configs = WrapConfigs(
         args.model_name_or_path,

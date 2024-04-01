@@ -84,8 +84,11 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             use_relative_position=model_config.use_relative_position,
             dtype=torch.bfloat16, device=device
         )
-        
+    
+
     elif use_custom_module:  # custom model just for mamba now
+
+        log_c("use_custom_module")
         config = MambaConfig.from_pretrained(model_path)
 
         # whether to use tiny_mamba
@@ -103,21 +106,23 @@ def get_model_tokenizer(root_dir, model_config, use_custom_module=False, analysi
             use_abs_position=model_config.use_abs_position,
             custom_conv1d_configs=model_config.conv1d_configs,
         ).to(device)
-            
+
         if model_config.ckpt_path is not None:
-            model.from_pretrained(
+            model.custom_from_pretrained(                         #  custom_from_pretrained
                 model_config.ckpt_path, 
                 dtype=torch.bfloat16,
                 is_from_pytorch_lightning=True,
             )
 
     else:  # load hf model
+        # import pdb;pdb.set_trace()
         if "gpt" in model_path.lower():
             model = GPTNeoForCausalLM.from_pretrained(
                 model_path, use_cache=False, torch_dtype=torch.bfloat16
             ).to(device)
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
+ 
         elif "mamba" in model_path.lower():
             model = transformers.MambaForCausalLM.from_pretrained(
                 model_path, torch_dtype=torch.bfloat16
@@ -183,7 +188,7 @@ class CustomDatamodule(pl.LightningDataModule):
         
         # prepare dataset
         if self.cfg.dataset.inference_mode:  # whether in inference mode
-            if "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
+            if self.cfg.dataset.data_path is not None and "needle" in self.cfg.dataset.data_path.lower():  # sanity check passkey search data
                 processed_data_path = os.path.join(self.root_dir, self.cfg.dataset.processed_data_path)
                 if self.cfg.dataset.processed_data_path is None or not os.path.exists(processed_data_path):  # preporcess the passkey_search data on-the-fly
                     processed_data = CustomDataset.build_dataset(

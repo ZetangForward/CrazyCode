@@ -180,7 +180,7 @@ class Evaluator:
             correct_predictions = (pred_value == label_value).sum()
        
             correct_number += ( correct_predictions==target_idx.sum() )
-
+        # import pdb;pdb.set_trace()
         if save_evaluation_path:
             # os.makedirs(save_evaluation_path, exist_ok=True)
             save_path = save_evaluation_path +"/eval.jsonl"

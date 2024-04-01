@@ -59,6 +59,7 @@ class Experiment(pl.LightningModule):
             input_ids = batch["input_ids"]
             lm_logits = self.forward(input_ids).logits
             if "mqar" in self.cfg.task.dataset.class_name.lower():
+                log_c("mqar_trainging")
                 labels = batch.pop("label")
                 labels = labels.long()
                 shift_logits = lm_logits.contiguous()
@@ -226,7 +227,7 @@ def main(config):
         filename=f"{config.model_name}-{config.exp_task}"+"-{epoch:02d}",
         save_last=True,
         mode='min',
-        save_weights_only=True, # only save state dict
+        save_weights_only=True, # only s  te dict
         every_n_train_steps=config.experiment.every_n_train_steps,
     )
     token_monitor = TokenCountCallback(max_tokens=10e9)

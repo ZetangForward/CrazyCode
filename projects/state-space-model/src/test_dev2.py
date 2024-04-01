@@ -16,7 +16,8 @@ class Experiment(pl.LightningModule):
         self.model.eval()
         self.cfg = config
         self.tokenizer = tokenizer
-        if hasattr(config.task, "inference_cfg"):  # what to save for task setting
+        if "inference_cfg" in config.task:
+        # if hasattr(config.task, "inference_cfg"):  # what to save for task setting
             for key in config.task.inference_cfg:
                 if isinstance(key, int):
                     key = str(key)
@@ -30,13 +31,13 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
-
-        if "mqar" in self.cfg.task.task_name.lower():
+        # import pdb;pdb.set_trace()
+        if "ar" in self.cfg.task.dataset.data_name.lower():
             output = self.model(input_ids).logits.max(-1)[1]
             final_res = {}
             final_res['predictions'] = output[0]
             final_res['labels'] = batch.pop('label')
-        elif "longbench" in self.cfg.task.task_name.lower():
+        elif "longbench" in self.cfg.task.dataset.data_name.lower():
             max_gen_len = batch.pop("max_generation_len")
             context_length = input_ids.shape[-1]
             if self.cfg.task.dataset.subtask == "samsum": 
@@ -76,15 +77,7 @@ class Experiment(pl.LightningModule):
             )
             final_res = {}
             final_res['predictions'] = output[0]
-        
-        # if self.save_keys is not None:
-        #     for key in self.save_keys:
-        #         if key in batch:
-        #             value = batch[key]
-        #             if isinstance(value, torch.Tensor):
-        #                 value = value.item()
-        #             final_res[key] = value
-        # import pdb;pdb.set_trace()
+
         return final_res
         
 
@@ -100,7 +93,9 @@ def main(config):
         use_custom_module = config.model.use_custom_module
 
     model, tokenizer = get_model_tokenizer(
-        model_root_dir, config.model, use_custom_module=use_custom_module,
+        model_root_dir, 
+        config.model, 
+        use_custom_module=use_custom_module,
     )
 
     import pdb; pdb.set_trace()
@@ -125,43 +120,22 @@ def main(config):
 
 
     # load testing data
-    if "longbench"  in config.task.task_name:
+    if "longbench"  in config.task.dataset.data_name.lower():
         # subtask = [["qasper", "multifieldqa_en", "hotpotqa"], ["2wikimqa", "gov_report", "multi_news"], \
         #             ["musique", "trec", "triviaqa", "samsum"], ["passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
         # subtask = [["qasper"]]
         subtask = [["narrativeqa", "qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "musique", "gov_report",  "qmsum" ,\
                     "multi_news", "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]]
-        # subtask = [["trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "qmsum","narrativeqa"]]
-        if config.task.dataset.subtask == "None":
+        if config.task.subtask == "None":
             subtask = subtask[0]    
         elif isinstance(config.task.dataset.subtask, list):
             subtask = config.task.dataset.subtask
     else:
-        subtask =  [config.task.task_name]
-
-
+        subtask =  [config.task.dataset.data_name.lower()]
+        
     for task in subtask:
-        OmegaConf.set_struct(config, False)
-        config.task.dataset.subtask = task 
-        OmegaConf.set_struct(config, True)
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
-
-        # import pdb;pdb.set_trace()
-        if config.model.load_model_state_dict :
-            state_dict = torch.load(
-                os.path.join(config.platform.hf_model_path, config.model.ckpt_path), 
-                map_location='cuda'
-            )
-            # import pdb;pdb.set_trace()
-            if state_dict.get('state_dict'):
-                state_dict = state_dict['state_dict']
-
-            try:
-                custom_model.load_state_dict(state_dict, strict=True)
-                model = custom_model.model
-            except:
-                model.load_state_dict(state_dict, strict=True)
 
         # load experiment (and model checkpoint)
         experiment = Experiment(model=model, config=config, tokenizer=tokenizer)
@@ -176,26 +150,28 @@ def main(config):
             dataloaders=data_module.predict_dataloader(),
             return_predictions=True,
         )
-    
-        
+
         print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-        if task == config.exp_task: 
-            save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
-            save_path=os.path.dirname(os.path.dirname(os.path.dirname(save_path)))
-            save_final_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
-        else:
-            save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
-            save_final_path = save_path + str(task)+ "_predictions.pkl"
+        # if task == config.exp_task: 
+        #     save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
+        #     save_path=os.path.dirname(os.path.dirname(os.path.dirname(save_path)))
+        #     save_final_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
+        # else:
+        cur_task = args.data_name
+        save_path = os.path.join(save_root_dir, f"{config.task.dataset.data_name}/",f"{args.model_name_or_path}/",f"{config.experiment.experiment_name}/")
+        # save_path = os.path.join(save_root_dir, f"{config.experiment.experiment_name}/")
+        
+        save_final_path = save_path + str(task)+ "_predictions.pkl"
         auto_save_data(predictions, save_final_path)
         print_c(f"save predictions to {save_final_path}, total cost time: {time.time() - b_t}", "magenta")
 
         eval = Evaluator(
             root_dir=save_root_dir, fpath=save_final_path, 
-            data_path=os.path.join(data_root_dir, config.task.dataset.data_path), 
-            task=config.exp_task,
-            subtask=task if task!=config.exp_task else config.mark,
+            data_path=data_root_dir,
+            task=cur_task,
+            subtask=config.experiment.experiment_name,
             tokenizer_name_or_path=None,
-            value=None, save_evaluation_path=save_path,
+            value=None, save_evaluation_path=os.path.dirname(os.path.dirname(save_path)),
             save_gen_res=True,
         )
 

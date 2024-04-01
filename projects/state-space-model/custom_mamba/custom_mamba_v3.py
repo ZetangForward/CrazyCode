@@ -124,7 +124,7 @@ class MambaMixer(nn.Module):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.ssm_state_size = config.state_size
-        self.conv_kernel_size = config.conv_kernel
+        self.conv_kernel_size = config.conv_kernel              # ?
         self.intermediate_size = config.intermediate_size
         self.time_step_rank = config.time_step_rank
         self.layer_idx = layer_idx
@@ -204,7 +204,8 @@ class MambaMixer(nn.Module):
                 conv_state = torch.roll(conv_state, shifts=-1, dims=-1)
                 conv_state[:, :, -1] = hidden_states[:, :, 0]
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
-                hidden_states = self.conv1d(conv_state)
+                # hidden_states = self.convs(conv_state)      #TODO WARNING
+                hidden_states = self.conv1d(conv_state) 
                 hidden_states = self.act(hidden_states).to(dtype).unsqueeze(-1)         # [batch, intermediate_size, 1] : decoding
             else:
                 conv_state = nn.functional.pad(  # only save last conv_kernel_size states
@@ -212,13 +213,15 @@ class MambaMixer(nn.Module):
                     (self.conv_kernel_size - hidden_states.shape[-1], 0)
                 )
                 cache_params.conv_states[self.layer_idx] = conv_state.clone()
-                hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len]
+                # hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])     # [batch, intermediate_size, seq_len] #TODO WARNING
+                hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])
         else:
             ssm_state = torch.zeros(
                 (batch_size, self.intermediate_size, self.ssm_state_size),
                 device=hidden_states.device, dtype=dtype
             )
-            hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])
+            # hidden_states = self.act(self.convs(hidden_states)[..., :seq_len])
+            hidden_states = self.act(self.conv1d(hidden_states)[..., :seq_len])  #TODO WARNING
 
         # 3.a. Selection:  [batch, seq_len, self.time_step_rank + self.ssm_state_size * 2]
         ssm_parameters = self.x_proj(hidden_states.transpose(1, 2))
@@ -715,10 +718,12 @@ class CustomMambaForCausalLM(MambaPreTrainedModel):
         self.post_init()
         
         
-    def from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
+    def custom_from_pretrained(self, path, dtype, is_from_pytorch_lightning=False):
         if self.dtype != dtype:
             self.to(dtype)
         state_dict = torch.load(path, map_location='cpu')
+        if state_dict.get('state_dict'):
+            state_dict = state_dict['state_dict']
         if dtype is not None:
             state_dict = {k: v.type(dtype) for k, v in state_dict.items()}
         if is_from_pytorch_lightning:
