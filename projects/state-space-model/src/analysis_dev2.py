@@ -64,7 +64,6 @@ class Experiment(pl.LightningModule):
         return batch
 
        
-
 def main(config):
 
     model_root_dir = config.platform.hf_model_path
