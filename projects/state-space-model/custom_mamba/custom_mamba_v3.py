@@ -91,6 +91,32 @@ class MambaRMSNorm(nn.Module):
         return self.weight * hidden_states.to(input_dtype)
 
 
+class GatedMultiScaleConv1dNoTrain(nn.Module):
+    def __init__(
+        self, 
+        in_channels, out_channels, original_conv,
+        kernel_sizes = [4,], 
+        amplitude_weight,
+    ):
+        super(GatedMultiScaleConv1dNoTrain).__init__()
+        original_weights = original_conv.weight.data
+        original_bias = original_conv.bias.data if original_conv.bias is not None else None
+        
+        for new_stride in kernel_sizes:
+            increase_factor = 4 // new_stride  # 根据 stride 调整倍数
+            
+            new_weights = F.interpolate(
+                original_weights.unsqueeze(0),  # 增加一个批处理维度以适用于 interpolate 函数
+                scale_factor=increase_factor,
+                mode='linear',
+                align_corners=False
+            ).squeeze(0)  # 移除额外的批处理维度
+            
+            amplitude_weight = 1.5  # 你想要的振幅调整因子
+            new_weights *= amplitude_weight
+        
+        
+
 class GatedMultiScaleConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_sizes):
         super(GatedMultiScaleConv1d, self).__init__()
@@ -143,6 +169,7 @@ class MambaMixer(nn.Module):
                 kernel_sizes = conv1d_configs.kernel_sizes
             
             if isinstance(kernel_sizes, int) and kernel_sizes > 4:
+                self.conv_kernel_size = kernel_sizes
                 self.conv1d = nn.Conv1d(
                     in_channels=self.intermediate_size,
                     out_channels=self.intermediate_size,
