@@ -123,7 +123,12 @@ class GatedMultiScaleConv1d(nn.Module):
         self.convs = nn.ModuleList([
             nn.Sequential(
                 nn.ConstantPad1d((kernel_size - 1, 0), 0),
-                nn.Conv1d(in_channels, out_channels // len(kernel_sizes) * 2, kernel_size, groups=in_channels),  # Double the output channels
+                nn.Conv1d(
+                    in_channels, 
+                    out_channels // len(kernel_sizes) * 2, 
+                    kernel_size, 
+                    groups=out_channels // len(kernel_sizes) * 2,
+                ),  # Double the output channels
             ) for kernel_size in kernel_sizes
         ])
         
@@ -134,7 +139,7 @@ class GatedMultiScaleConv1d(nn.Module):
             gate, output = torch.split(conv_output, conv_output.size(1) // 2, dim=1)  # Split the output into two equal parts
             gate = torch.sigmoid(gate)
             outputs.append(output * gate)  # [B, L, D // n]
-        outputs = torch.cat(outputs, dim=-1)  # concate all the dimension hidden states
+        outputs = torch.cat(outputs, dim=1)  # concate all the dimension hidden states
         return outputs
 
 
@@ -163,7 +168,7 @@ class MambaMixer(nn.Module):
         self.multi_conv1d = False
 
         if self.use_custom_conv1d:
-            if isinstance(conv1d_configs,dict):
+            if isinstance(conv1d_configs, dict):
                 kernel_sizes = conv1d_configs['kernel_sizes']
             else:
                 kernel_sizes = conv1d_configs.kernel_sizes

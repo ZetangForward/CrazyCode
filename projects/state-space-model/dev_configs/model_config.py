@@ -64,7 +64,7 @@ class ModelConfig:
                 conv1d_configs = {"kernel_sizes": 64}
                 use_custom_module = True
             elif "km" in model_name_or_path.lower():
-                conv1d_configs = {"kernel_sizes": [[2, 4, 8, 16, 32, 64]]}
+                conv1d_configs = {"kernel_sizes": [4, 16, 64, 256]}
                 use_custom_module = True
 
             # 370M model
