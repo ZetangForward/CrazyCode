@@ -95,8 +95,8 @@ class GatedMultiScaleConv1dNoTrain(nn.Module):
     def __init__(
         self, 
         in_channels, out_channels, original_conv,
-        kernel_sizes = [4,], 
-        amplitude_weight,
+        kernel_sizes = [2, 4, 8, 16, 32, 64], 
+        amplitude_weight = None,
     ):
         super(GatedMultiScaleConv1dNoTrain).__init__()
         original_weights = original_conv.weight.data
@@ -134,7 +134,7 @@ class GatedMultiScaleConv1d(nn.Module):
             gate, output = torch.split(conv_output, conv_output.size(1) // 2, dim=1)  # Split the output into two equal parts
             gate = torch.sigmoid(gate)
             outputs.append(output * gate)  # [B, L, D // n]
-        outputs = torch.cat(outputs, dim=-1)
+        outputs = torch.cat(outputs, dim=-1)  # concate all the dimension hidden states
         return outputs
 
 
