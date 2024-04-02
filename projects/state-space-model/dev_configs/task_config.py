@@ -198,7 +198,7 @@ class TaskConfig:
                 "module": 'custom_dataset.longbench_ywj',
                 "processed_data_path": None,
                 "class_name": 'LongbenchDataset',
-                "max_seq_length": 4200,
+                "max_seq_length": 100000,
                 "nworkers": 4,
                 "pin_memory": False,
                 "inference_mode": True,

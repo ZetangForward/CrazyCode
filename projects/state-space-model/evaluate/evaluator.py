@@ -46,10 +46,10 @@ class Evaluator:
         self.predictions = auto_read_data(fpath) 
         # self.tokenizer, _ = get_model_tokenizer_simple(root_dir, tokenizer_name_or_path)
         self.spe_cfg = kwargs
-        self.begin_fn(task, save_evaluation_path, save_gen_res)
+        self.begin_fn(task, save_evaluation_path, save_gen_res, subtask)
 
     
-    def begin_fn(self, task, save_evaluation_path, save_gen_res):
+    def begin_fn(self, task, save_evaluation_path, save_gen_res, subtask):
         if "passkey" in task.lower():
             self.eval_passkey_search(save_evaluation_path, save_gen_res) 
         
@@ -57,7 +57,7 @@ class Evaluator:
             self.eval_mqar(save_evaluation_path, save_gen_res)
 
         if "longbench" in task.lower():
-            self.eval_longbench(save_evaluation_path, save_gen_res)
+            self.eval_longbench(save_evaluation_path, subtask, save_gen_res)
 
 
     def eval_passkey_search(self, save_evaluation_path, save_gen_res=True):
@@ -191,39 +191,34 @@ class Evaluator:
         print(self.task, save_evaluation_path, correct_number/total_number * 100)
 
     
-    def eval_longbench(self, save_evaluation_path, save_gen_res=True):
+    def eval_longbench(self, save_evaluation_path, subtask, save_gen_res=True):
 
         scores = dict()
-        if self.subtask is None:
-            sub_tasks = ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
-                        "musique", "gov_report", "qmsum", "multi_news", "trec", \
-                        "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
+        # if self.subtask is None:
+        #     sub_tasks = ["narrativeqa","qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", \
+        #                 "musique", "gov_report", "qmsum", "multi_news", "trec", \
+        #                 "triviaqa", "samsum", "passage_count", "passage_retrieval_en"]
+        # else:
+        #     sub_tasks = [ self.subtask ] 
+        total_score = 0
+        self.predictions = auto_read_data(self.fpath)
+        if subtask == "trec": 
+            # trec_path = os.path.join(self.data_path, "/trec.jsonl")/public/home/ljt/tzc/data/longbench/data/trec.jsonl
+            all_class = auto_read_data("/public/home/ljt/tzc/data/longbench/data/trec.jsonl")[0]['all_classes']
         else:
-            sub_tasks = [ self.subtask ] 
-
-
-        for subtask in sub_tasks :
-        # for subtask in [ "passage_count", "passage_retrieval_en"] :
-        #     import pdb;pdb.set_trace()
-            total_score = 0
-            self.predictions = auto_read_data(self.fpath)
-            if subtask == "trec": 
-                # trec_path = os.path.join(self.data_path, "/trec.jsonl")
-                all_class = auto_read_data("/nvme/zecheng/data/longbench/data/trec.jsonl")[0]['all_classes']
-            else:
-                all_class = None
-            for item in self.predictions:
-                prediction = item["answers"]
-                ground_truths = item["labels"][0]
-                score = 0
-                if subtask in ["trec", "triviaqa", "samsum", "lsht"]:
-                    prediction = prediction.lstrip('\n').split('\n')[0]
-                for ground_truth in ground_truths:
-                    score = max(score, longbench_dataset2metric[subtask](prediction, ground_truth, all_classes=all_class))
-                total_score += score
-            scores[subtask] = str(round(100 * total_score / len(self.predictions), 2))
-            print(subtask, round(100 * total_score / len(self.predictions), 2), longbench_dataset2metric[subtask])
-        with open(save_evaluation_path+"eval.jsonl","a+") as f:
+            all_class = None
+        for item in self.predictions:
+            prediction = item["answers"]
+            ground_truths = item["labels"][0]
+            score = 0
+            if subtask in ["trec", "triviaqa", "samsum", "lsht"]:
+                prediction = prediction.lstrip('\n').split('\n')[0]
+            for ground_truth in ground_truths:
+                score = max(score, longbench_dataset2metric[subtask](prediction, ground_truth, all_classes=all_class))
+            total_score += score
+        scores[subtask] = str(round(100 * total_score / len(self.predictions), 2))
+        print(subtask, round(100 * total_score / len(self.predictions), 2), longbench_dataset2metric[subtask])
+        with open(save_evaluation_path+"/eval.jsonl","a+") as f:
             f.write(str(subtask) + " : " + str(round(100 * total_score / len(self.predictions), 2)) + "\n")
         # auto_save_data([scores],save_evaluation_path+"eval.jsonl")
 

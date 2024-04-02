@@ -31,7 +31,7 @@ class Experiment(pl.LightningModule):
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
 
         input_ids = batch.pop("input_ids")
-        # import pdb;pdb.set_trace()
+
         if "ar" in self.cfg.task.task_name.lower():
             output = self.model(input_ids).logits.max(-1)[1]
             final_res = {}
@@ -105,6 +105,7 @@ def main(config):
 
         
     for task in subtasks:
+        log_c(f"Predicting {task}")
         config.task.dataset.subtask = task 
         data_module = CustomDatamodule(config.task, data_root_dir, tokenizer)
         data_module.setup(stage='predict')
@@ -123,27 +124,32 @@ def main(config):
             return_predictions=True,
         )
 
-        print_c(f"======= prediction end, begin to post process and save =======", "magenta")
-        # if task == config.exp_task: 
-        #     save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
-        #     save_path=os.path.dirname(os.path.dirname(os.path.dirname(save_path)))
-        #     save_final_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
-        # else:
-        cur_task = args.data_name
-        save_path = os.path.join(save_root_dir, f"{config.task.dataset.data_name}/",f"{args.model_name_or_path}/",f"{config.experiment.experiment_name}/")
-        # save_path = os.path.join(save_root_dir, f"{config.experiment.experiment_name}/")
+        # import pdb;pdb.set_trace()
         
-        save_final_path = save_path + str(task)+ "_predictions.pkl"
+        print_c(f"======= prediction end, begin to post process and save =======", "magenta")
+        if task == config.task.task_name: 
+            # TODO
+            save_path = os.path.join(save_root_dir, f"{config.task.dataset.data_name}/",f"{args.model_name_or_path}/",f"{config.experiment.experiment_name}/")
+            save_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/")
+            save_path=os.path.dirname(os.path.dirname(os.path.dirname(save_path)))
+            save_final_path = os.path.join(save_root_dir, f"{config.experiment.results_save_dir}/predictions.pkl")
+            evaluation_path = os.path.dirname(os.path.dirname(save_path))
+        else:       
+            save_path = os.path.join(save_root_dir, f"{config.task.task_name}/",f"{args.model_name_or_path}/")
+            save_final_path = save_path + str(task)+ "_predictions.pkl"
+            evaluation_path = os.path.dirname(save_path)
         auto_save_data(predictions, save_final_path)
         print_c(f"save predictions to {save_final_path}, total cost time: {time.time() - b_t}", "magenta")
 
+
+        
         eval = Evaluator(
             root_dir=save_root_dir, fpath=save_final_path, 
             data_path=data_root_dir,
-            task=cur_task,
-            subtask=config.experiment.experiment_name,
+            task=config.task.task_name,
+            subtask=task,
             tokenizer_name_or_path=None,
-            value=None, save_evaluation_path=os.path.dirname(os.path.dirname(save_path)),
+            value=None, save_evaluation_path=evaluation_path,
             save_gen_res=True,
         )
 
