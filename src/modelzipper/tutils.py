@@ -87,6 +87,74 @@ def log_c(s, c='yellow', *args, **kwargs):
     # Pass 'attrs' as a keyword argument to 'colored'
     print(colored(s, color=c, attrs=attributes))
 
+##########################
+######## Call API ########
+##########################
+
+
+SYSTEM_MESSAGE = """You will be provided with a text snippet (reference) and asked to generate one question and answer pair based on the reference. Each pair should consist of a question, an answer, and a reference snippet localized to the raw reference.
+
+    Determine if the input content is in English. If the content contains a lot of code, gibberish, math symbols, or HTTP URLs and is not suitable for generating questions and answers, respond with the word: Null.
+
+    If the content is suitable for generating questions and answers, return the output in the following format:
+
+    ####Q: {Question}####A: {Answer}####R: {Reference}####
+
+    {Question}: A question generated from the reference.
+    {Answer}: The corresponding answer, which can be inferred from the content of the reference.
+    {Reference}: A short, exact excerpt from the original text that directly relates to the question and answer. This snippet should not be identical to the answer but should support the answer. Ensure the reference snippet is concise and as short as possible, directly taken from the original text, and not the same as the answer.
+
+    You must follow the format provided above.
+    """
+
+def init_doubao_api(api_key=None):
+    from volcenginesdkarkruntime import Ark
+    api_key = os.getenv('API_KEY') if api_key is None else api_key
+    client = Ark(api_key=api_key)
+    return client
+
+
+def call_with_messages(client, model_name, messages=None, system_message=None, user_query=None, args=None, max_attempts=2):
+    model_endpoints = {
+        "doubao-lite-4k": os.getenv('DOUBAO_LITE_4K'),
+        "doubao-pro-4k": os.getenv('DOUBAO_PRO_4K'),
+        "doubao-pro-32k": os.getenv('DOUBAO_PRO_32K'),
+        "doubao-pro-128k": os.getenv('DOUBAO_PRO_128K'),
+    }
+    if messages is None:
+        messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_query},
+            ]
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            completion = client.chat.completions.create(
+                model=model_endpoints[model_name],
+                messages=messages,
+                **args,
+            )
+            response = completion.choices[0].message.content
+            return {
+                "status": "success",
+                "response": response,
+                "input": messages,
+            }
+        except Exception as e:
+            print(f"Attempt {attempts + 1} failed: {e}")
+            attempts += 1
+            if attempts < max_attempts:
+                time.sleep(5)  # sleep for 5 seconds before retrying
+            else:
+                print("Failed after maximum attempts.")
+                return {
+                    "status": "fail",
+                    "response": None,
+                    "input": messages,
+                }
+
+
+
 ###########################
 ##### Automatic utils #####
 ###########################
