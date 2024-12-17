@@ -223,7 +223,7 @@ def auto_read_data(file_path, return_format="list"):
     # Convert the size to a more readable format
     readable_size = convert_size(file_size)
 
-    print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
+    # print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
     try:
         if file_type == 'jsonl':  
             with open(file_path, 'r', encoding='utf-8') as file:  
