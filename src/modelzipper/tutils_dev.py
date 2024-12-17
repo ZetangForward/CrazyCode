@@ -31,7 +31,46 @@ from termcolor import colored
 from typing import Any, Mapping, Tuple, List, Optional, Dict, Sequence, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList 
 from omegaconf import OmegaConf
-from loguru import logger
+import openai
+
+def chat(ak       : str = None, 
+         url      : str = "https://api.onechats.top/v1/", 
+         model    : str = "gpt-4o",
+         message  : Optional[None, str] = None, 
+         template : List  = None, 
+         **kwargs
+         ) -> Optional[None | str]:
+    # ....
+
+    # 1. 封装 message 到template 里面，如果用户没有提供message，用默认的template封装
+    # try：、、 sleep 5 s, try 3 次失败返回None
+    # 2. 输入到API(model 默认是gpt40)
+    
+    
+    openai.api_key  = ak
+    openai.base_url = url
+    
+
+    messages=template if message is None \
+        else [{"role":"user","content":message}]
+
+    while True:
+        error_times=0
+        try:
+            response = openai.chat.completions.create(
+                model=model,
+                messages=messages,
+                **kwargs
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            if error_times==3:break
+            print(f"发生错误: {str(e)}")
+            print("5秒后重试...")
+            time.sleep(5)
+            error_times+=1
+
+    print("询问失败! 返回 None")
 
 
 def print_c(s, c='random', *args, **kwargs):
@@ -108,32 +147,25 @@ SYSTEM_MESSAGE = """You will be provided with a text snippet (reference) and ask
     You must follow the format provided above.
     """
 
-
-API_KEY="ea28bf46-979c-49b9-b08a-92303bb99052"
-DOUBAO_LITE_4K="ep-20240618124048-xd5vm"
-DOUBAO_PRO_4K="ep-20240725161435-hjkcn"
-DOUBAO_PRO_32K="ep-20240618163715-nmkbp"
-DOUBAO_PRO_128K="ep-20240822215215-46jsv"
-
 def init_doubao_api(api_key=None):
-    from openai import OpenAI
-    api_key = API_KEY if api_key is None else api_key
-    client = OpenAI(base_url="https://ark.cn-beijing.volces.com/api/v3", api_key=api_key)
+    from volcenginesdkarkruntime import Ark
+    api_key = os.getenv('API_KEY') if api_key is None else api_key
+    client = Ark(api_key=api_key)
     return client
 
 
-def call_with_messages(client, model_name, messages=None, system_message=None, user_query=None, max_attempts=2, **args):
+def call_with_messages(client, model_name, messages=None, system_message=None, user_query=None, args=None, max_attempts=2):
     model_endpoints = {
-        "doubao-lite-4k": DOUBAO_LITE_4K,
-        "doubao-pro-4k": DOUBAO_PRO_4K,
-        "doubao-pro-32k": DOUBAO_PRO_32K,
-        "doubao-pro-128k": DOUBAO_PRO_128K,
+        "doubao-lite-4k": os.getenv('DOUBAO_LITE_4K'),
+        "doubao-pro-4k": os.getenv('DOUBAO_PRO_4K'),
+        "doubao-pro-32k": os.getenv('DOUBAO_PRO_32K'),
+        "doubao-pro-128k": os.getenv('DOUBAO_PRO_128K'),
     }
     if messages is None:
         messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_query},
-        ]
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_query},
+            ]
     attempts = 0
     while attempts < max_attempts:
         try:
@@ -149,12 +181,12 @@ def call_with_messages(client, model_name, messages=None, system_message=None, u
                 "input": messages,
             }
         except Exception as e:
-            logger.info(f"Attempt {attempts + 1} failed: {e}")
+            print(f"Attempt {attempts + 1} failed: {e}")
             attempts += 1
             if attempts < max_attempts:
                 time.sleep(5)  # sleep for 5 seconds before retrying
             else:
-                logger.info("Failed after maximum attempts.")
+                print("Failed after maximum attempts.")
                 return {
                     "status": "fail",
                     "response": None,
@@ -166,43 +198,6 @@ def call_with_messages(client, model_name, messages=None, system_message=None, u
 ###########################
 ##### Automatic utils #####
 ###########################
-
-def get_empty_gpus(threshold=30, auto_set=False):
-    """
-    获取空闲的GPU ID
-    threshold: 小于此显存使用量(MB)的GPU被认为是空闲的
-    """
-
-    def get_gpu_memory():
-        """
-        获取所有GPU的显存使用情况
-        返回: [(GPU ID, 已用显存, 总显存), ...]
-        """
-        try:
-            output = subprocess.check_output(['nvidia-smi', '--query-gpu=index,memory.used,memory.total', '--format=csv,nounits,noheader'])
-            lines = output.decode().strip().split('\n')
-            return [tuple(map(int, line.split(','))) for line in lines]
-        except:
-            return []
-        
-    gpu_memory = get_gpu_memory()
-    if not gpu_memory:
-        logger.info("No GPUs available.")
-        return []
-    empty_gpus = []
-    for gpu_id, memory_used, memory_total in gpu_memory:
-        if memory_used < threshold:
-            empty_gpus.append(gpu_id)
-            logger.info(f"GPU {gpu_id} is available: {memory_used}MB/{memory_total}MB used")
-        else:
-            logger.info(f"GPU {gpu_id} is busy: {memory_used}MB/{memory_total}MB used")
-    if not auto_set:
-        return empty_gpus
-    else:
-        os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, empty_gpus))
-        logger.info(f"Set CUDA_VISIBLE_DEVICES to {os.environ['CUDA_VISIBLE_DEVICES']}")
-   
-
 
 def auto_read_data(file_path, return_format="list"):
     """
