@@ -31,7 +31,46 @@ from termcolor import colored
 from typing import Any, Mapping, Tuple, List, Optional, Dict, Sequence, Union
 from transformers import AutoTokenizer, AutoModelForCausalLM, TopKLogitsWarper, TemperatureLogitsWarper, TopPLogitsWarper, LogitsProcessorList 
 from omegaconf import OmegaConf
-from loguru import logger
+import openai
+
+def chat(ak       : str = None, 
+         url      : str = "https://api.onechats.top/v1/", 
+         model    : str = "gpt-4o",
+         message  : Optional[None, str] = None, 
+         template : List  = None, 
+         **kwargs
+         ) -> Optional[None | str]:
+    # ....
+
+    # 1. 封装 message 到template 里面，如果用户没有提供message，用默认的template封装
+    # try：、、 sleep 5 s, try 3 次失败返回None
+    # 2. 输入到API(model 默认是gpt40)
+    
+    
+    openai.api_key  = ak
+    openai.base_url = url
+    
+
+    messages=template if message is None \
+        else [{"role":"user","content":message}]
+
+    while True:
+        error_times=0
+        try:
+            response = openai.chat.completions.create(
+                model=model,
+                messages=messages,
+                **kwargs
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            if error_times==3:break
+            print(f"发生错误: {str(e)}")
+            print("5秒后重试...")
+            time.sleep(5)
+            error_times+=1
+
+    print("询问失败! 返回 None")
 
 
 def print_c(s, c='random', *args, **kwargs):
@@ -108,32 +147,25 @@ SYSTEM_MESSAGE = """You will be provided with a text snippet (reference) and ask
     You must follow the format provided above.
     """
 
-
-API_KEY="ea28bf46-979c-49b9-b08a-92303bb99052"
-DOUBAO_LITE_4K="ep-20240618124048-xd5vm"
-DOUBAO_PRO_4K="ep-20240725161435-hjkcn"
-DOUBAO_PRO_32K="ep-20240618163715-nmkbp"
-DOUBAO_PRO_128K="ep-20240822215215-46jsv"
-
 def init_doubao_api(api_key=None):
-    from openai import OpenAI
-    api_key = API_KEY if api_key is None else api_key
-    client = OpenAI(base_url="https://ark.cn-beijing.volces.com/api/v3", api_key=api_key)
+    from volcenginesdkarkruntime import Ark
+    api_key = os.getenv('API_KEY') if api_key is None else api_key
+    client = Ark(api_key=api_key)
     return client
 
 
-def call_with_messages(client, model_name, messages=None, system_message=None, user_query=None, max_attempts=2, **args):
+def call_with_messages(client, model_name, messages=None, system_message=None, user_query=None, args=None, max_attempts=2):
     model_endpoints = {
-        "doubao-lite-4k": DOUBAO_LITE_4K,
-        "doubao-pro-4k": DOUBAO_PRO_4K,
-        "doubao-pro-32k": DOUBAO_PRO_32K,
-        "doubao-pro-128k": DOUBAO_PRO_128K,
+        "doubao-lite-4k": os.getenv('DOUBAO_LITE_4K'),
+        "doubao-pro-4k": os.getenv('DOUBAO_PRO_4K'),
+        "doubao-pro-32k": os.getenv('DOUBAO_PRO_32K'),
+        "doubao-pro-128k": os.getenv('DOUBAO_PRO_128K'),
     }
     if messages is None:
         messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": user_query},
-        ]
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_query},
+            ]
     attempts = 0
     while attempts < max_attempts:
         try:
@@ -149,12 +181,12 @@ def call_with_messages(client, model_name, messages=None, system_message=None, u
                 "input": messages,
             }
         except Exception as e:
-            logger.info(f"Attempt {attempts + 1} failed: {e}")
+            print(f"Attempt {attempts + 1} failed: {e}")
             attempts += 1
             if attempts < max_attempts:
                 time.sleep(5)  # sleep for 5 seconds before retrying
             else:
-                logger.info("Failed after maximum attempts.")
+                print("Failed after maximum attempts.")
                 return {
                     "status": "fail",
                     "response": None,
@@ -166,43 +198,6 @@ def call_with_messages(client, model_name, messages=None, system_message=None, u
 ###########################
 ##### Automatic utils #####
 ###########################
-
-def get_empty_gpus(threshold=30, auto_set=False):
-    """
-    获取空闲的GPU ID
-    threshold: 小于此显存使用量(MB)的GPU被认为是空闲的
-    """
-
-    def get_gpu_memory():
-        """
-        获取所有GPU的显存使用情况
-        返回: [(GPU ID, 已用显存, 总显存), ...]
-        """
-        try:
-            output = subprocess.check_output(['nvidia-smi', '--query-gpu=index,memory.used,memory.total', '--format=csv,nounits,noheader'])
-            lines = output.decode().strip().split('\n')
-            return [tuple(map(int, line.split(','))) for line in lines]
-        except:
-            return []
-        
-    gpu_memory = get_gpu_memory()
-    if not gpu_memory:
-        logger.info("No GPUs available.")
-        return []
-    empty_gpus = []
-    for gpu_id, memory_used, memory_total in gpu_memory:
-        if memory_used < threshold:
-            empty_gpus.append(gpu_id)
-            logger.info(f"GPU {gpu_id} is available: {memory_used}MB/{memory_total}MB used")
-        else:
-            logger.info(f"GPU {gpu_id} is busy: {memory_used}MB/{memory_total}MB used")
-    if not auto_set:
-        return empty_gpus
-    else:
-        os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, empty_gpus))
-        logger.info(f"Set CUDA_VISIBLE_DEVICES to {os.environ['CUDA_VISIBLE_DEVICES']}")
-   
-
 
 def auto_read_data(file_path, return_format="list"):
     """
@@ -265,7 +260,7 @@ def convert_size(size_bytes):
     return f"{s} {size_name[i]}"
 
 
-def auto_save_data(lst: Optional[List|Dict], file_path):
+def auto_save_data(lst: List, file_path):
     """
     Save a list of items to a file.
     Automatically detect the file type by the suffix of the file_path.
@@ -291,7 +286,7 @@ def auto_save_data(lst: Optional[List|Dict], file_path):
     data_dir = os.path.dirname(file_path)
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
-        logger.info(f"{data_dir} not exist! --> Create data dir {data_dir}")
+        print_c(f"{data_dir} not exist! --> Create data dir {data_dir}")
     suffix_ = file_path.split(".")[-1]
     
     if suffix_ == "jsonl":
@@ -299,23 +294,18 @@ def auto_save_data(lst: Optional[List|Dict], file_path):
             for item in lst:
                 json.dump(item, f)
                 f.write("\n")
-        logger.info("jsonl file saved successfully!")
-    
-    elif suffix_ == "json":
-        with open(file_path, "w") as f:
-            json.dump(lst, f)
-        logger.info("json file saved successfully!")
-
+        print_c("jsonl file saved successfully!")
+        
     elif suffix_ == "pkl":
         with open(file_path, "wb") as f:
             pickle.dump(lst, f)
-        logger.info("pkl file saved successfully!")
+        print_c("pkl file saved successfully!")
         
     elif suffix_ == "txt":
         with open(file_path, "w") as f:
             for item in lst:
                 f.write(item + "\n")
-        logger.info("txt file saved successfully!")
+        print_c("txt file saved successfully!")
     else:
         raise ValueError(f"file_type {suffix_} not supported!")
     
@@ -324,7 +314,7 @@ def auto_save_data(lst: Optional[List|Dict], file_path):
     # Convert the size to a more readable format
     readable_size = convert_size(file_size)
 
-    logger.info(f"Save file to {file_path} | len: {len(lst)} |  size: {readable_size}")
+    print_c(f"Save file to {file_path} | len: {len(lst)} |  size: {readable_size}")
 
 
 def auto_mkdir(dir_path):
@@ -335,10 +325,10 @@ def auto_mkdir(dir_path):
         dir_path (str): The path to the directory.
     """
     if os.path.exists(dir_path):
-        logger.info(f"{dir_path} already exists!")
+        print_c(f"{dir_path} already exists!")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
-        logger.info(f"{dir_path} not exist! --> Create dir {dir_path}")
+        print_c(f"{dir_path} not exist! --> Create dir {dir_path}")
     return dir_path
 
 
@@ -366,7 +356,7 @@ def auto_read_dir(dir_path, file_prefix=None, file_suffix=None):
         search_pattern = os.path.join(dir_path, f"{file_prefix_pattern}*{file_suffix_pattern}")
         file_names = glob.glob(search_pattern)
     
-    logger.info(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)}")
+    print_c(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)}")
     return file_names
 
 
@@ -395,7 +385,7 @@ def count_file_num(directory, file_suffix=".png"):
     Quick count the number of png files in a directory
     """
     len_ = len([f for f in os.listdir(directory) if f.endswith(file_suffix)])
-    logger.info(f"Total {len_} {file_suffix} files in {directory}")
+    print_c(f"Total {len_} {file_suffix} files in {directory}")
     return len_
 
 
@@ -425,7 +415,7 @@ def load_yaml_config(config_path):
         else:
             return d
     
-    logger.info("load config files from {}".format(config_path))
+    print_c("load config files from {}".format(config_path))
     with open(config_path, 'r') as config_file:  
         try:  
             config = yaml.safe_load(config_file)  
@@ -434,8 +424,8 @@ def load_yaml_config(config_path):
             print(exc)  
             return None  
         
-    logger.info("config loaded successfully!", "magenta")
-    logger.info(OmegaConf.to_yaml(config), "magenta")
+    log_c("config loaded successfully!", "magenta")
+    print_c(OmegaConf.to_yaml(config), "magenta")
     return config
 
 
@@ -461,9 +451,9 @@ def count_parameters(model, model_parallel=False):
     trainable_params = sum(p.numel() for p in all_params if p.requires_grad)
     frozen_params = total_params - trainable_params
 
-    logger.info(f"Total parameters: {total_params}")
-    logger.info(f"Trainable parameters: {trainable_params}")
-    logger.info(f"Frozen parameters: {frozen_params}")
+    print_c(f"Total parameters: {total_params}")
+    print_c(f"Trainable parameters: {trainable_params}")
+    print_c(f"Frozen parameters: {frozen_params}")
 
     return total_params, trainable_params, frozen_params
 
@@ -539,7 +529,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        logger.info(f"{output_dir} not exist! --> Create output dir {output_dir}")
+        print_c(f"{output_dir} not exist! --> Create output dir {output_dir}")
     
     content = auto_read_data(file_path)
     
@@ -553,7 +543,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
     for i, item in enumerate(new_content):
         auto_save_data(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
         
-    logger.info(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
+    print_c(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
 
 
 def count_words(s: str):
@@ -602,7 +592,7 @@ def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, outpu
 
 
 def sample_dict_items(dict_, n=3):
-    logger.info(f"sample {n} items from dict", 'green')
+    print_c(f"sample {n} items from dict", 'green')
     cnt = 0
     for key, value in dict_.items():  
         print(f'Key: {key}, Value: {value}')  
@@ -624,7 +614,7 @@ def filter_jsonl_lst(lst: List[Dict], kws: List[str]=None):
     """
     if kws is None:
         res = lst
-        logger.info("Warning: no filtering, return directly!")
+        print_c("Warning: no filtering, return directly!")
     else:
         res = [dict([(k, item.get(k)) for k in kws]) for item in lst]
     return res
