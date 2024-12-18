@@ -36,3 +36,4 @@ Requires-Dist: einops
 Requires-Dist: accelerate
 Requires-Dist: hydra-core
 Requires-Dist: datasets
+Requires-Dist: loguru

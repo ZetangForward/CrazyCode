@@ -32,6 +32,7 @@ setup(
         'accelerate',
         'hydra-core',
         'datasets',
+        'loguru',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
