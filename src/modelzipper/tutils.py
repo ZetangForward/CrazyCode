@@ -223,7 +223,7 @@ def auto_read_data(file_path, return_format="list"):
     # Convert the size to a more readable format
     readable_size = convert_size(file_size)
 
-    # print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
+    print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
     try:
         if file_type == 'jsonl':  
             with open(file_path, 'r', encoding='utf-8') as file:  
@@ -265,7 +265,7 @@ def convert_size(size_bytes):
     return f"{s} {size_name[i]}"
 
 
-def auto_save_data(lst: List, file_path):
+def auto_save_data(lst: Optional[List|Dict], file_path):
     """
     Save a list of items to a file.
     Automatically detect the file type by the suffix of the file_path.
@@ -291,7 +291,7 @@ def auto_save_data(lst: List, file_path):
     data_dir = os.path.dirname(file_path)
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
-        print_c(f"{data_dir} not exist! --> Create data dir {data_dir}")
+        logger.info(f"{data_dir} not exist! --> Create data dir {data_dir}")
     suffix_ = file_path.split(".")[-1]
     
     if suffix_ == "jsonl":
@@ -299,18 +299,23 @@ def auto_save_data(lst: List, file_path):
             for item in lst:
                 json.dump(item, f)
                 f.write("\n")
-        print_c("jsonl file saved successfully!")
-        
+        logger.info("jsonl file saved successfully!")
+    
+    elif suffix_ == "json":
+        with open(file_path, "w") as f:
+            json.dump(lst, f)
+        logger.info("json file saved successfully!")
+
     elif suffix_ == "pkl":
         with open(file_path, "wb") as f:
             pickle.dump(lst, f)
-        print_c("pkl file saved successfully!")
+        logger.info("pkl file saved successfully!")
         
     elif suffix_ == "txt":
         with open(file_path, "w") as f:
             for item in lst:
                 f.write(item + "\n")
-        print_c("txt file saved successfully!")
+        logger.info("txt file saved successfully!")
     else:
         raise ValueError(f"file_type {suffix_} not supported!")
     
@@ -319,7 +324,7 @@ def auto_save_data(lst: List, file_path):
     # Convert the size to a more readable format
     readable_size = convert_size(file_size)
 
-    print_c(f"Save file to {file_path} | len: {len(lst)} |  size: {readable_size}")
+    logger.info(f"Save file to {file_path} | len: {len(lst)} |  size: {readable_size}")
 
 
 def auto_mkdir(dir_path):
@@ -330,10 +335,10 @@ def auto_mkdir(dir_path):
         dir_path (str): The path to the directory.
     """
     if os.path.exists(dir_path):
-        print_c(f"{dir_path} already exists!")
+        logger.info(f"{dir_path} already exists!")
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
-        print_c(f"{dir_path} not exist! --> Create dir {dir_path}")
+        logger.info(f"{dir_path} not exist! --> Create dir {dir_path}")
     return dir_path
 
 
@@ -361,7 +366,7 @@ def auto_read_dir(dir_path, file_prefix=None, file_suffix=None):
         search_pattern = os.path.join(dir_path, f"{file_prefix_pattern}*{file_suffix_pattern}")
         file_names = glob.glob(search_pattern)
     
-    print_c(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)}")
+    logger.info(f"number of files with prefix '{file_prefix or ''}' and suffix '{file_suffix or ''}': {len(file_names)}")
     return file_names
 
 
@@ -390,7 +395,7 @@ def count_file_num(directory, file_suffix=".png"):
     Quick count the number of png files in a directory
     """
     len_ = len([f for f in os.listdir(directory) if f.endswith(file_suffix)])
-    print_c(f"Total {len_} {file_suffix} files in {directory}")
+    logger.info(f"Total {len_} {file_suffix} files in {directory}")
     return len_
 
 
@@ -420,7 +425,7 @@ def load_yaml_config(config_path):
         else:
             return d
     
-    print_c("load config files from {}".format(config_path))
+    logger.info("load config files from {}".format(config_path))
     with open(config_path, 'r') as config_file:  
         try:  
             config = yaml.safe_load(config_file)  
@@ -429,8 +434,8 @@ def load_yaml_config(config_path):
             print(exc)  
             return None  
         
-    log_c("config loaded successfully!", "magenta")
-    print_c(OmegaConf.to_yaml(config), "magenta")
+    logger.info("config loaded successfully!", "magenta")
+    logger.info(OmegaConf.to_yaml(config), "magenta")
     return config
 
 
@@ -456,9 +461,9 @@ def count_parameters(model, model_parallel=False):
     trainable_params = sum(p.numel() for p in all_params if p.requires_grad)
     frozen_params = total_params - trainable_params
 
-    print_c(f"Total parameters: {total_params}")
-    print_c(f"Trainable parameters: {trainable_params}")
-    print_c(f"Frozen parameters: {frozen_params}")
+    logger.info(f"Total parameters: {total_params}")
+    logger.info(f"Trainable parameters: {trainable_params}")
+    logger.info(f"Frozen parameters: {frozen_params}")
 
     return total_params, trainable_params, frozen_params
 
@@ -534,7 +539,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        print_c(f"{output_dir} not exist! --> Create output dir {output_dir}")
+        logger.info(f"{output_dir} not exist! --> Create output dir {output_dir}")
     
     content = auto_read_data(file_path)
     
@@ -548,7 +553,7 @@ def split_file(file_path: json, output_dir, num_snaps=3):
     for i, item in enumerate(new_content):
         auto_save_data(item, os.path.join(output_dir, f"{origin_file_name}_{i}.jsonl"))
         
-    print_c(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
+    logger.info(f"Split file successfully into {num_snaps} parts! Check in {output_dir}")
 
 
 def count_words(s: str):
@@ -597,7 +602,7 @@ def visualize_batch_images(batch_images, ncols=6, nrows=6, subplot_size=2, outpu
 
 
 def sample_dict_items(dict_, n=3):
-    print_c(f"sample {n} items from dict", 'green')
+    logger.info(f"sample {n} items from dict", 'green')
     cnt = 0
     for key, value in dict_.items():  
         print(f'Key: {key}, Value: {value}')  
@@ -619,7 +624,7 @@ def filter_jsonl_lst(lst: List[Dict], kws: List[str]=None):
     """
     if kws is None:
         res = lst
-        print_c("Warning: no filtering, return directly!")
+        logger.info("Warning: no filtering, return directly!")
     else:
         res = [dict([(k, item.get(k)) for k in kws]) for item in lst]
     return res
