@@ -130,6 +130,8 @@ def call_with_messages(client, model_name, messages=None, system_message=None, u
         "doubao-pro-128k": DOUBAO_PRO_128K,
     }
     if messages is None:
+        if system_message is None:
+            system_message = "You are a helpful assistant who is here to provide guidance and support. You will be asked to generate a response to a user query. Your response should be helpful and informative."
         messages = [
             {"role": "system", "content": system_message},
             {"role": "user", "content": user_query},
