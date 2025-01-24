@@ -299,13 +299,13 @@ def auto_save_data(lst: Optional[List|Dict], file_path):
     if suffix_ == "jsonl":
         with open(file_path, "w") as f:
             for item in lst:
-                json.dump(item, f)
+                json.dump(item, f, ensure_ascii=False)
                 f.write("\n")
         logger.info("jsonl file saved successfully!")
     
     elif suffix_ == "json":
         with open(file_path, "w") as f:
-            json.dump(lst, f)
+            json.dump(lst, f, ensure_ascii=False)
         logger.info("json file saved successfully!")
 
     elif suffix_ == "pkl":
