@@ -3,6 +3,7 @@ README.md
 setup.py
 src/modelzipper/__init__.py
 src/modelzipper/tutils.py
+src/modelzipper/tutils_dev.py
 src/modelzipper.egg-info/PKG-INFO
 src/modelzipper.egg-info/SOURCES.txt
 src/modelzipper.egg-info/dependency_links.txt

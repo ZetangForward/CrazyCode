@@ -206,7 +206,7 @@ def get_empty_gpus(threshold=30, auto_set=False):
    
 
 
-def auto_read_data(file_path, return_format="list"):
+def auto_read_data(file_path, return_format="list", print_log=False):
     """
     Read data from a file and return it in the specified format.
 
@@ -224,8 +224,8 @@ def auto_read_data(file_path, return_format="list"):
     file_size = os.path.getsize(file_path)
     # Convert the size to a more readable format
     readable_size = convert_size(file_size)
-
-    print_c(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
+    if print_log:
+        logger.info(f"begin to read data from {file_path} | file size: {readable_size} | file type: {file_type}")
     try:
         if file_type == 'jsonl':  
             with open(file_path, 'r', encoding='utf-8') as file:  
