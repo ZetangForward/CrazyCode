@@ -3,7 +3,6 @@ Author: ZetangForward 1
 Date: 2023-12-12 15:29:13
 LastEditors: ZetangForward 1
 LastEditTime: 2023-12-12 17:45:20
-FilePath: /Detox-CoT/modelzipper/src/modelzipper/tutils.py
 '''
 import json
 import os
